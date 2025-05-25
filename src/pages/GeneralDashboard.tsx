@@ -104,6 +104,9 @@ export default function GeneralDashboard() {
           <CircularProgress />
         ) : (
           <Grid2 sx={{ width: '100%', height: '100%' }}>
+            <Grid2>
+              
+            </Grid2>
             <Grid2 sx={{ ...styles.chartsWrapper }}>{Charts}</Grid2>
           </Grid2>
         )}
