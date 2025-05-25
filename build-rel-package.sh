@@ -12,17 +12,17 @@ echo "Conda environment 'jupyterlab-ext' activated."
 echo "Bumping package.json version..."
 PACKAGE_JSON="package.json"
 
-# Bump patch version using jq
-if command -v jq &> /dev/null; then
-    current_version=$(jq -r .version "$PACKAGE_JSON")
-    IFS='.' read -r major minor patch <<< "$current_version"
-    new_version="${major}.${minor}.$((patch + 1))"
-    jq ".version = \"$new_version\"" "$PACKAGE_JSON" > tmp.json && mv tmp.json "$PACKAGE_JSON"
-    echo "Updated version to $new_version in $PACKAGE_JSON"
-else
-    echo "ERROR: jq not found. Please install jq to auto-bump version."
-    exit 1
-fi
+# # Bump patch version using jq
+# if command -v jq &> /dev/null; then
+#     current_version=$(jq -r .version "$PACKAGE_JSON")
+#     IFS='.' read -r major minor patch <<< "$current_version"
+#     new_version="${major}.${minor}.$((patch + 1))"
+#     jq ".version = \"$new_version\"" "$PACKAGE_JSON" > tmp.json && mv tmp.json "$PACKAGE_JSON"
+#     echo "Updated version to $new_version in $PACKAGE_JSON"
+# else
+#     echo "ERROR: jq not found. Please install jq to auto-bump version."
+#     exit 1
+# fi
 
 # Extract version using grep and sed
 version=$(grep '"version":' package.json | head -1 | sed -E 's/.*"version": *"([^"]+)".*/\1/')
@@ -42,9 +42,6 @@ else
     exit 1
 fi
 
-##
-
-#!/bin/bash
 set -e
 
 # Load the PYPI_TOKEN from .env (assumes "PYPI_TOKEN=\"tokenvalue\"" format)
@@ -65,7 +62,7 @@ python3 -m build -s
 echo "Uploading the package to PyPI..."
 python3 -m pip install --upgrade twine
 export TWINE_USERNAME="__token__"
-export TWINE_PASSWORD="$PYPI_TOKEN"
+export TWINE_PASSWORD=$PYPI_TOKEN
 python3 -m twine upload dist/*
 
 echo "Package uploaded successfully."
