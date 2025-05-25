@@ -42,6 +42,13 @@ else
     exit 1
 fi
 
+##
+
+#!/bin/bash
+set -e
+
+# Load the PYPI_TOKEN from .env (assumes "PYPI_TOKEN=\"tokenvalue\"" format)
+export PYPI_TOKEN=$(grep '^PYPI_TOKEN=' .env | cut -d '=' -f2- | tr -d '"')
 
 # Clean old builds
 echo "Cleaning previous builds..."
@@ -57,8 +64,15 @@ python3 -m build -s
 # Upload to PyPI
 echo "Uploading the package to PyPI..."
 python3 -m pip install --upgrade twine
+export TWINE_USERNAME="__token__"
+export TWINE_PASSWORD="$PYPI_TOKEN"
 python3 -m twine upload dist/*
 
 echo "Package uploaded successfully."
-echo "+-------------------------------------------------"
+echo "############################"
+echo "Cleaning up build environment..."
+deactivate
+rm -rf build-env
+echo "Build environment cleaned up."
+echo "############################"
 echo "DONE :)"
