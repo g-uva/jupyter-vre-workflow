@@ -1,5 +1,13 @@
 ## 🌱🌍♻️ EcoJupyter (GreenDIGIT project)
 
+### Usage
+1. Installation
+
+#### 1. Installation
+```sh
+pip install 
+```
+
 <!-- [![Github Actions Status](https://github.com/g-uva/egi-jupyterlab-extension.git/workflows/Build/badge.svg)](https://github.com/g-uva/egi-jupyterlab-extension.git/actions/workflows/build.yml)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/g-uva/egi-jupyterlab-extension.git/main?urlpath=lab) -->
 
@@ -18,7 +26,7 @@ A JupyterLab extension for EGI and Notebooks.
 To install the extension, execute:
 
 ```bash
-pip install egi_jupyterlab_ext
+pip install ecojupyter
 ```
 
 ## Uninstall
@@ -26,7 +34,7 @@ pip install egi_jupyterlab_ext
 To remove the extension, execute:
 
 ```bash
-pip uninstall egi_jupyterlab_ext
+pip uninstall ecojupyter
 ```
 
 ## Contributing
@@ -41,7 +49,7 @@ The `jlpm` command is JupyterLab's pinned version of
 
 ```bash
 # Clone the repo to your local environment
-# Change directory to the egi_jupyterlab_ext directory
+# Change directory to the ecojupyter directory
 # Install package in development mode
 pip install -e "."
 # Link your development version of the extension with JupyterLab
@@ -70,7 +78,7 @@ jupyter lab build --minimize=False
 ### Development uninstall
 
 ```bash
-pip uninstall egi_jupyterlab_ext
+pip uninstall ecojupyter
 ```
 
 In development mode, you will also need to remove the symlink created by `jupyter labextension develop`

@@ -3,7 +3,7 @@ requires = ["hatchling>=1.5.0", "jupyterlab>=4.0.0,<5", "hatch-nodejs-version>=0
 build-backend = "hatchling.build"
 
 [project]
-name = "egi_jupyterlab_ext"
+name = "ecojupyter"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.8"
@@ -33,24 +33,24 @@ source = "nodejs"
 fields = ["description", "authors", "urls", "keywords"]
 
 [tool.hatch.build.targets.sdist]
-artifacts = ["egi_jupyterlab_ext/labextension"]
+artifacts = ["ecojupyter/labextension"]
 exclude = [".github", "binder"]
 
 [tool.hatch.build.targets.wheel.shared-data]
-"egi_jupyterlab_ext/labextension" = "share/jupyter/labextensions/egi-jupyterlab-ext"
+"ecojupyter/labextension" = "share/jupyter/labextensions/egi-jupyterlab-ext"
 "install.json" = "share/jupyter/labextensions/egi-jupyterlab-ext/install.json"
 
 [tool.hatch.build.hooks.version]
-path = "egi_jupyterlab_ext/_version.py"
+path = "ecojupyter/_version.py"
 
 [tool.hatch.build.hooks.jupyter-builder]
 dependencies = ["hatch-jupyter-builder>=0.5"]
 build-function = "hatch_jupyter_builder.npm_builder"
 ensured-targets = [
-    "egi_jupyterlab_ext/labextension/static/style.js",
-    "egi_jupyterlab_ext/labextension/package.json",
+    "ecojupyter/labextension/static/style.js",
+    "ecojupyter/labextension/package.json",
 ]
-skip-if-exists = ["egi_jupyterlab_ext/labextension/static/style.js"]
+skip-if-exists = ["ecojupyter/labextension/static/style.js"]
 
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
 build_cmd = "build:prod"
@@ -60,7 +60,7 @@ npm = ["yarn"]
 build_cmd = "install:extension"
 npm = ["yarn"]
 source_dir = "src"
-build_dir = "egi_jupyterlab_ext/labextension"
+build_dir = "ecojupyter/labextension"
 
 [tool.jupyter-releaser.options]
 version_cmd = "hatch version"
