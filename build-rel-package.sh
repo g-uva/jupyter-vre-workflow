@@ -24,6 +24,25 @@ else
     exit 1
 fi
 
+# Extract version using grep and sed
+version=$(grep '"version":' package.json | head -1 | sed -E 's/.*"version": *"([^"]+)".*/\1/')
+echo "Pushing current version $version"
+
+git commit -am "Bump version to $version"
+
+# Create a new tag
+git tag "v$version"
+# Push the new tag to the remote repository
+git push origin "v$version"
+# Check if the tag push was successful
+if [ $? -eq 0 ]; then
+    echo "Successfully pushed tag v$version"
+else
+    echo "Failed to push tag v$version"
+    exit 1
+fi
+
+
 # Clean old builds
 echo "Cleaning previous builds..."
 rm -rf dist/ build/ *.egg-info
