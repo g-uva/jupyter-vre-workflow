@@ -78,7 +78,6 @@ export default function WelcomePage({
         </Button>
       </Grid2>
 
-      {/* <Divider sx={{ width: '100%' }} /> */}
       <GeneralDashboard />
     </Grid2>
   );

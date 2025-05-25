@@ -9,8 +9,8 @@ import { extent, min, max, bisector } from 'd3-array';
 import { downSample, parseData, shortNumber } from '../helpers/utils';
 
 const margin = { top: 20, right: 30, bottom: 40, left: 60 };
-const width = 700;
-const height = 350;
+const width = 500;
+const height = 300;
 
 interface IParsedDataPoint {
   date: Date;

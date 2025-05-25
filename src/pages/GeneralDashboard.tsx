@@ -1,14 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Paper,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  CircularProgress
-} from '@mui/material';
+import { Paper, CircularProgress, Grid2 } from '@mui/material';
 import ScaphChart from '../components/ScaphChart';
 import getScaphData from '../api/getScaphData';
+import MetricSelector from '../components/MetricSelector';
 
 const styles: Record<string, React.CSSProperties> = {
   main: {
@@ -25,8 +19,16 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center'
+  },
+  chartsWrapper: {
+    display: 'flex',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center'
   }
 };
+
+const NR_CHARTS = 4;
 
 export default function GeneralDashboard() {
   const [metrics, setMetrics] = useState<string[]>([]);
@@ -52,41 +54,38 @@ export default function GeneralDashboard() {
     });
   }, []);
 
+  const Charts: React.ReactElement[] = [];
+  for (let i = 0; i < NR_CHARTS; i++) {
+    Charts.push(
+      <Grid2 size={{ xs: 12, sm: 6 }}>
+        <Paper elevation={3} sx={{ p: 2, width: '100%', m: 2 }}>
+          <MetricSelector
+            selectedMetric={selectedMetric}
+            setSelectedMetric={setSelectedMetric}
+            metrics={metrics}
+          />
+          <ScaphChart
+            key={`${selectedMetric}-${i}`}
+            rawData={dataMap.get(selectedMetric) || []}
+          />
+        </Paper>
+      </Grid2>
+    );
+  }
+
   return (
     <div style={styles.main}>
       <Paper
         key="grid-element-main"
-        style={{ ...styles.grid, flexDirection: 'column', minWidth: 800 }}
+        style={{ ...styles.grid, flexDirection: 'column', minWidth: '100%' }}
         elevation={3}
       >
         {loading ? (
           <CircularProgress />
         ) : (
-          <>
-            <FormControl
-              variant="outlined"
-              size="small"
-              style={{ margin: 16, minWidth: 200 }}
-            >
-              <InputLabel id="metric-label">Metric</InputLabel>
-              <Select
-                labelId="metric-label"
-                value={selectedMetric}
-                label="Metric"
-                onChange={e => setSelectedMetric(e.target.value as string)}
-              >
-                {metrics.map(metric => (
-                  <MenuItem key={metric} value={metric}>
-                    {metric}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <ScaphChart
-              key={selectedMetric}
-              rawData={dataMap.get(selectedMetric) || []}
-            />
-          </>
+          <Grid2 sx={{ width: '100%', height: '100%' }}>
+            <Grid2 sx={styles.chartsWrapper}>{Charts}</Grid2>
+          </Grid2>
         )}
       </Paper>
     </div>
