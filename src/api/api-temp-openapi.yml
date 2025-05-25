@@ -1,0 +1,108 @@
+openapi: 3.0.3
+info:
+  title: EGI Data Centres API
+  description: API to fetch information about SCI results, execution time, availability, and details of various EGI data centres.
+  version: 1.0.0
+paths:
+  /data-centres:
+    get:
+      summary: Fetch data centre performance and availability information
+      description: Retrieve a list of SCI metrics, execution times, availability, and detailed system metrics for associated data centres.
+      responses:
+        '200':
+          description: Successful response containing the list of SCI data and details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: Unique identifier for the data centre resource
+                      example: egi-dc-1-4500-1
+                    sci:
+                      type: number
+                      format: float
+                      description: SCI metric value
+                      example: 12.33
+                    time:
+                      type: integer
+                      description: Estimated execution time in seconds
+                      example: 4500
+                    availability:
+                      type: string
+                      description: Availability status
+                      example: "++"
+                    dataCentres:
+                      type: array
+                      description: List of associated data centres
+                      items:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            description: Name of the data centre
+                            example: EGI Data Centre 1
+                          location:
+                            type: string
+                            description: Location of the data centre
+                            example: Amsterdam, Netherlands
+                          coordinates:
+                            type: object
+                            properties:
+                              lat:
+                                type: number
+                                format: float
+                                description: Latitude of the data centre
+                                example: 52.3676
+                              lng:
+                                type: number
+                                format: float
+                                description: Longitude of the data centre
+                                example: 4.9041
+                    details:
+                      type: object
+                      description: System performance details
+                      properties:
+                        cpu:
+                          type: object
+                          description: CPU metrics
+                          properties:
+                            usage:
+                              type: string
+                              description: CPU utilisation ratio
+                              example: "34.12"
+                            time:
+                              type: integer
+                              description: CPU time in microseconds
+                              example: 4523
+                            frequency:
+                              type: string
+                              description: CPU frequency in GHz
+                              example: "3.21"
+                        memory:
+                          type: object
+                          description: Memory metrics
+                          properties:
+                            energy:
+                              type: string
+                              description: Memory energy consumption in microjoules
+                              example: "876.45"
+                            used:
+                              type: integer
+                              description: Memory usage in bytes
+                              example: 924532
+                        network:
+                          type: object
+                          description: Network metrics
+                          properties:
+                            io:
+                              type: string
+                              description: Network I/O in bytes per second
+                              example: "45.23"
+                            connections:
+                              type: integer
+                              description: Number of network connections
+                              example: 12
