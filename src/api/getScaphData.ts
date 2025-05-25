@@ -23,12 +23,11 @@ async function getScaphMetrics(prometheusUrl: string): Promise<string[]> {
 
 export default async function getScaphData() {
   try {
-    const prometheusUrl = 'http://mc-a4.lab.uvalight.net/prometheus/';
-    const metrics: string[] = [];
+    const prometheusUrl = 'https://mc-a4.lab.uvalight.net/prometheus';
+    const metricNames: string[] = [];
     await getScaphMetrics(prometheusUrl).then(response =>
-      metrics.push(...response)
+      metricNames.push(...response)
     );
-    console.log('### Metrics response ### \n ', metrics);
 
     const end = Math.floor(Date.now() / 1000);
     const start = end - 3600; // last hour
@@ -36,7 +35,7 @@ export default async function getScaphData() {
 
     const results: Map<string, [number, string][]> = new Map();
 
-    for (const metricName of metrics) {
+    for (const metricName of metricNames) {
       const metricData = await getMetricData(
         prometheusUrl,
         metricName,

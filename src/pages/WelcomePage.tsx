@@ -49,7 +49,7 @@ export default function WelcomePage({
   return (
     <Grid2 sx={styles.main}>
       <Typography variant="h4" sx={styles.title}>
-        Welcome to GreenDIGIT Dashboard
+        GreenDIGIT Dashboard
       </Typography>
 
       {/* <ScaphInstaller /> */}
@@ -67,13 +67,13 @@ export default function WelcomePage({
         </Button>
       </Grid2> */}
       <Grid2 sx={styles.buttonGrid}>
-        <Button variant="outlined" onClick={handleRealTimeClick}>
+        <Button variant="outlined" disabled onClick={handleRealTimeClick}>
           Real-time Tracking Monitor
         </Button>
         <Button variant="outlined" onClick={handlePredictionClick}>
           Resource Usage Prediction
         </Button>
-        <Button variant="outlined" onClick={handleGrafanaClick}>
+        <Button variant="outlined" disabled onClick={handleGrafanaClick}>
           Grafana Dashboard
         </Button>
       </Grid2>

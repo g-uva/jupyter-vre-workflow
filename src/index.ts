@@ -32,7 +32,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     palette: ICommandPalette,
     restorer: ILayoutRestorer
   ) => {
-    console.log('JupyterLab extension GreenDIGIT is activated!');
+    // console.log('JupyterLab extension GreenDIGIT is activated!');
 
     const { shell } = app;
 

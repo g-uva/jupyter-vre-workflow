@@ -50,13 +50,14 @@ export default function GeneralDashboard() {
       setSelectedMetric(keys[0] || '');
       setLoading(false);
     });
-  }, [selectedMetric]);
+  }, []);
 
   return (
     <div style={styles.main}>
       <Paper
         key="grid-element-main"
         style={{ ...styles.grid, flexDirection: 'column', minWidth: 800 }}
+        elevation={3}
       >
         {loading ? (
           <CircularProgress />

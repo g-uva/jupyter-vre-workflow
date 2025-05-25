@@ -5,8 +5,8 @@ import { AxisLeft, AxisBottom } from '@visx/axis';
 import { Group } from '@visx/group';
 import { useTooltip, useTooltipInPortal } from '@visx/tooltip';
 import { localPoint } from '@visx/event';
-import { extent, max, bisector } from 'd3-array';
-import { downSample, parseData } from '../helpers/utils';
+import { extent, min, max, bisector } from 'd3-array';
+import { downSample, parseData, shortNumber } from '../helpers/utils';
 
 const margin = { top: 20, right: 30, bottom: 40, left: 60 };
 const width = 700;
@@ -76,9 +76,12 @@ export default function TimeSeriesLineChart({
     range: [margin.left, width - margin.right]
   });
 
+  const yMin = min(data, y) ?? 0;
   const yMax = max(data, y) ?? 0;
+  const yBuffer = (yMax - yMin) * 0.1; // 10% buffer
+  const baseline = Math.max(0, yMin - yBuffer);
   const yScale = scaleLinear({
-    domain: [0, yMax],
+    domain: [baseline, yMax],
     nice: true,
     range: [height - margin.bottom, margin.top]
   });
@@ -104,7 +107,9 @@ export default function TimeSeriesLineChart({
       children: (
         <div>
           <div>
-            <strong>{tooltipData?.value.toLocaleString()}</strong>
+            <strong>
+              {tooltipData?.value ? shortNumber(tooltipData?.value) : 'N/A'}
+            </strong>
           </div>
           <div style={{ fontSize: 11, color: '#333' }}>
             {tooltipData?.date.toLocaleTimeString([], {
@@ -135,7 +140,7 @@ export default function TimeSeriesLineChart({
           top={0}
           left={margin.left}
           // label="Value"
-          tickFormat={v => v.toLocaleString()}
+          tickFormat={v => shortNumber(Number(v))}
           stroke="#888"
           tickStroke="#888"
           tickLabelProps={() => ({
@@ -150,7 +155,7 @@ export default function TimeSeriesLineChart({
           scale={xScale}
           top={height - margin.bottom}
           left={0}
-          // label="Time"
+          label="Time"
           numTicks={6}
           tickFormat={date =>
             date instanceof Date
