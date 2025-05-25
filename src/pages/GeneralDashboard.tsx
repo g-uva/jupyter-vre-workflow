@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import dayjs, { Dayjs } from 'dayjs';
+
 import { Paper, CircularProgress, Grid2 } from '@mui/material';
 import ScaphChart from '../components/ScaphChart';
 import getScaphData from '../api/getScaphData';
 import MetricSelector from '../components/MetricSelector';
+import DateTimeRange from '../components/DateTimeRange';
 
 const styles: Record<string, React.CSSProperties> = {
   main: {
@@ -30,15 +33,23 @@ const styles: Record<string, React.CSSProperties> = {
 
 const NR_CHARTS = 4;
 
+const end = Math.floor(Date.now() / 1000);
+const start = end - 3600; // last hour
+const endDateJs = dayjs(end * 1000);
+const startDateJs = dayjs(start * 1000);
+
 export default function GeneralDashboard() {
-  const [metrics, setMetrics] = useState<string[]>([]);
-  const [dataMap, setDataMap] = useState<Map<string, [number, string][]>>(
+  const [startDate, setStartDate] = React.useState<Dayjs>(startDateJs);
+  const [endDate, setEndDate] = React.useState<Dayjs>(endDateJs);
+
+  const [metrics, setMetrics] = React.useState<string[]>([]);
+  const [dataMap, setDataMap] = React.useState<Map<string, [number, string][]>>(
     new Map()
   );
-  const [selectedMetric, setSelectedMetric] = useState<string[]>(
+  const [selectedMetric, setSelectedMetric] = React.useState<string[]>(
     new Array(NR_CHARTS).fill('')
   );
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = React.useState<boolean>(true);
 
   function handleUpdateSelectedMetric(index: number, newMetric: string) {
     setSelectedMetric(prev => {
@@ -48,30 +59,45 @@ export default function GeneralDashboard() {
     });
   }
 
-  useEffect(() => {
+  React.useEffect(() => {
+    console.log('triggered useEffect for fetching data');
     setLoading(true);
-    getScaphData().then(results => {
-      if (results.size === 0) {
-        console.error('No metrics found');
+    getScaphData({ startTime: startDate.unix(), endTime: endDate.unix() }).then(
+      results => {
+        if (results.size === 0) {
+          console.error('No metrics found');
+          setLoading(false);
+          return;
+        }
+        setDataMap(results);
+        const keys = Array.from(results.keys());
+        setMetrics(keys);
         setLoading(false);
-        return;
       }
-      setDataMap(results);
-      const keys = Array.from(results.keys());
-      setMetrics(keys);
+    );
+  }, [startDate, endDate]);
 
-      for (let i = 0; i < NR_CHARTS; i++) {
-        handleUpdateSelectedMetric(i, keys[i] || '');
+  React.useEffect(() => {
+    for (let i = 0; i < NR_CHARTS; i++) {
+      if (selectedMetric[i] === '') {
+        handleUpdateSelectedMetric(i, metrics[i] || '');
       }
-      setLoading(false);
-    });
-  }, []);
+    }
+  }, [metrics]);
 
   const Charts: React.ReactElement[] = [];
   for (let i = 0; i < NR_CHARTS; i++) {
     Charts.push(
-      <Grid2 size={{ xs: 12, sm: 6 }}>
-        <Paper elevation={3} sx={{ p: 2, width: '100%' }}>
+      <Grid2 sx={{ m: 5 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2,
+            width: '100%',
+            borderRadius: 3,
+            border: '1px solid #ccc'
+          }}
+        >
           <MetricSelector
             selectedMetric={selectedMetric[i]}
             setSelectedMetric={newMetric =>
@@ -96,7 +122,8 @@ export default function GeneralDashboard() {
           ...styles.grid,
           flexDirection: 'column',
           minWidth: '100%',
-          minHeight: '300px'
+          minHeight: '300px',
+          borderRadius: '15px'
         }}
         elevation={3}
       >
@@ -105,7 +132,20 @@ export default function GeneralDashboard() {
         ) : (
           <Grid2 sx={{ width: '100%', height: '100%' }}>
             <Grid2>
-              
+              <DateTimeRange
+                startTime={startDate}
+                endTime={endDate}
+                onStartTimeChange={newValue => {
+                  if (newValue) {
+                    setStartDate(newValue);
+                  }
+                }}
+                onEndTimeChange={newValue => {
+                  if (newValue) {
+                    setEndDate(newValue);
+                  }
+                }}
+              />
             </Grid2>
             <Grid2 sx={{ ...styles.chartsWrapper }}>{Charts}</Grid2>
           </Grid2>

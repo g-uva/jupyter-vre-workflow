@@ -26,12 +26,9 @@ interface IGetScaphData {
   endTime: number;
 }
 
-const end = Math.floor(Date.now() / 1000);
-const start = end - 3600; // last hour
-
 export default async function getScaphData({
-  startTime = start,
-  endTime = end
+  startTime,
+  endTime
 }: IGetScaphData) {
   try {
     const prometheusUrl = 'https://mc-a4.lab.uvalight.net/prometheus';
