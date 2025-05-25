@@ -1,6 +1,6 @@
 {
   "name": "egi-jupyterlab-ext",
-  "version": "0.1.205",
+  "version": "0.1.206",
   "description": "A JupyterLab extension for EGI and Notebooks.",
   "keywords": [
     "jupyter",
