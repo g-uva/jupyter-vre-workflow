@@ -1,0 +1,14 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v4.3.8
+_src_path: https://github.com/jupyterlab/extension-template
+author_email: g.j.teixeiradepinhoferreira@gmail.com
+author_name: Gonçalo Ferreira
+has_binder: false
+has_settings: false
+kind: frontend
+labextension_name: ecojupyter
+project_short_description: A JupyterLab extension for sustainability metrics.
+python_name: ecojupyter
+repository: https://github.com/g-uva/EcoJupyter
+test: false
+
