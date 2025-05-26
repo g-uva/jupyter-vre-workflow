@@ -1,27 +1,15 @@
 {
-<<<<<<< HEAD
-  "name": "egi-jupyterlab-ext",
-  "version": "0.1.204",
-  "description": "A JupyterLab extension for EGI and Notebooks.",
-=======
   "name": "ecojupyter",
   "version": "0.1.208",
   "description": "A JupyterLab extension for workflow sustainability metrics.",
->>>>>>> refactor-repo
   "keywords": [
     "jupyter",
     "jupyterlab",
     "jupyterlab-extension"
   ],
-<<<<<<< HEAD
-  "homepage": "https://github.com/g-uva/egi-jupyterlab-extension.git",
-  "bugs": {
-    "url": "https://github.com/g-uva/egi-jupyterlab-extension.git/issues"
-=======
   "homepage": "https://github.com/g-uva/EcoJupyter",
   "bugs": {
     "url": "https://github.com/g-uva/EcoJupyter/issues"
->>>>>>> refactor-repo
   },
   "license": "BSD-3-Clause",
   "author": {
@@ -38,11 +26,7 @@
   "style": "style/index.css",
   "repository": {
     "type": "git",
-<<<<<<< HEAD
-    "url": "https://github.com/g-uva/egi-jupyterlab-extension.git.git"
-=======
     "url": "https://github.com/g-uva/EcoJupyter.git"
->>>>>>> refactor-repo
   },
   "scripts": {
     "build": "yarn build:lib && yarn build:labextension:dev",
@@ -132,11 +116,7 @@
   },
   "jupyterlab": {
     "extension": true,
-<<<<<<< HEAD
-    "outputDir": "egi_jupyterlab_ext/labextension"
-=======
     "outputDir": "ecojupyter/labextension"
->>>>>>> refactor-repo
   },
   "eslintIgnore": [
     "node_modules",
