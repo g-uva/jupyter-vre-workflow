@@ -11,5 +11,5 @@ copier copy --trust https://github.com/jupyterlab/extension-template .
 cd ..
 
 pip install -ve .
-jupyter labextension develop . --overwrite
+jupyter labextension develop --overwrite .
 
