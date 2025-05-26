@@ -35,7 +35,7 @@ export default function DateTimeRange({
   }
 
   return (
-    <Grid2 sx={{ width: '100%' }}>
+    <Grid2 sx={{ width: '100%', p: '15px' }}>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <DateTimePicker
           slotProps={{ textField: { size: 'small' } }}
@@ -44,6 +44,7 @@ export default function DateTimeRange({
           onChange={setTempStartTime}
           onAccept={handleAccept}
           maxDateTime={tempEndTime ?? endTime ?? undefined}
+          sx={{ mr: 2 }}
         />
       </LocalizationProvider>
       <LocalizationProvider dateAdapter={AdapterDayjs}>

@@ -1,11 +1,13 @@
 ## 🌱🌍♻️ EcoJupyter (GreenDIGIT project)
 
 ### Usage
+
 1. Installation
 
 #### 1. Installation
+
 ```sh
-pip install 
+pip install
 ```
 
 <!-- [![Github Actions Status](https://github.com/g-uva/egi-jupyterlab-extension.git/workflows/Build/badge.svg)](https://github.com/g-uva/egi-jupyterlab-extension.git/actions/workflows/build.yml)

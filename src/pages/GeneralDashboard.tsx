@@ -6,6 +6,7 @@ import ScaphChart from '../components/ScaphChart';
 import getScaphData from '../api/getScaphData';
 import MetricSelector from '../components/MetricSelector';
 import DateTimeRange from '../components/DateTimeRange';
+import { IPrometheusMetrics, KPIComponent } from '../components/KPIComponent';
 
 const styles: Record<string, React.CSSProperties> = {
   main: {
@@ -38,6 +39,14 @@ const start = end - 3600; // last hour
 const endDateJs = dayjs(end * 1000);
 const startDateJs = dayjs(start * 1000);
 
+const DEFAULT_METRICS: IPrometheusMetrics = {
+  energyConsumed: 2.7, // E
+  carbonIntensity: 400, // I
+  embodiedEmissions: 50000, // M
+  functionalUnit: 10, // R
+  hepScore23: 42.3 // HEPScore23
+};
+
 export default function GeneralDashboard() {
   const [startDate, setStartDate] = React.useState<Dayjs>(startDateJs);
   const [endDate, setEndDate] = React.useState<Dayjs>(endDateJs);
@@ -60,7 +69,6 @@ export default function GeneralDashboard() {
   }
 
   React.useEffect(() => {
-    console.log('triggered useEffect for fetching data');
     setLoading(true);
     getScaphData({ startTime: startDate.unix(), endTime: endDate.unix() }).then(
       results => {
@@ -131,21 +139,40 @@ export default function GeneralDashboard() {
           <CircularProgress />
         ) : (
           <Grid2 sx={{ width: '100%', height: '100%' }}>
-            <Grid2>
-              <DateTimeRange
-                startTime={startDate}
-                endTime={endDate}
-                onStartTimeChange={newValue => {
-                  if (newValue) {
-                    setStartDate(newValue);
-                  }
+            <Grid2
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-between'
+              }}
+            >
+              <Grid2>
+                <DateTimeRange
+                  startTime={startDate}
+                  endTime={endDate}
+                  onStartTimeChange={newValue => {
+                    if (newValue) {
+                      setStartDate(newValue);
+                    }
+                  }}
+                  onEndTimeChange={newValue => {
+                    if (newValue) {
+                      setEndDate(newValue);
+                    }
+                  }}
+                />
+              </Grid2>
+              <Grid2
+                sx={{
+                  ...styles.grid,
+                  p: 2,
+                  m: 2,
+                  border: '1px solid #ccc',
+                  borderRadius: '15px'
                 }}
-                onEndTimeChange={newValue => {
-                  if (newValue) {
-                    setEndDate(newValue);
-                  }
-                }}
-              />
+              >
+                <KPIComponent metrics={DEFAULT_METRICS} />
+              </Grid2>
             </Grid2>
             <Grid2 sx={{ ...styles.chartsWrapper }}>{Charts}</Grid2>
           </Grid2>
