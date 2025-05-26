@@ -1,4 +1,4 @@
-# ecojupyterext
+# ecojupyter
 
 [![Github Actions Status](https://github.com/g-uva/EcoJupyter/workflows/Build/badge.svg)](https://github.com/g-uva/EcoJupyter/actions/workflows/build.yml)
 
@@ -13,7 +13,7 @@ A JupyterLab extension for sustainability metrics.
 To install the extension, execute:
 
 ```bash
-pip install ecojupyterext
+pip install ecojupyter
 ```
 
 ## Uninstall
@@ -21,7 +21,7 @@ pip install ecojupyterext
 To remove the extension, execute:
 
 ```bash
-pip uninstall ecojupyterext
+pip uninstall ecojupyter
 ```
 
 ## Contributing
@@ -36,7 +36,7 @@ The `jlpm` command is JupyterLab's pinned version of
 
 ```bash
 # Clone the repo to your local environment
-# Change directory to the ecojupyterext directory
+# Change directory to the ecojupyter directory
 # Install package in development mode
 pip install -e "."
 # Link your development version of the extension with JupyterLab
@@ -65,12 +65,12 @@ jupyter lab build --minimize=False
 ### Development uninstall
 
 ```bash
-pip uninstall ecojupyterext
+pip uninstall ecojupyter
 ```
 
 In development mode, you will also need to remove the symlink created by `jupyter labextension develop`
 command. To find its location, you can run `jupyter labextension list` to figure out where the `labextensions`
-folder is located. Then you can remove the symlink named `ecojupyterext` within that folder.
+folder is located. Then you can remove the symlink named `ecojupyter` within that folder.
 
 ### Packaging the extension
 

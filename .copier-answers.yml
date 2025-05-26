@@ -6,9 +6,9 @@ author_name: Gonçalo Ferreira
 has_binder: false
 has_settings: false
 kind: frontend
-labextension_name: ecojupyterext
+labextension_name: ecojupyter
 project_short_description: A JupyterLab extension for sustainability metrics.
-python_name: ecojupyterext
+python_name: ecojupyter
 repository: https://github.com/g-uva/EcoJupyter
 test: false
 
