@@ -124,7 +124,7 @@ __webpack_require__.d(exports, {
 /******/ 		// This function allow to reference async chunks
 /******/ 		__webpack_require__.u = (chunkId) => {
 /******/ 			// return url for filenames based on template
-/******/ 			return "" + chunkId + "." + {"lib_index_js":"54e1d413a16a255a155d","style_index_js":"5e69249ff875d392cd24"}[chunkId] + ".js";
+/******/ 			return "" + chunkId + "." + {"lib_index_js":"674cb4293dedc6f70af1","style_index_js":"5e69249ff875d392cd24"}[chunkId] + ".js";
 /******/ 		};
 /******/ 	})();
 /******/ 	
@@ -243,7 +243,7 @@ __webpack_require__.d(exports, {
 /******/ 			var promises = [];
 /******/ 			switch(name) {
 /******/ 				case "default": {
-/******/ 					register("ecojupyterext", "0.1.0", () => (__webpack_require__.e("lib_index_js").then(() => (() => (__webpack_require__(/*! ./lib/index.js */ "./lib/index.js"))))));
+/******/ 					register("ecojupyterext", "0.1.209", () => (__webpack_require__.e("lib_index_js").then(() => (() => (__webpack_require__(/*! ./lib/index.js */ "./lib/index.js"))))));
 /******/ 				}
 /******/ 				break;
 /******/ 			}
@@ -380,4 +380,4 @@ __webpack_require__.d(exports, {
 /******/ 	
 /******/ })()
 ;
-//# sourceMappingURL=remoteEntry.9d072cccc19ebac7bf4e.js.map
+//# sourceMappingURL=remoteEntry.42920dd9f28dd165b11e.js.map

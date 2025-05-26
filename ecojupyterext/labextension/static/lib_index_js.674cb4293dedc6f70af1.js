@@ -28,4 +28,4 @@ const plugin = {
 /***/ })
 
 }]);
-//# sourceMappingURL=lib_index_js.54e1d413a16a255a155d.js.map
+//# sourceMappingURL=lib_index_js.674cb4293dedc6f70af1.js.map

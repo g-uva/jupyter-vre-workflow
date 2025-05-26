@@ -699,8 +699,25 @@
               "import": false,
               "singleton": true
             },
+            "@emotion/react": {},
+            "@emotion/styled": {},
+            "@mui/icons-material": {},
+            "@mui/material": {},
+            "@mui/x-charts": {},
+            "@mui/x-date-pickers": {},
+            "@visx/axis": {},
+            "@visx/event": {},
+            "@visx/scale": {},
+            "@visx/shape": {},
+            "@visx/tooltip": {},
+            "bun": {},
+            "dayjs": {},
+            "express": {},
+            "maplibre-gl": {},
+            "path": {},
+            "react-map-gl": {},
             "ecojupyterext": {
-              "version": "0.1.0",
+              "version": "0.1.209",
               "singleton": true,
               "import": "/Users/goncaloferreira/Work/uva/greendigit/ecojupyter/lib/index.js"
             }
