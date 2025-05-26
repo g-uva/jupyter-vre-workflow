@@ -1,5 +1,9 @@
 name: "Step 1: Prep Release"
 on:
+  workflow_run:
+    workflows: ["Build"]
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       version_spec:
@@ -12,10 +16,10 @@ on:
       post_version_spec:
         description: "Post Version Specifier"
         required: false
-      # silent:
-      #   description: "Set a placeholder in the changelog and don't publish the release."
-      #   required: false
-      #   type: boolean
+      silent:
+        description: "Set a placeholder in the changelog and don't publish the release."
+        required: false
+        type: boolean
       since:
         description: "Use PRs with activity since this date or git reference"
         required: false
@@ -24,25 +28,54 @@ on:
         required: false
         type: boolean
 jobs:
-  prep_release:
+  prep_release_2:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
+      - name: Clear Cache
+        uses: actions/cache@v3
+        with:
+          path: /home/runner/.cache/pip
+          key: ${{ runner.os }}-pip-clear-cache-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-pip-clear-cache-
+      - name: Debugging Environment
+        run: |
+          echo "Checking GITHUB_TOKEN permissions..."
+          curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/${{ github.repository }}
+      
       - uses: jupyterlab/maintainer-tools/.github/actions/base-setup@v1
-
       - name: Prep Release
         id: prep-release
         uses: jupyter-server/jupyter_releaser/.github/actions/prep-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version_spec: ${{ github.event.inputs.version_spec }}
-          # silent: ${{ github.event.inputs.silent }}
           post_version_spec: ${{ github.event.inputs.post_version_spec }}
           branch: ${{ github.event.inputs.branch }}
           since: ${{ github.event.inputs.since }}
           since_last_stable: ${{ github.event.inputs.since_last_stable }}
-
+        # with:
+        #   token: ${{ secrets.GITHUB_TOKEN }}
+        #   version_spec: "next"
+        #   branch: "main"
+        #   since: "2025-01-01"
+        #   since_last_stable: true
       - name: "** Next Step **"
         run: |
-          echo "Optional): Review Draft Release: ${{ steps.prep-release.outputs.release_url }}"
+          echo "Draft Release: ${{ steps.prep-release.outputs.release_url }}"
+permissions:
+  actions: write
+  attestations: write
+  checks: write
+  contents: write
+  deployments: write
+  discussions: write
+  id-token: write
+  issues: write
+  # metadata: write
+  packages: write
+  pages: write
+  pull-requests: write
+  security-events: write
+  statuses: write
