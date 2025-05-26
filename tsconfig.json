@@ -18,7 +18,12 @@
     "rootDir": "src",
     "strict": true,
     "strictNullChecks": true,
-    "target": "ES2018"
+    "target": "ES2018",
+    "typeRoots": [
+      "node_modules/@types",
+      "src/types"
+    ]
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["node_modules/*", "lib", "dist", "test", "tests", "coverage", "docs"]
 }

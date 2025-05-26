@@ -74,13 +74,14 @@
     "bun": "^1.2.13",
     "dayjs": "^1.11.13",
     "express": "^5.1.0",
-    "maplibre-gl": "^5.0.0",
+    "maplibre-gl": "^5.5.0",
     "path": "^0.12.7",
-    "react-map-gl": "^7.1.8"
+    "react-map-gl": "^8.0.4"
   },
   "devDependencies": {
     "@jupyterlab/builder": "^4.0.0",
     "@jupyterlab/testutils": "^4.0.0",
+    "@types/entities": "^2.0.2",
     "@types/express": "^5.0.2",
     "@types/jest": "^29.2.0",
     "@types/json-schema": "^7.0.11",
@@ -118,7 +119,7 @@
     "extension": true,
     "outputDir": "ecojupyterext/labextension",
     "_build": {
-      "load": "static/remoteEntry.42920dd9f28dd165b11e.js",
+      "load": "static/remoteEntry.62365ce3d40a67fa9c82.js",
       "extension": "./extension",
       "style": "./style"
     }
