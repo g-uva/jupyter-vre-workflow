@@ -31,7 +31,7 @@ export default async function getScaphData({
   endTime
 }: IGetScaphData) {
   try {
-    const prometheusUrl = 'https://mc-a4.lab.uvalight.net/prometheus';
+    const prometheusUrl = 'https://mc-a4.lab.uvalight.net/prometheus-goncalo/';
     const metricNames: string[] = [];
     await getScaphMetrics(prometheusUrl).then(response =>
       metricNames.push(...response)

@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import GeneralDashboard from './GeneralDashboard';
 // import ScaphInstaller from '../components/ScaphInstaller';
+// import ScaphInstaller from '../components/ScaphInstaller';
 
 const styles: Record<string, SxProps> = {
   main: {
@@ -55,9 +56,8 @@ export default function WelcomePage({
       {/* <ScaphInstaller /> */}
 
       {/* <Grid2 sx={styles.buttonGrid}>
-        <Button variant="outlined">Download Scaphandre + Prometheus</Button>
-        <Button variant="outlined" disabled>
-          Start Scaphandre
+        <Button variant="outlined">
+          Install and run Scaphandre + Prometheus
         </Button>
         <Button variant="outlined" disabled>
           Export Metrics
