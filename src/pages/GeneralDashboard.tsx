@@ -1,12 +1,12 @@
 import React from 'react';
-import dayjs, { Dayjs } from 'dayjs';
+import { Dayjs } from 'dayjs';
 
 import { Paper, CircularProgress, Grid2 } from '@mui/material';
 import ScaphChart from '../components/ScaphChart';
-import getScaphData from '../api/getScaphData';
 import MetricSelector from '../components/MetricSelector';
 import DateTimeRange from '../components/DateTimeRange';
 import { IPrometheusMetrics, KPIComponent } from '../components/KPIComponent';
+import { NR_CHARTS } from '../helpers/constants';
 
 const styles: Record<string, React.CSSProperties> = {
   main: {
@@ -32,13 +32,6 @@ const styles: Record<string, React.CSSProperties> = {
   }
 };
 
-const NR_CHARTS = 4;
-
-const end = Math.floor(Date.now() / 1000);
-const start = end - 3600; // last hour
-const endDateJs = dayjs(end * 1000);
-const startDateJs = dayjs(start * 1000);
-
 const DEFAULT_METRICS: IPrometheusMetrics = {
   energyConsumed: 2.7, // E
   carbonIntensity: 400, // I
@@ -47,52 +40,29 @@ const DEFAULT_METRICS: IPrometheusMetrics = {
   hepScore23: 42.3 // HEPScore23
 };
 
-export default function GeneralDashboard() {
-  const [startDate, setStartDate] = React.useState<Dayjs>(startDateJs);
-  const [endDate, setEndDate] = React.useState<Dayjs>(endDateJs);
+interface IGeneralDashboardProps {
+  startDate: Dayjs;
+  setStartDate: (date: Dayjs) => void;
+  setEndDate: (date: Dayjs) => void;
+  endDate: Dayjs;
+  metrics: string[];
+  dataMap: Map<string, [number, string][]>;
+  selectedMetric: string[];
+  setSelectedMetric: (index: number, newMetric: string) => void;
+  loading: boolean;
+}
 
-  const [metrics, setMetrics] = React.useState<string[]>([]);
-  const [dataMap, setDataMap] = React.useState<Map<string, [number, string][]>>(
-    new Map()
-  );
-  const [selectedMetric, setSelectedMetric] = React.useState<string[]>(
-    new Array(NR_CHARTS).fill('')
-  );
-  const [loading, setLoading] = React.useState<boolean>(true);
-
-  function handleUpdateSelectedMetric(index: number, newMetric: string) {
-    setSelectedMetric(prev => {
-      const updated = [...prev];
-      updated[index] = newMetric;
-      return updated;
-    });
-  }
-
-  React.useEffect(() => {
-    setLoading(true);
-    getScaphData({ startTime: startDate.unix(), endTime: endDate.unix() }).then(
-      results => {
-        if (results.size === 0) {
-          console.error('No metrics found');
-          setLoading(false);
-          return;
-        }
-        setDataMap(results);
-        const keys = Array.from(results.keys());
-        setMetrics(keys);
-        setLoading(false);
-      }
-    );
-  }, [startDate, endDate]);
-
-  React.useEffect(() => {
-    for (let i = 0; i < NR_CHARTS; i++) {
-      if (selectedMetric[i] === '') {
-        handleUpdateSelectedMetric(i, metrics[i] || '');
-      }
-    }
-  }, [metrics]);
-
+export default function GeneralDashboard({
+  startDate,
+  endDate,
+  setStartDate,
+  setEndDate,
+  metrics,
+  dataMap,
+  selectedMetric,
+  setSelectedMetric,
+  loading
+}: IGeneralDashboardProps) {
   const Charts: React.ReactElement[] = [];
   for (let i = 0; i < NR_CHARTS; i++) {
     Charts.push(
@@ -108,9 +78,7 @@ export default function GeneralDashboard() {
         >
           <MetricSelector
             selectedMetric={selectedMetric[i]}
-            setSelectedMetric={newMetric =>
-              handleUpdateSelectedMetric(i, newMetric)
-            }
+            setSelectedMetric={newMetric => setSelectedMetric(i, newMetric)}
             metrics={metrics}
           />
           <ScaphChart
@@ -137,6 +105,21 @@ export default function GeneralDashboard() {
       >
         {loading ? (
           <CircularProgress />
+        ) : loading === false && metrics.length === 0 ? (
+          <Grid2
+            sx={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}
+          >
+            <h3>
+              No metrics available/loaded. Write your username on the textfield
+              above and click "Fetch Metrics" to see the metrics.
+            </h3>
+          </Grid2>
         ) : (
           <Grid2 sx={{ width: '100%', height: '100%' }}>
             <Grid2

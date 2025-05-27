@@ -22,20 +22,19 @@ async function getScaphMetrics(prometheusUrl: string): Promise<string[]> {
 }
 
 interface IGetScaphData {
+  url: string;
   startTime: number;
   endTime: number;
 }
 
 export default async function getScaphData({
+  url,
   startTime,
   endTime
 }: IGetScaphData) {
   try {
-    const prometheusUrl = 'https://mc-a4.lab.uvalight.net/prometheus-goncalo/';
     const metricNames: string[] = [];
-    await getScaphMetrics(prometheusUrl).then(response =>
-      metricNames.push(...response)
-    );
+    await getScaphMetrics(url).then(response => metricNames.push(...response));
 
     const step = 15;
 
@@ -43,7 +42,7 @@ export default async function getScaphData({
 
     for (const metricName of metricNames) {
       const metricData = await getMetricData(
-        prometheusUrl,
+        url,
         metricName,
         startTime,
         endTime,
