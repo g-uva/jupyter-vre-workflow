@@ -138,7 +138,7 @@ export default function WelcomePage({
           Fetch Metrics
         </Button>
       </Grid2>
-      <Grid2 sx={styles.buttonGrid}>
+      {/* <Grid2 sx={styles.buttonGrid}>
         <Button variant="outlined" disabled onClick={handleRealTimeClick}>
           Real-time Tracking Monitor
         </Button>
@@ -148,7 +148,7 @@ export default function WelcomePage({
         <Button variant="outlined" disabled onClick={handleGrafanaClick}>
           Grafana Dashboard
         </Button>
-      </Grid2>
+      </Grid2> */}
 
       <GeneralDashboard
         startDate={startDate}
