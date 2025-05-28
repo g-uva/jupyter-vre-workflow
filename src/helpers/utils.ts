@@ -33,3 +33,13 @@ export function shortNumber(num: number, digits = 3): string {
   }
   return num.toString();
 }
+
+// Convert microjoules to joules
+export const microjoulesToJoules = (uj: number) => uj / 1_000_000;
+
+// Convert joules to kWh
+export const joulesToKWh = (j: number) => j / 3_600_000;
+
+export function microjoulesToKWh(uj: number): number {
+  return uj / 1_000_000 / 3_600_000;
+}

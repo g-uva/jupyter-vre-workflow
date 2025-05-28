@@ -3,16 +3,10 @@ import {
   IKPIValues,
   ISCIProps,
   METRIC_KEY_MAP,
-  RawMetrics
+  RawMetrics,
+  IPrometheusMetrics
 } from '../helpers/types';
-
-export interface IPrometheusMetrics {
-  energyConsumed: number; // E
-  carbonIntensity: number; // I
-  embodiedEmissions: number; // M
-  functionalUnit: number; // R
-  hepScore23: number; // HEPScore23 benchmark
-}
+import { microjoulesToKWh } from '../helpers/utils';
 
 function getLatestValue(
   metricData: [number, string][] | undefined
@@ -46,16 +40,17 @@ const embodiedEmissions = 50000;
 const hepScore23 = 42.3;
 
 function prometheusMetricsProxy(
-  type: MetricProfile = 'Avg',
-  raw: <RawMetrics></RawMetrics>
+  type: MetricProfile,
+  raw: RawMetrics
 ): IPrometheusMetrics {
   const rawEnergyConsumed = raw.get(METRIC_KEY_MAP.energyConsumed);
   const rawFunctionalUnit = raw.get(METRIC_KEY_MAP.functionalUnit);
 
-  const energyConsumed =
+  const energyConsumed = microjoulesToKWh(
     (type === 'Avg'
       ? getAvgValue(rawEnergyConsumed)
-      : getLatestValue(rawEnergyConsumed)) ?? 0;
+      : getLatestValue(rawEnergyConsumed)) ?? 0
+  );
   const functionalUnit =
     (type === 'Avg'
       ? getAvgValue(rawFunctionalUnit)
@@ -72,8 +67,7 @@ function prometheusMetricsProxy(
 
 function calculateSCI(sciValues: ISCIProps): IKPIValues {
   const { E, I, M, R } = sciValues;
-  // SCI calculation
-  // SCI = ((E * I) + M) / R
+
   const sci = R > 0 ? (E * I + M) / R : 0;
 
   // Example extra KPIs:
@@ -118,10 +112,21 @@ export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
 
   return (
     <div>
-      <div>SCI: {kpi.sci}</div>
-      <div>HEPScore23: {kpi.hepScore23}</div>
-      <div>SCI per Unit: {kpi.sciPerUnit}</div>
-      <div>Energy per Unit: {kpi.energyPerUnit}</div>
+      <div>
+        <span style={{ fontWeight: 'bold' }}>SCI</span> (gCO₂/unit){' '}
+        {kpi.sci.toFixed(1)}
+      </div>
+      <div>
+        <span style={{ fontWeight: 'bold' }}>SCI per Unit</span> (gCO₂){' '}
+        {kpi.sciPerUnit.toFixed(1)}
+      </div>
+      <div>
+        <span style={{ fontWeight: 'bold' }}>Energy per Unit</span> (kWh/unit){' '}
+        {kpi.energyPerUnit.toFixed(4)}
+      </div>
+      <div>
+        <span style={{ fontWeight: 'bold' }}>HEPScore23</span>: {kpi.hepScore23}
+      </div>
     </div>
   );
 };

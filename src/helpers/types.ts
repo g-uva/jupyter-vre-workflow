@@ -22,3 +22,11 @@ export interface IKPIValues {
   sciPerUnit: number;
   energyPerUnit: number;
 }
+
+export interface IPrometheusMetrics {
+  energyConsumed: number; // E, in kWh
+  carbonIntensity: number; // I, gCO2/kWh
+  embodiedEmissions: number; // M, gCO2
+  functionalUnit: number; // R
+  hepScore23: number; // HEPScore23
+}
