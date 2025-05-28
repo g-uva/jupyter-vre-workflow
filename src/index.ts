@@ -32,8 +32,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
     palette: ICommandPalette,
     restorer: ILayoutRestorer
   ) => {
-    // console.log('JupyterLab extension GreenDIGIT is activated!');
-
     const { shell } = app;
 
     // Create a widget tracker

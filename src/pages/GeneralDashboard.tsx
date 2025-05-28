@@ -57,17 +57,19 @@ export default function GeneralDashboard({
   loading
 }: IGeneralDashboardProps) {
   const Charts: React.ReactElement[] = [];
-  console.log(dataMap);
   for (let i = 0; i < NR_CHARTS; i++) {
     Charts.push(
-      <Grid2 sx={{ m: 5 }}>
+      <Grid2 sx={{ mx: 5, my: 2 }}>
         <Paper
           elevation={0}
           sx={{
             p: 2,
             width: '100%',
             borderRadius: 3,
-            border: '1px solid #ccc'
+            border: '1px solid #ccc',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center !important'
           }}
         >
           <MetricSelector
