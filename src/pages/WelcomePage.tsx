@@ -11,6 +11,7 @@ import GeneralDashboard from './GeneralDashboard';
 import { Dayjs } from 'dayjs';
 import getScaphData from '../api/getScaphData';
 import { startDateJs, endDateJs, NR_CHARTS } from '../helpers/constants';
+import { RawMetrics } from '../helpers/types';
 // import ScaphInstaller from '../components/ScaphInstaller';
 
 const styles: Record<string, SxProps> = {
@@ -53,9 +54,7 @@ export default function WelcomePage({
   const [endDate, setEndDate] = React.useState<Dayjs>(endDateJs);
 
   const [metrics, setMetrics] = React.useState<string[]>([]);
-  const [dataMap, setDataMap] = React.useState<Map<string, [number, string][]>>(
-    new Map()
-  );
+  const [dataMap, setDataMap] = React.useState<RawMetrics>(new Map());
   const [selectedMetric, setSelectedMetric] = React.useState<string[]>(
     new Array(NR_CHARTS).fill('')
   );
@@ -90,7 +89,7 @@ export default function WelcomePage({
         return;
       }
       setDataMap(results);
-      const keys = Array.from(results.keys());
+      const keys: string[] = Array.from(results.keys());
       setMetrics(keys);
       setLoading(false);
     });

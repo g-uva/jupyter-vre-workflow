@@ -1,3 +1,5 @@
+import { RawMetrics } from '../helpers/types';
+
 async function getMetricData(
   prometheusUrl: string,
   metricName: string,
@@ -38,7 +40,7 @@ export default async function getScaphData({
 
     const step = 15;
 
-    const results: Map<string, [number, string][]> = new Map();
+    const results: RawMetrics = new Map();
 
     for (const metricName of metricNames) {
       const metricData = await getMetricData(

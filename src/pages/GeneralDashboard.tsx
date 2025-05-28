@@ -5,8 +5,9 @@ import { Paper, CircularProgress, Grid2 } from '@mui/material';
 import ScaphChart from '../components/ScaphChart';
 import MetricSelector from '../components/MetricSelector';
 import DateTimeRange from '../components/DateTimeRange';
-import { IPrometheusMetrics, KPIComponent } from '../components/KPIComponent';
+import { KPIComponent } from '../components/KPIComponent';
 import { NR_CHARTS } from '../helpers/constants';
+import { RawMetrics } from '../helpers/types';
 
 const styles: Record<string, React.CSSProperties> = {
   main: {
@@ -32,21 +33,13 @@ const styles: Record<string, React.CSSProperties> = {
   }
 };
 
-const DEFAULT_METRICS: IPrometheusMetrics = {
-  energyConsumed: 2.7, // E
-  carbonIntensity: 400, // I
-  embodiedEmissions: 50000, // M
-  functionalUnit: 10, // R
-  hepScore23: 42.3 // HEPScore23
-};
-
 interface IGeneralDashboardProps {
   startDate: Dayjs;
   setStartDate: (date: Dayjs) => void;
   setEndDate: (date: Dayjs) => void;
   endDate: Dayjs;
   metrics: string[];
-  dataMap: Map<string, [number, string][]>;
+  dataMap: RawMetrics;
   selectedMetric: string[];
   setSelectedMetric: (index: number, newMetric: string) => void;
   loading: boolean;
@@ -64,6 +57,7 @@ export default function GeneralDashboard({
   loading
 }: IGeneralDashboardProps) {
   const Charts: React.ReactElement[] = [];
+  console.log(dataMap);
   for (let i = 0; i < NR_CHARTS; i++) {
     Charts.push(
       <Grid2 sx={{ m: 5 }}>
@@ -154,7 +148,7 @@ export default function GeneralDashboard({
                   borderRadius: '15px'
                 }}
               >
-                <KPIComponent metrics={DEFAULT_METRICS} />
+                <KPIComponent rawMetrics={dataMap} />
               </Grid2>
             </Grid2>
             <Grid2 sx={{ ...styles.chartsWrapper }}>{Charts}</Grid2>
