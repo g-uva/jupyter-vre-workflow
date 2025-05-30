@@ -27,6 +27,9 @@ import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 
 import KpiValue from './KpiValue';
+import getDynamicCarbonIntensity from '../api/getCarbonIntensityData';
+
+const NA_VALUE = 'N/A';
 
 function getLatestValue(
   metricData: [number, string][] | undefined
@@ -55,14 +58,16 @@ function getAvgValue(
 type MetricProfile = 'Last' | 'Avg';
 
 // Default static values
-const carbonIntensity = 400;
+const defaultCarbonIntensity = 400;
 const embodiedEmissions = 50000;
-const hepScore23 = 42.3;
+// const hepScore23 = 42.3;
 
-function prometheusMetricsProxy(
+async function prometheusMetricsProxy(
   type: MetricProfile,
   raw: RawMetrics
-): IPrometheusMetrics {
+): Promise<IPrometheusMetrics> {
+  const carbonIntensity =
+    (await getDynamicCarbonIntensity()) ?? defaultCarbonIntensity;
   const rawEnergyConsumed = raw.get(METRIC_KEY_MAP.energyConsumed);
   const rawFunctionalUnit = raw.get(METRIC_KEY_MAP.functionalUnit);
 
@@ -80,8 +85,8 @@ function prometheusMetricsProxy(
     energyConsumed,
     carbonIntensity,
     embodiedEmissions,
-    functionalUnit,
-    hepScore23
+    functionalUnit
+    // hepScore23
   };
 }
 
@@ -98,26 +103,28 @@ function calculateSCI(sciValues: ISCIProps): IKPIValues {
 
   return {
     sci,
-    hepScore23,
+    // hepScore23,
     sciPerUnit,
     energyPerUnit
   };
 }
 
-export function calculateKPIs(rawMetrics: RawMetrics): IKPIValues {
+export async function calculateKPIs(
+  rawMetrics: RawMetrics
+): Promise<IKPIValues> {
   const {
     energyConsumed: E,
     carbonIntensity: I,
     embodiedEmissions: M,
-    functionalUnit: R,
-    hepScore23
-  } = prometheusMetricsProxy('Avg', rawMetrics);
+    functionalUnit: R
+    // hepScore23
+  } = await prometheusMetricsProxy('Avg', rawMetrics);
 
   const { sci, sciPerUnit, energyPerUnit } = calculateSCI({ E, I, M, R });
 
   return {
     sci,
-    hepScore23,
+    // hepScore23,
     sciPerUnit,
     energyPerUnit
   };
@@ -131,7 +138,19 @@ const START = 1748610920000;
 const END = 1748618120000;
 
 export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
-  const kpi = React.useMemo(() => calculateKPIs(rawMetrics), [rawMetrics]);
+  const [kpi, setKpi] = React.useState<IKPIValues | null>(null);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    calculateKPIs(rawMetrics).then(result => {
+      if (isMounted) {
+        setKpi(result);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [rawMetrics]);
 
   return (
     <Grid2 sx={{ width: '100%' }}>
@@ -194,15 +213,15 @@ export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
       </Stack>
       <div>
         <span style={{ fontWeight: 'bold' }}>SCI</span> (gCO₂/unit){' '}
-        {kpi.sci.toFixed(1)}
+        {kpi?.sci.toFixed(1) ?? NA_VALUE}
       </div>
       <div>
         <span style={{ fontWeight: 'bold' }}>SCI per Unit</span> (gCO₂){' '}
-        {kpi.sciPerUnit.toFixed(1)}
+        {kpi?.sciPerUnit.toFixed(1) ?? NA_VALUE}
       </div>
       <div>
         <span style={{ fontWeight: 'bold' }}>Energy per Unit</span> (kWh/unit){' '}
-        {kpi.energyPerUnit.toFixed(4)}
+        {kpi?.energyPerUnit.toFixed(4) ?? NA_VALUE}
       </div>
       <Stack direction="row" gap={2}>
         <KpiValue

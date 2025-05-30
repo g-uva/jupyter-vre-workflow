@@ -17,7 +17,7 @@ export interface ISCIProps {
 
 export interface IKPIValues {
   sci: number;
-  hepScore23: number;
+  // hepScore23: number;
 
   sciPerUnit: number;
   energyPerUnit: number;
@@ -28,5 +28,5 @@ export interface IPrometheusMetrics {
   carbonIntensity: number; // I, gCO2/kWh
   embodiedEmissions: number; // M, gCO2
   functionalUnit: number; // R
-  hepScore23: number; // HEPScore23
+  // hepScore23: number; // HEPScore23
 }
