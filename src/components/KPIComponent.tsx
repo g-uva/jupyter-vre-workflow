@@ -10,11 +10,11 @@ import { microjoulesToKWh } from '../helpers/utils';
 import {
   Grid2,
   IconButton,
-  Paper,
+  // Paper,
   // MenuItem,
   // Select,
   Stack,
-  SxProps,
+  // SxProps,
   Typography
 } from '@mui/material';
 
@@ -26,14 +26,7 @@ import RecyclingOutlinedIcon from '@mui/icons-material/RecyclingOutlined';
 import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 
-const styles: Record<string, SxProps> = {
-  paperKpi: {
-    height: '300px',
-    width: '100%',
-    border: '1px solid #ccc',
-    borderRadius: '5px'
-  }
-};
+import KpiValue from './KpiValue';
 
 function getLatestValue(
   metricData: [number, string][] | undefined
@@ -212,21 +205,12 @@ export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
         {kpi.energyPerUnit.toFixed(4)}
       </div>
       <Stack direction="row" gap={2}>
-        <Grid2 size="grow">
-          <Paper elevation={0} sx={styles.paperKpi}>
-            Item 1
-          </Paper>
-        </Grid2>
-        <Grid2 size="grow">
-          <Paper elevation={0} sx={styles.paperKpi}>
-            Item 2
-          </Paper>
-        </Grid2>
-        <Grid2 size="grow">
-          <Paper elevation={0} sx={styles.paperKpi}>
-            Item 3
-          </Paper>
-        </Grid2>
+        <KpiValue
+          value={124}
+          unit="g/CO2"
+          color="green"
+          Icon={<SolarPowerOutlinedIcon />}
+        />
       </Stack>
       {/* <div>
         <span style={{ fontWeight: 'bold' }}>HEPScore23</span>: {kpi.hepScore23}
