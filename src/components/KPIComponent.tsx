@@ -7,13 +7,19 @@ import {
   IPrometheusMetrics
 } from '../helpers/types';
 import { microjoulesToKWh } from '../helpers/utils';
-import { Grid2, IconButton, MenuItem, Select, Stack, Typography } from '@mui/material';
+import {
+  Grid2,
+  IconButton,
+  MenuItem,
+  Select,
+  Stack,
+  Typography
+} from '@mui/material';
 
 import PowerOutlinedIcon from '@mui/icons-material/PowerOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import SolarPowerOutlinedIcon from '@mui/icons-material/SolarPowerOutlined';
 import EnergySavingsLeafOutlinedIcon from '@mui/icons-material/EnergySavingsLeafOutlined';
-// import CompostRoundedIcon from '@mui/icons-material/CompostRounded';
 import RecyclingOutlinedIcon from '@mui/icons-material/RecyclingOutlined';
 import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';

@@ -8,7 +8,9 @@ import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
 import { KPIComponent } from '../components/KPIComponent';
 import { getDateNow } from '../helpers/utils';
-// import ScaphInstaller from '../components/ScaphInstaller';
+// import ScaphInstaller from '../components/ScaphInstaller';m
+
+const FETCH_INTERVAL = 30_000;
 
 export const styles: Record<string, SxProps> = {
   main: {
@@ -61,6 +63,8 @@ export default function WelcomePage({
   );
   const [loading, setLoading] = React.useState<boolean>(false);
 
+  const [isFetchMetrics, setIsFetchMetrics] = React.useState<boolean>(false);
+
   function handleUpdateSelectedMetric(index: number, newMetric: string) {
     setSelectedMetric(prev => {
       const updated = [...prev];
@@ -100,6 +104,26 @@ export default function WelcomePage({
     });
   }
 
+  function handleSetMetrics() {
+    setIsFetchMetrics(true);
+    fetchMetrics();
+  }
+
+  React.useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    if (isFetchMetrics === true) {
+      intervalId = setInterval(() => {
+        fetchMetrics();
+      }, FETCH_INTERVAL);
+    }
+
+    return () => {
+      if (intervalId) {
+        return clearInterval(intervalId);
+      }
+    }; // Clear the interval Id when umounting ;)
+  }, [isFetchMetrics]);
+
   return (
     <Grid2 sx={styles.main}>
       <Typography variant="h4" sx={styles.title}>
@@ -120,7 +144,7 @@ export default function WelcomePage({
       </Grid2>
       <Grid2 sx={styles.topRibbon}>
         <FetchMetricsComponent
-          fetchMetrics={fetchMetrics}
+          fetchMetrics={handleSetMetrics}
           username={username}
           setUsername={setUsername}
         />
