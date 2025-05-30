@@ -1,20 +1,14 @@
 import React from 'react';
-import {
-  Button, //Divider,
-  Grid2,
-  SxProps,
-  TextField,
-  Tooltip,
-  Typography
-} from '@mui/material';
+import { Grid2, SxProps, Typography } from '@mui/material';
 import GeneralDashboard from './GeneralDashboard';
 import { Dayjs } from 'dayjs';
 import getScaphData from '../api/getScaphData';
 import { startDateJs, endDateJs, NR_CHARTS } from '../helpers/constants';
 import { RawMetrics } from '../helpers/types';
+import FetchMetricsComponent from '../components/FetchMetricsComponents';
 // import ScaphInstaller from '../components/ScaphInstaller';
 
-const styles: Record<string, SxProps> = {
+export const styles: Record<string, SxProps> = {
   main: {
     display: 'flex',
     flexDirection: 'column',
@@ -98,7 +92,7 @@ export default function WelcomePage({
   return (
     <Grid2 sx={styles.main}>
       <Typography variant="h4" sx={styles.title}>
-        GreenDIGIT Dashboard
+        EcoJupyter Dashboard
       </Typography>
 
       {/* <ScaphInstaller /> */}
@@ -115,36 +109,18 @@ export default function WelcomePage({
         </Button>
       </Grid2> */}
 
-      <Grid2 sx={styles.buttonGrid}>
-        <Tooltip title="Enter your username in lowercase letters. The same used to log in to the GreenDIGIT platform.">
-          <TextField
-            variant="outlined"
-            value={username}
-            onChange={e => setUsername(e.target.value.toLowerCase())}
-            placeholder="Enter your username"
-            sx={{ width: '300px' }}
-            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-              if (e.key === 'Enter') {
-                fetchMetrics();
-              }
-            }}
-          />
-        </Tooltip>
-        <Button
-          disabled={username.length === 0}
-          variant="outlined"
-          onClick={fetchMetrics}
-        >
-          Fetch Metrics
-        </Button>
-      </Grid2>
+      <FetchMetricsComponent
+        fetchMetrics={fetchMetrics}
+        username={username}
+        setUsername={setUsername}
+      />
       <Grid2 sx={styles.buttonGrid}>
         {/* <Button variant="outlined" disabled onClick={handleRealTimeClick}>
           Real-time Tracking Monitor
         </Button> */}
-        <Button variant="outlined" disabled onClick={handlePredictionClick}>
+        {/* <Button variant="outlined" disabled onClick={handlePredictionClick}>
           Resource Usage Prediction
-        </Button>
+        </Button> */}
         {/* <Button variant="outlined" disabled onClick={handleGrafanaClick}>
           Grafana Dashboard
         </Button> */}

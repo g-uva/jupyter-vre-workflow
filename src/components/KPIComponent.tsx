@@ -124,9 +124,9 @@ export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
         <span style={{ fontWeight: 'bold' }}>Energy per Unit</span> (kWh/unit){' '}
         {kpi.energyPerUnit.toFixed(4)}
       </div>
-      <div>
+      {/* <div>
         <span style={{ fontWeight: 'bold' }}>HEPScore23</span>: {kpi.hepScore23}
-      </div>
+      </div> */}
     </div>
   );
 };
