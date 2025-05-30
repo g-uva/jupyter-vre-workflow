@@ -14,19 +14,20 @@ export default function FetchMetricsComponent({
   setUsername
 }: IFetchMetricsComponent) {
   return (
-    <Grid2 sx={styles.buttonGrid}>
+    <Grid2 sx={{ ...styles.buttonGrid, mb: 0 }}>
       <Tooltip title="Enter your username in lowercase letters. The same used to log in to the GreenDIGIT platform.">
         <TextField
           variant="outlined"
           value={username}
           onChange={e => setUsername(e.target.value.toLowerCase())}
           placeholder="Enter your username"
-          sx={{ width: '300px' }}
+          sx={{ width: '200px' }}
           onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
             if (e.key === 'Enter') {
               fetchMetrics();
             }
           }}
+          size="small"
         />
       </Tooltip>
       <Button

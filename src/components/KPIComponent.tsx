@@ -7,6 +7,7 @@ import {
   IPrometheusMetrics
 } from '../helpers/types';
 import { microjoulesToKWh } from '../helpers/utils';
+import { Grid2, Typography } from '@mui/material';
 
 function getLatestValue(
   metricData: [number, string][] | undefined
@@ -111,7 +112,9 @@ export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
   const kpi = React.useMemo(() => calculateKPIs(rawMetrics), [rawMetrics]);
 
   return (
-    <div>
+    <Grid2 sx={{ width: '100%' }}>
+      <Typography variant="h6">Current session Green Stats</Typography>
+      {/* <Select size="small" /> */}
       <div>
         <span style={{ fontWeight: 'bold' }}>SCI</span> (gCO₂/unit){' '}
         {kpi.sci.toFixed(1)}
@@ -127,6 +130,6 @@ export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
       {/* <div>
         <span style={{ fontWeight: 'bold' }}>HEPScore23</span>: {kpi.hepScore23}
       </div> */}
-    </div>
+    </Grid2>
   );
 };

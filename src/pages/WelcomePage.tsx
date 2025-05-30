@@ -6,6 +6,7 @@ import getScaphData from '../api/getScaphData';
 import { startDateJs, endDateJs, NR_CHARTS } from '../helpers/constants';
 import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
+import { KPIComponent } from '../components/KPIComponent';
 // import ScaphInstaller from '../components/ScaphInstaller';
 
 export const styles: Record<string, SxProps> = {
@@ -18,6 +19,11 @@ export const styles: Record<string, SxProps> = {
   },
   title: {
     my: 2
+  },
+  topRibbon: {
+    display: 'flex',
+    width: '100%',
+    gap: 3
   },
   buttonGrid: {
     display: 'flex',
@@ -92,8 +98,28 @@ export default function WelcomePage({
   return (
     <Grid2 sx={styles.main}>
       <Typography variant="h4" sx={styles.title}>
-        EcoJupyter Dashboard
+        🌱🌍♻️ EcoJupyter Dashboard
       </Typography>
+      <Grid2 sx={styles.topRibbon}>
+        <Grid2
+          sx={{
+            width: '100%',
+            p: 2,
+            m: 2,
+            border: '1px solid #ccc',
+            borderRadius: '15px'
+          }}
+        >
+          <KPIComponent rawMetrics={dataMap} />
+        </Grid2>
+      </Grid2>
+      <Grid2 sx={styles.topRibbon}>
+        <FetchMetricsComponent
+          fetchMetrics={fetchMetrics}
+          username={username}
+          setUsername={setUsername}
+        />
+      </Grid2>
 
       {/* <ScaphInstaller /> */}
 
@@ -108,12 +134,6 @@ export default function WelcomePage({
           ZIP metrics
         </Button>
       </Grid2> */}
-
-      <FetchMetricsComponent
-        fetchMetrics={fetchMetrics}
-        username={username}
-        setUsername={setUsername}
-      />
       <Grid2 sx={styles.buttonGrid}>
         {/* <Button variant="outlined" disabled onClick={handleRealTimeClick}>
           Real-time Tracking Monitor

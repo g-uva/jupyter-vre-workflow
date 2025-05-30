@@ -1,15 +1,14 @@
 import React from 'react';
 import { Dayjs } from 'dayjs';
 
-import { Paper, CircularProgress, Grid2 } from '@mui/material';
+import { Paper, CircularProgress, Grid2, SxProps } from '@mui/material';
 import ScaphChart from '../components/ScaphChart';
 import MetricSelector from '../components/MetricSelector';
 import DateTimeRange from '../components/DateTimeRange';
-import { KPIComponent } from '../components/KPIComponent';
 import { NR_CHARTS } from '../helpers/constants';
 import { RawMetrics } from '../helpers/types';
 
-const styles: Record<string, React.CSSProperties> = {
+export const styles: Record<string, SxProps> = {
   main: {
     display: 'flex',
     flexDirection: 'row',
@@ -30,6 +29,15 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center'
+  },
+  paper: {
+    p: 2,
+    width: '100%',
+    borderRadius: 3,
+    border: '1px solid #ccc',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center !important'
   }
 };
 
@@ -60,18 +68,7 @@ export default function GeneralDashboard({
   for (let i = 0; i < NR_CHARTS; i++) {
     Charts.push(
       <Grid2 sx={{ mx: 5, my: 2 }}>
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2,
-            width: '100%',
-            borderRadius: 3,
-            border: '1px solid #ccc',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center !important'
-          }}
-        >
+        <Paper elevation={0} sx={styles.paper}>
           <MetricSelector
             selectedMetric={selectedMetric[i]}
             setSelectedMetric={newMetric => setSelectedMetric(i, newMetric)}
@@ -87,11 +84,11 @@ export default function GeneralDashboard({
   }
 
   return (
-    <div style={styles.main}>
+    <div style={styles.main as React.CSSProperties}>
       <Paper
         key="grid-element-main"
         style={{
-          ...styles.grid,
+          ...(styles.grid as React.CSSProperties),
           flexDirection: 'column',
           minWidth: '100%',
           minHeight: '300px',
@@ -108,10 +105,11 @@ export default function GeneralDashboard({
               height: '100%',
               display: 'flex',
               justifyContent: 'center',
-              alignItems: 'center'
+              alignItems: 'center',
+              padding: '30px'
             }}
           >
-            <h3>
+            <h3 style={{ textWrap: 'wrap' }}>
               No metrics available/loaded. Write your username on the textfield
               above and click "Fetch Metrics" to see the metrics.
             </h3>
@@ -140,17 +138,6 @@ export default function GeneralDashboard({
                     }
                   }}
                 />
-              </Grid2>
-              <Grid2
-                sx={{
-                  ...styles.grid,
-                  p: 2,
-                  m: 2,
-                  border: '1px solid #ccc',
-                  borderRadius: '15px'
-                }}
-              >
-                <KPIComponent rawMetrics={dataMap} />
               </Grid2>
             </Grid2>
             <Grid2 sx={{ ...styles.chartsWrapper }}>{Charts}</Grid2>
