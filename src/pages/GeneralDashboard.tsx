@@ -1,7 +1,13 @@
 import React from 'react';
 import { Dayjs } from 'dayjs';
 
-import { Paper, CircularProgress, Grid2, SxProps } from '@mui/material';
+import {
+  Paper,
+  CircularProgress,
+  Grid2,
+  SxProps,
+  Typography
+} from '@mui/material';
 import ScaphChart from '../components/ScaphChart';
 import MetricSelector from '../components/MetricSelector';
 import DateTimeRange from '../components/DateTimeRange';
@@ -92,9 +98,10 @@ export default function GeneralDashboard({
           flexDirection: 'column',
           minWidth: '100%',
           minHeight: '300px',
-          borderRadius: '15px'
+          borderRadius: '15px',
+          border: '1px solid #ccc'
         }}
-        elevation={3}
+        elevation={0}
       >
         {loading ? (
           <CircularProgress />
@@ -109,10 +116,10 @@ export default function GeneralDashboard({
               padding: '30px'
             }}
           >
-            <h3 style={{ textWrap: 'wrap' }}>
+            <Typography variant="body2" sx={{ textWrap: 'wrap' }}>
               No metrics available/loaded. Write your username on the textfield
               above and click "Fetch Metrics" to see the metrics.
-            </h3>
+            </Typography>
           </Grid2>
         ) : (
           <Grid2 sx={{ width: '100%', height: '100%' }}>

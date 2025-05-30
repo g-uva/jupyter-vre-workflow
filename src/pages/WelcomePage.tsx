@@ -3,12 +3,17 @@ import { Grid2, SxProps, Typography } from '@mui/material';
 import GeneralDashboard from './GeneralDashboard';
 import { Dayjs } from 'dayjs';
 import getScaphData from '../api/getScaphData';
-import { startDateJs, endDateJs, NR_CHARTS } from '../helpers/constants';
+import {
+  startDateJs,
+  endDateJs,
+  NR_CHARTS,
+  mainColour01
+} from '../helpers/constants';
 import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
 import { KPIComponent } from '../components/KPIComponent';
 import { getDateNow } from '../helpers/utils';
-// import ScaphInstaller from '../components/ScaphInstaller';m
+// import ScaphInstaller from '../components/ScaphInstaller';
 
 const FETCH_INTERVAL = 30_000;
 
@@ -21,6 +26,8 @@ export const styles: Record<string, SxProps> = {
     width: '100%'
   },
   title: {
+    fontWeight: 'bold',
+    color: mainColour01,
     my: 2
   },
   topRibbon: {

@@ -17,18 +17,31 @@ const styles: Record<string, SxProps> = {
     borderRadius: '10px',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center'
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  typographyValue: {
+    fontWeight: 'bold',
+    fontSize: '46px'
+  },
+  typographyUnit: {
+    fontSize: '22px'
   }
 };
 
 export default function KpiValue(props: IKpiValue) {
-  const { Icon, value, unit, children } = props;
+  const { Icon, value, unit, color, children } = props;
   return (
-    <Grid2 size="grow">
-      <Paper elevation={0} sx={styles.paperKpi}>
+    <Grid2 size="grow" sx={{ color }}>
+      <Paper
+        elevation={0}
+        sx={{ ...styles.paperKpi, border: `1px solid ${color}` }}
+      >
         {Icon}
-        <Typography>{value}</Typography>
-        <Typography>{unit}</Typography>
+        <Typography sx={{ ...styles.typographyValue, color }}>
+          {value}
+        </Typography>
+        <Typography sx={{ ...styles.typographyUnit, color }}>{unit}</Typography>
         {children}
       </Paper>
     </Grid2>

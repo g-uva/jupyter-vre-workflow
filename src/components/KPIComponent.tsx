@@ -7,29 +7,20 @@ import {
   IPrometheusMetrics
 } from '../helpers/types';
 import { microjoulesToKWh } from '../helpers/utils';
-import {
-  Grid2,
-  IconButton,
-  // Paper,
-  // MenuItem,
-  // Select,
-  Stack,
-  // SxProps,
-  Typography
-} from '@mui/material';
+import { Grid2, Stack, Typography } from '@mui/material';
 
-import PowerOutlinedIcon from '@mui/icons-material/PowerOutlined';
-import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import SolarPowerOutlinedIcon from '@mui/icons-material/SolarPowerOutlined';
+// import PowerOutlinedIcon from '@mui/icons-material/PowerOutlined';
+import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import EnergySavingsLeafOutlinedIcon from '@mui/icons-material/EnergySavingsLeafOutlined';
-import RecyclingOutlinedIcon from '@mui/icons-material/RecyclingOutlined';
-import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
-import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+// import RecyclingOutlinedIcon from '@mui/icons-material/RecyclingOutlined';
+// import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
+// import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 
 import KpiValue from './KpiValue';
 import getDynamicCarbonIntensity from '../api/getCarbonIntensityData';
-
-const NA_VALUE = 'N/A';
+import { mainColour01, mainColour02, mainColour03 } from '../helpers/constants';
+import dayjs from 'dayjs';
 
 function getLatestValue(
   metricData: [number, string][] | undefined
@@ -134,8 +125,48 @@ interface IKPIComponentProps {
   rawMetrics: RawMetrics;
 }
 
-const START = 1748610920000;
-const END = 1748618120000;
+const START = 1748610920;
+const END = 1748618120;
+
+const kpiCardsData: Array<{
+  key: keyof IKPIValues;
+  unit: string;
+  color: React.CSSProperties['color'];
+  icon: React.ReactNode;
+}> = [
+  {
+    key: 'sci',
+    unit: 'gCO₂/unit',
+    color: mainColour01,
+    icon: (
+      <EnergySavingsLeafOutlinedIcon
+        sx={{ fontSize: '56px', '& path': { fill: mainColour01 } }}
+      />
+    )
+  },
+  {
+    key: 'sciPerUnit',
+    unit: 'gCO₂',
+    color: mainColour02,
+    icon: (
+      <BoltOutlinedIcon
+        sx={{ fontSize: '56px', '& path': { fill: mainColour02 } }}
+      />
+    )
+  },
+  {
+    key: 'energyPerUnit',
+    unit: 'kWh/unit',
+    color: mainColour03,
+    icon: (
+      <SolarPowerOutlinedIcon
+        sx={{ fontSize: '56px', '& path': { fill: mainColour03 } }}
+      />
+    )
+  }
+];
+
+const experimentId = '778e776b_1748618120';
 
 export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
   const [kpi, setKpi] = React.useState<IKPIValues | null>(null);
@@ -154,15 +185,19 @@ export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
 
   return (
     <Grid2 sx={{ width: '100%' }}>
-      {/* <Typography variant="h6">Current session Green Stats</Typography> */}
-      <Stack direction="row" gap={2}>
+      <Stack
+        direction="row"
+        sx={{ gap: 2, display: 'flex', justifyContent: 'flex-end' }}
+      >
         <Typography variant="h6">
-          Your current ExperimentID is{' '}
-          <span style={{ fontStyle: 'italic' }}>778e776b_1748618120</span>{' '}
-          <br />
+          <span style={{ fontWeight: 'bold' }}>Experiment ID</span> <br />
+          <span style={{ fontStyle: 'italic' }}>{experimentId}</span> <br />
         </Typography>
         <Typography>
-          From {new Date(START).toISOString()} to {new Date(END).toISOString()}
+          <span style={{ fontWeight: 'bold' }}>Start: </span>{' '}
+          {dayjs(START).toString()} <br />
+          <span style={{ fontWeight: 'bold' }}>End: </span>{' '}
+          {dayjs(END).toString()}
         </Typography>
 
         {/* <Select defaultValue={0}>
@@ -172,68 +207,18 @@ export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
           <MenuItem value={3}>Item 3</MenuItem>
         </Select> */}
       </Stack>
-      <Grid2>
-        Performance of this workflow compared to others. Suggestions for
-        predictions of how much to this workflow is going to spend. Export
-        metrics button.
-      </Grid2>
-      <Stack
-        direction="row"
-        gap={2}
-        sx={{
-          '& .MuiIconButton-root:hover': {
-            backgroundColor: 'transparent'
-          }
-        }}
-      >
-        <IconButton>
-          <RefreshRoundedIcon />
-        </IconButton>
-        <IconButton>
-          <PowerOutlinedIcon />
-        </IconButton>
-        <IconButton>
-          <BoltOutlinedIcon />
-        </IconButton>
-        <IconButton>
-          <SolarPowerOutlinedIcon />
-        </IconButton>
-        <IconButton>
-          <EnergySavingsLeafOutlinedIcon />
-        </IconButton>
-        {/* <IconButton>
-          <CompostRoundedIcon />
-        </IconButton> */}
-        <IconButton>
-          <RecyclingOutlinedIcon />
-        </IconButton>
-        <IconButton>
-          <SpeedOutlinedIcon />
-        </IconButton>
-      </Stack>
-      <div>
-        <span style={{ fontWeight: 'bold' }}>SCI</span> (gCO₂/unit){' '}
-        {kpi?.sci.toFixed(1) ?? NA_VALUE}
-      </div>
-      <div>
-        <span style={{ fontWeight: 'bold' }}>SCI per Unit</span> (gCO₂){' '}
-        {kpi?.sciPerUnit.toFixed(1) ?? NA_VALUE}
-      </div>
-      <div>
-        <span style={{ fontWeight: 'bold' }}>Energy per Unit</span> (kWh/unit){' '}
-        {kpi?.energyPerUnit.toFixed(4) ?? NA_VALUE}
-      </div>
       <Stack direction="row" gap={2}>
-        <KpiValue
-          value={124}
-          unit="g/CO2"
-          color="green"
-          Icon={<SolarPowerOutlinedIcon />}
-        />
+        {kpiCardsData.map(props => {
+          return (
+            <KpiValue
+              value={kpi?.[props.key] ?? 0}
+              unit={props.unit}
+              color={props.color}
+              Icon={props.icon}
+            />
+          );
+        })}
       </Stack>
-      {/* <div>
-        <span style={{ fontWeight: 'bold' }}>HEPScore23</span>: {kpi.hepScore23}
-      </div> */}
     </Grid2>
   );
 };

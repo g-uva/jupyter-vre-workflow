@@ -9,3 +9,7 @@ export const end = Math.floor(Date.now() / 1000);
 export const start = end - 3600; // last hour
 export const endDateJs = dayjs(end * 1000);
 export const startDateJs = dayjs(start * 1000);
+
+export const mainColour01 = '#6B8E23';
+export const mainColour02 = '#A0522D';
+export const mainColour03 = '#4682B4';
