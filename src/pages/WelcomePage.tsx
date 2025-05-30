@@ -7,6 +7,7 @@ import { startDateJs, endDateJs, NR_CHARTS } from '../helpers/constants';
 import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
 import { KPIComponent } from '../components/KPIComponent';
+import { getDateNow } from '../helpers/utils';
 // import ScaphInstaller from '../components/ScaphInstaller';
 
 export const styles: Record<string, SxProps> = {
@@ -78,10 +79,14 @@ export default function WelcomePage({
 
   async function fetchMetrics() {
     setLoading(true);
+
+    const now = getDateNow();
+    setEndDate(now);
+
     getScaphData({
       url: `https://mc-a4.lab.uvalight.net/prometheus-${username}/`,
       startTime: startDate.unix(),
-      endTime: endDate.unix()
+      endTime: now.unix()
     }).then(results => {
       if (results.size === 0) {
         console.error('No metrics found');

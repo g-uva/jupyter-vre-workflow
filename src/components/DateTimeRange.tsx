@@ -56,6 +56,7 @@ export default function DateTimeRange({
           onAccept={handleAccept}
           minDateTime={tempStartTime ?? startTime ?? undefined}
           maxDateTime={dayjs(new Date())}
+          disabled
         />
       </LocalizationProvider>
     </Grid2>

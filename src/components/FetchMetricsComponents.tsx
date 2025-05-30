@@ -1,6 +1,7 @@
 import React from 'react';
 import { Grid2, Tooltip, TextField, Button } from '@mui/material';
 import { styles } from '../pages/WelcomePage';
+import FetchAutomatic from './FetchAutomatic';
 
 interface IFetchMetricsComponent {
   fetchMetrics: () => void;
@@ -35,8 +36,9 @@ export default function FetchMetricsComponent({
         variant="outlined"
         onClick={fetchMetrics}
       >
-        Fetch Metrics
+        Refresh Metrics
       </Button>
+      <FetchAutomatic />
     </Grid2>
   );
 }
