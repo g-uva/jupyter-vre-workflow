@@ -1,8 +1,14 @@
 import * as React from 'react';
 import Checkbox from '@mui/material/Checkbox';
-import { FormControl, FormControlLabel } from '@mui/material';
+import { FormControl, FormControlLabel, TextField } from '@mui/material';
 
-export default function FetchAutomatic() {
+interface IFetchAutomatic {
+  fetchInterval: number;
+  setFetchInterval: (value: number) => void;
+}
+
+export default function FetchAutomatic(props: IFetchAutomatic) {
+  const { fetchInterval, setFetchInterval } = props;
   const [checked, setChecked] = React.useState(true);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -12,6 +18,15 @@ export default function FetchAutomatic() {
   return (
     <>
       <FormControl>
+        <TextField
+          label="Fetch interval (s)"
+          value={fetchInterval / 1000}
+          onChange={e => setFetchInterval(Number(e.target.value))}
+          type="number"
+          size="small"
+          slotProps={{ htmlInput: { min: 5, max: 360 } }}
+          disabled={!checked}
+        />
         <FormControlLabel
           value="automatic_metric_refresh"
           control={
@@ -22,7 +37,7 @@ export default function FetchAutomatic() {
               size="small"
             />
           }
-          label="Automatic Refresh (30s)"
+          label="Automatic Refresh"
           labelPlacement="end"
           sx={{ fontSize: '10px' }}
         />

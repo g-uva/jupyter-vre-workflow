@@ -10,9 +10,11 @@ import { microjoulesToKWh } from '../helpers/utils';
 import {
   Grid2,
   IconButton,
-  MenuItem,
-  Select,
+  Paper,
+  // MenuItem,
+  // Select,
   Stack,
+  SxProps,
   Typography
 } from '@mui/material';
 
@@ -23,6 +25,15 @@ import EnergySavingsLeafOutlinedIcon from '@mui/icons-material/EnergySavingsLeaf
 import RecyclingOutlinedIcon from '@mui/icons-material/RecyclingOutlined';
 import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+
+const styles: Record<string, SxProps> = {
+  paperKpi: {
+    height: '300px',
+    width: '100%',
+    border: '1px solid #ccc',
+    borderRadius: '5px'
+  }
+};
 
 function getLatestValue(
   metricData: [number, string][] | undefined
@@ -123,22 +134,31 @@ interface IKPIComponentProps {
   rawMetrics: RawMetrics;
 }
 
+const START = 1748610920000;
+const END = 1748618120000;
+
 export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
   const kpi = React.useMemo(() => calculateKPIs(rawMetrics), [rawMetrics]);
 
   return (
     <Grid2 sx={{ width: '100%' }}>
-      <Typography variant="h6">Current session Green Stats</Typography>
+      {/* <Typography variant="h6">Current session Green Stats</Typography> */}
       <Stack direction="row" gap={2}>
         <Typography variant="h6">
-          SessionID + Timestamp + other characteristics
+          Your current ExperimentID is{' '}
+          <span style={{ fontStyle: 'italic' }}>778e776b_1748618120</span>{' '}
+          <br />
         </Typography>
-        <Select defaultValue={0}>
+        <Typography>
+          From {new Date(START).toISOString()} to {new Date(END).toISOString()}
+        </Typography>
+
+        {/* <Select defaultValue={0}>
           <MenuItem value={0}>Select value</MenuItem>
           <MenuItem value={1}>Item 1</MenuItem>
           <MenuItem value={2}>Item 2</MenuItem>
           <MenuItem value={3}>Item 3</MenuItem>
-        </Select>
+        </Select> */}
       </Stack>
       <Grid2>
         Performance of this workflow compared to others. Suggestions for
@@ -191,6 +211,23 @@ export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
         <span style={{ fontWeight: 'bold' }}>Energy per Unit</span> (kWh/unit){' '}
         {kpi.energyPerUnit.toFixed(4)}
       </div>
+      <Stack direction="row" gap={2}>
+        <Grid2 size="grow">
+          <Paper elevation={0} sx={styles.paperKpi}>
+            Item 1
+          </Paper>
+        </Grid2>
+        <Grid2 size="grow">
+          <Paper elevation={0} sx={styles.paperKpi}>
+            Item 2
+          </Paper>
+        </Grid2>
+        <Grid2 size="grow">
+          <Paper elevation={0} sx={styles.paperKpi}>
+            Item 3
+          </Paper>
+        </Grid2>
+      </Stack>
       {/* <div>
         <span style={{ fontWeight: 'bold' }}>HEPScore23</span>: {kpi.hepScore23}
       </div> */}

@@ -65,6 +65,8 @@ export default function WelcomePage({
 
   const [isFetchMetrics, setIsFetchMetrics] = React.useState<boolean>(false);
 
+  const [fetchInterval, setFetchInterval] = React.useState<number>(30_000);
+
   function handleUpdateSelectedMetric(index: number, newMetric: string) {
     setSelectedMetric(prev => {
       const updated = [...prev];
@@ -142,14 +144,6 @@ export default function WelcomePage({
           <KPIComponent rawMetrics={dataMap} />
         </Grid2>
       </Grid2>
-      <Grid2 sx={styles.topRibbon}>
-        <FetchMetricsComponent
-          fetchMetrics={handleSetMetrics}
-          username={username}
-          setUsername={setUsername}
-        />
-      </Grid2>
-
       {/* <ScaphInstaller /> */}
 
       {/* <Grid2 sx={styles.buttonGrid}>
@@ -175,17 +169,31 @@ export default function WelcomePage({
         </Button> */}
       </Grid2>
 
-      <GeneralDashboard
-        startDate={startDate}
-        setStartDate={setStartDate}
-        setEndDate={setEndDate}
-        endDate={endDate}
-        metrics={metrics}
-        dataMap={dataMap}
-        selectedMetric={selectedMetric}
-        setSelectedMetric={handleUpdateSelectedMetric}
-        loading={loading}
-      />
+      {metrics && (
+        <>
+          <Grid2 sx={styles.topRibbon}>
+            <FetchMetricsComponent
+              fetchMetrics={handleSetMetrics}
+              username={username}
+              setUsername={setUsername}
+              fetchInterval={fetchInterval}
+              setFetchInterval={setFetchInterval}
+            />
+          </Grid2>
+
+          <GeneralDashboard
+            startDate={startDate}
+            setStartDate={setStartDate}
+            setEndDate={setEndDate}
+            endDate={endDate}
+            metrics={metrics}
+            dataMap={dataMap}
+            selectedMetric={selectedMetric}
+            setSelectedMetric={handleUpdateSelectedMetric}
+            loading={loading}
+          />
+        </>
+      )}
     </Grid2>
   );
 }
