@@ -185,6 +185,7 @@ export default function WelcomePage({
               setUsername={setUsername}
               fetchInterval={fetchInterval}
               setFetchInterval={setFetchInterval}
+              setIsFetchMetrics={setIsFetchMetrics}
             />
           </Grid2>
 

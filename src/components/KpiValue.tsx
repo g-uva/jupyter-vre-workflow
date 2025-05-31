@@ -1,8 +1,10 @@
 import React from 'react';
 import { Grid2, Paper, SxProps, Typography } from '@mui/material';
+import { shortenNumber } from '../helpers/utils';
 
 interface IKpiValue {
   children?: React.ReactNode;
+  title: string;
   value: number;
   unit: string;
   color: React.CSSProperties['color'];
@@ -20,6 +22,9 @@ const styles: Record<string, SxProps> = {
     alignItems: 'center',
     justifyContent: 'center'
   },
+  typographyTitle: {
+    fontSize: '32px'
+  },
   typographyValue: {
     fontWeight: 'bold',
     fontSize: '46px'
@@ -30,7 +35,7 @@ const styles: Record<string, SxProps> = {
 };
 
 export default function KpiValue(props: IKpiValue) {
-  const { Icon, value, unit, color, children } = props;
+  const { Icon, value, unit, color, title, children } = props;
   return (
     <Grid2 size="grow" sx={{ color }}>
       <Paper
@@ -38,8 +43,11 @@ export default function KpiValue(props: IKpiValue) {
         sx={{ ...styles.paperKpi, border: `1px solid ${color}` }}
       >
         {Icon}
+        <Typography sx={{ ...styles.typographyTitle, color }}>
+          {title}
+        </Typography>
         <Typography sx={{ ...styles.typographyValue, color }}>
-          {value}
+          {shortenNumber(value)}
         </Typography>
         <Typography sx={{ ...styles.typographyUnit, color }}>{unit}</Typography>
         {children}

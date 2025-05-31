@@ -5,14 +5,16 @@ import { FormControl, FormControlLabel, TextField } from '@mui/material';
 interface IFetchAutomatic {
   fetchInterval: number;
   setFetchInterval: (value: number) => void;
+  setIsFetchMetrics: (value: boolean) => void;
 }
 
 export default function FetchAutomatic(props: IFetchAutomatic) {
-  const { fetchInterval, setFetchInterval } = props;
+  const { fetchInterval, setFetchInterval, setIsFetchMetrics } = props;
   const [checked, setChecked] = React.useState(true);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setChecked(event.target.checked);
+    setIsFetchMetrics(event.target.checked);
   };
 
   return (

@@ -49,3 +49,19 @@ export function microjoulesToKWh(uj: number): number {
 export function getDateNow() {
   return dayjs(new Date());
 }
+
+export function shortenNumber(num: number) {
+  const units = ['', 'K', 'M', 'B', 'T'];
+  let unitIndex = 0;
+
+  // Make the number shorter with K/M/B...
+  while (num >= 1000 && unitIndex < units.length - 1) {
+    num /= 1000;
+    unitIndex++;
+  }
+
+  // Limit to 1 decimal place
+  const rounded = Math.floor(num * 10) / 10;
+
+  return `${rounded}${units[unitIndex]}`;
+}

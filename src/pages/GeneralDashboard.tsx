@@ -10,9 +10,10 @@ import {
 } from '@mui/material';
 import ScaphChart from '../components/ScaphChart';
 import MetricSelector from '../components/MetricSelector';
-import DateTimeRange from '../components/DateTimeRange';
 import { NR_CHARTS } from '../helpers/constants';
 import { RawMetrics } from '../helpers/types';
+import TabPaperDashboard from '../components/TabPaper';
+import DashboardChartView from './DashboardChartView';
 
 export const styles: Record<string, SxProps> = {
   main: {
@@ -118,36 +119,23 @@ export default function GeneralDashboard({
           >
             <Typography variant="body2" sx={{ textWrap: 'wrap' }}>
               No metrics available/loaded. Write your username on the textfield
-              above and click "Fetch Metrics" to see the metrics.
+              above and click "Refresh Metrics" to see the metrics.
             </Typography>
           </Grid2>
         ) : (
           <Grid2 sx={{ width: '100%', height: '100%' }}>
-            <Grid2
-              sx={{
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'space-between'
-              }}
-            >
-              <Grid2>
-                <DateTimeRange
-                  startTime={startDate}
-                  endTime={endDate}
-                  onStartTimeChange={newValue => {
-                    if (newValue) {
-                      setStartDate(newValue);
-                    }
-                  }}
-                  onEndTimeChange={newValue => {
-                    if (newValue) {
-                      setEndDate(newValue);
-                    }
-                  }}
-                />
-              </Grid2>
-            </Grid2>
-            <Grid2 sx={{ ...styles.chartsWrapper }}>{Charts}</Grid2>
+            <TabPaperDashboard>
+              <DashboardChartView
+                startDate={startDate}
+                setStartDate={setStartDate}
+                endDate={endDate}
+                setEndDate={setEndDate}
+              >
+                {Charts}
+              </DashboardChartView>
+              <div>Prediction page</div>
+              <div>History</div>
+            </TabPaperDashboard>
           </Grid2>
         )}
       </Paper>

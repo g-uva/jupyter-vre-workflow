@@ -7,15 +7,20 @@ import {
   IPrometheusMetrics
 } from '../helpers/types';
 import { microjoulesToKWh } from '../helpers/utils';
-import { Grid2, Stack, Typography } from '@mui/material';
+import {
+  Box,
+  FormControl,
+  Grid2,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  Typography
+} from '@mui/material';
 
 import SolarPowerOutlinedIcon from '@mui/icons-material/SolarPowerOutlined';
-// import PowerOutlinedIcon from '@mui/icons-material/PowerOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import EnergySavingsLeafOutlinedIcon from '@mui/icons-material/EnergySavingsLeafOutlined';
-// import RecyclingOutlinedIcon from '@mui/icons-material/RecyclingOutlined';
-// import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
-// import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 
 import KpiValue from './KpiValue';
 import getDynamicCarbonIntensity from '../api/getCarbonIntensityData';
@@ -130,12 +135,14 @@ const END = 1748618120;
 
 const kpiCardsData: Array<{
   key: keyof IKPIValues;
+  title: string;
   unit: string;
   color: React.CSSProperties['color'];
   icon: React.ReactNode;
 }> = [
   {
     key: 'sci',
+    title: 'SCI',
     unit: 'gCO₂/unit',
     color: mainColour01,
     icon: (
@@ -146,6 +153,7 @@ const kpiCardsData: Array<{
   },
   {
     key: 'sciPerUnit',
+    title: 'SCI per Unit',
     unit: 'gCO₂',
     color: mainColour02,
     icon: (
@@ -156,6 +164,7 @@ const kpiCardsData: Array<{
   },
   {
     key: 'energyPerUnit',
+    title: 'Energy per Unit',
     unit: 'kWh/unit',
     color: mainColour03,
     icon: (
@@ -187,30 +196,46 @@ export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
     <Grid2 sx={{ width: '100%' }}>
       <Stack
         direction="row"
-        sx={{ gap: 2, display: 'flex', justifyContent: 'flex-end' }}
+        sx={{
+          px: 2,
+          pb: 2,
+          gap: 2,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end'
+        }}
       >
         <Typography variant="h6">
           <span style={{ fontWeight: 'bold' }}>Experiment ID</span> <br />
           <span style={{ fontStyle: 'italic' }}>{experimentId}</span> <br />
         </Typography>
-        <Typography>
-          <span style={{ fontWeight: 'bold' }}>Start: </span>{' '}
-          {dayjs(START).toString()} <br />
-          <span style={{ fontWeight: 'bold' }}>End: </span>{' '}
-          {dayjs(END).toString()}
-        </Typography>
-
-        {/* <Select defaultValue={0}>
-          <MenuItem value={0}>Select value</MenuItem>
-          <MenuItem value={1}>Item 1</MenuItem>
-          <MenuItem value={2}>Item 2</MenuItem>
-          <MenuItem value={3}>Item 3</MenuItem>
-        </Select> */}
+        <Box gap={2} sx={{ display: 'flex', alignItems: 'center' }}>
+          <FormControl>
+            <InputLabel>Selected Experiment ID</InputLabel>
+            <Select size="small" defaultValue={1}>
+              <MenuItem disabled value="">
+                <em>Select Experiment</em>
+              </MenuItem>
+              <MenuItem value={1}>778e776b_1748618120</MenuItem>
+              <MenuItem value={2}>c84f2b61_1748629325</MenuItem>
+              <MenuItem value={3}>9ba4e93d_1748619740</MenuItem>
+              <MenuItem value={4}>e59b0a7c_1748620421</MenuItem>
+              <MenuItem value={5}>4dc8a3b2_1748621093</MenuItem>
+            </Select>
+          </FormControl>
+          <Typography variant="body2">
+            <span style={{ fontWeight: 'bold' }}>Start: </span>{' '}
+            {dayjs(START).toString()} <br />
+            <span style={{ fontWeight: 'bold' }}>End: </span>{' '}
+            {dayjs(END).toString()}
+          </Typography>
+        </Box>
       </Stack>
       <Stack direction="row" gap={2}>
         {kpiCardsData.map(props => {
           return (
             <KpiValue
+              title={props.title}
               value={kpi?.[props.key] ?? 0}
               unit={props.unit}
               color={props.color}

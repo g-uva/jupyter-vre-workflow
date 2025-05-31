@@ -10,6 +10,7 @@ interface IFetchMetricsComponent {
   setUsername: (name: string) => void;
   fetchInterval: number;
   setFetchInterval: (value: number) => void;
+  setIsFetchMetrics: (value: boolean) => void;
 }
 
 export default function FetchMetricsComponent({
@@ -17,7 +18,8 @@ export default function FetchMetricsComponent({
   username,
   setUsername,
   fetchInterval,
-  setFetchInterval
+  setFetchInterval,
+  setIsFetchMetrics
 }: IFetchMetricsComponent) {
   return (
     <Grid2 sx={{ ...styles.buttonGrid, mb: 0 }}>
@@ -48,6 +50,7 @@ export default function FetchMetricsComponent({
       <FetchAutomatic
         fetchInterval={fetchInterval}
         setFetchInterval={setFetchInterval}
+        setIsFetchMetrics={setIsFetchMetrics}
       />
     </Grid2>
   );

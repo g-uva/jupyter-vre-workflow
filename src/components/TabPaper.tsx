@@ -4,6 +4,8 @@ import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 
 import TimelineRoundedIcon from '@mui/icons-material/TimelineRounded';
+import QueryStatsRoundedIcon from '@mui/icons-material/QueryStatsRounded';
+import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 
 interface ITablePaneProps {
   children?: React.ReactNode;
@@ -53,14 +55,26 @@ export default function TabPaperDashboard(props: ITabPaperDashboard) {
           value={value}
           onChange={handleChange}
           aria-label="basic tabs example"
+          variant="fullWidth"
         >
           <Tab
             icon={<TimelineRoundedIcon />}
             label="Real-time Metrics"
             {...a11yProps(0)}
+            sx={{ flex: 1 }}
           />
-          <Tab label="Predictions" {...a11yProps(1)} />
-          <Tab label="Configuration" {...a11yProps(2)} />
+          <Tab
+            icon={<QueryStatsRoundedIcon />}
+            label="Predictions"
+            {...a11yProps(1)}
+            sx={{ flex: 1 }}
+          />
+          <Tab
+            icon={<HistoryRoundedIcon />}
+            label="History"
+            {...a11yProps(2)}
+            sx={{ flex: 1 }}
+          />
         </Tabs>
       </Box>
       {children
