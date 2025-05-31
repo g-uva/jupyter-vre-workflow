@@ -7,7 +7,8 @@ import {
   startDateJs,
   endDateJs,
   NR_CHARTS,
-  mainColour01
+  mainColour01,
+  CONTAINER_ID
 } from '../helpers/constants';
 import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
@@ -91,6 +92,9 @@ export default function WelcomePage({
   }, [metrics]);
 
   async function fetchMetrics() {
+    const container = document.getElementById(CONTAINER_ID);
+    const scrollPosition = container?.scrollTop;
+
     setLoading(true);
 
     const now = getDateNow();
@@ -101,11 +105,17 @@ export default function WelcomePage({
       startTime: startDate.unix(),
       endTime: now.unix()
     }).then(results => {
+      if (container !== null && scrollPosition !== undefined) {
+        console.log('restoring scroll position: ', scrollPosition);
+        container.scrollTop = scrollPosition;
+      }
+
       if (results.size === 0) {
         console.error('No metrics found');
         setLoading(false);
         return;
       }
+
       setDataMap(results);
       const keys: string[] = Array.from(results.keys());
       setMetrics(keys);

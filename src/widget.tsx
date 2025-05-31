@@ -7,6 +7,7 @@ import WelcomePage from './pages/WelcomePage';
 import VerticalLinearStepper from './components/VerticalLinearStepper';
 import GoBackButton from './components/GoBackButton';
 import GrafanaPage from './pages/GrafanaPage';
+import { CONTAINER_ID } from './helpers/constants';
 
 const styles: Record<string, React.CSSProperties> = {
   main: {
@@ -93,7 +94,9 @@ const App = (): JSX.Element => {
 
   return (
     <div style={styles.main}>
-      <Paper style={styles.grid}>{ActivePage[activePageState]}</Paper>
+      <Paper id={CONTAINER_ID} style={styles.grid}>
+        {ActivePage[activePageState]}
+      </Paper>
     </div>
   );
 };
