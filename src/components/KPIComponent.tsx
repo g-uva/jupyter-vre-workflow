@@ -48,6 +48,8 @@ function getAvgValue(
     return undefined;
   }
   const sum = metricData.reduce((acc, [, value]) => acc + parseFloat(value), 0);
+  console.log('Sum:', sum);
+  console.log('Length:', metricData.length);
   return sum / metricData.length;
 }
 
@@ -77,6 +79,7 @@ async function prometheusMetricsProxy(
       ? getAvgValue(rawFunctionalUnit)
       : getLatestValue(rawFunctionalUnit)) ?? 0;
 
+  console.log(energyConsumed);
   return {
     energyConsumed,
     carbonIntensity,
@@ -130,8 +133,8 @@ interface IKPIComponentProps {
   rawMetrics: RawMetrics;
 }
 
-const START = 1748610920;
-const END = 1748618120;
+const START = 1748855616000;
+const END = 1748858436000;
 
 const kpiCardsData: Array<{
   key: keyof IKPIValues;
@@ -164,7 +167,7 @@ const kpiCardsData: Array<{
   },
   {
     key: 'energyPerUnit',
-    title: 'Energy per Unit',
+    title: 'Energy/U',
     unit: 'kWh/unit',
     color: mainColour03,
     icon: (
@@ -211,7 +214,9 @@ export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
         </Typography>
         <Box gap={2} sx={{ display: 'flex', alignItems: 'center' }}>
           <FormControl>
-            <InputLabel>Selected Experiment ID</InputLabel>
+            <InputLabel sx={{ background: 'white' }}>
+              Selected Experiment ID
+            </InputLabel>
             <Select size="small" defaultValue={1}>
               <MenuItem disabled value="">
                 <em>Select Experiment</em>

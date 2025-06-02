@@ -106,7 +106,6 @@ export default function WelcomePage({
       endTime: now.unix()
     }).then(results => {
       if (container !== null && scrollPosition !== undefined) {
-        console.log('restoring scroll position: ', scrollPosition);
         container.scrollTop = scrollPosition;
       }
 
