@@ -77,8 +77,6 @@ export function getDeltaAverage(
   const sorted = [...metricData].sort((a, b) => a[0] - b[0]);
 
   let totalDelta = 0;
-  let totalTime = 0;
-
   for (let i = 1; i < sorted.length; i++) {
     const [prevTime, prevValue] = sorted[i - 1];
     const [currTime, currValue] = sorted[i];
@@ -88,15 +86,10 @@ export function getDeltaAverage(
 
     if (deltaValue >= 0 && deltaTime > 0) {
       totalDelta += deltaValue;
-      totalTime += deltaTime;
     }
   }
 
-  if (totalTime === 0) {
-    return undefined;
-  }
-  // Average rate per second
-  return totalDelta / totalTime;
+  return totalDelta / sorted.length || undefined;
 }
 
 export function getLatestValue(
