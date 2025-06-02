@@ -6,7 +6,12 @@ import {
   RawMetrics,
   IPrometheusMetrics
 } from '../helpers/types';
-import { microjoulesToKWh } from '../helpers/utils';
+import {
+  getAvgValue,
+  getDeltaAverage,
+  getLatestValue,
+  microjoulesToKWh
+} from '../helpers/utils';
 import {
   Box,
   FormControl,
@@ -27,32 +32,6 @@ import getDynamicCarbonIntensity from '../api/getCarbonIntensityData';
 import { mainColour01, mainColour02, mainColour03 } from '../helpers/constants';
 import dayjs from 'dayjs';
 
-function getLatestValue(
-  metricData: [number, string][] | undefined
-): number | null {
-  if (!metricData || metricData.length === 0) {
-    return null;
-  }
-  // Sort by timestamp descending and pick the first
-  const latest = metricData.reduce(
-    (max, curr) => (curr[0] > max[0] ? curr : max),
-    metricData[0]
-  );
-  return parseFloat(latest[1]);
-}
-
-function getAvgValue(
-  metricData: [number, string][] | undefined
-): number | undefined {
-  if (!metricData || metricData.length === 0) {
-    return undefined;
-  }
-  const sum = metricData.reduce((acc, [, value]) => acc + parseFloat(value), 0);
-  console.log('Sum:', sum);
-  console.log('Length:', metricData.length);
-  return sum / metricData.length;
-}
-
 type MetricProfile = 'Last' | 'Avg';
 
 // Default static values
@@ -71,7 +50,7 @@ async function prometheusMetricsProxy(
 
   const energyConsumed = microjoulesToKWh(
     (type === 'Avg'
-      ? getAvgValue(rawEnergyConsumed)
+      ? getDeltaAverage(rawEnergyConsumed)
       : getLatestValue(rawEnergyConsumed)) ?? 0
   );
   const functionalUnit =
@@ -79,7 +58,6 @@ async function prometheusMetricsProxy(
       ? getAvgValue(rawFunctionalUnit)
       : getLatestValue(rawFunctionalUnit)) ?? 0;
 
-  console.log(energyConsumed);
   return {
     energyConsumed,
     carbonIntensity,

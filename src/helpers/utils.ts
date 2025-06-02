@@ -65,3 +65,60 @@ export function shortenNumber(num: number) {
 
   return `${rounded}${units[unitIndex]}`;
 }
+
+export function getDeltaAverage(
+  metricData: [number, string][] | undefined
+): number | undefined {
+  if (!metricData || metricData.length < 2) {
+    return undefined;
+  }
+
+  // Sort by timestamp ascending to calculate deltas
+  const sorted = [...metricData].sort((a, b) => a[0] - b[0]);
+
+  let totalDelta = 0;
+  let totalTime = 0;
+
+  for (let i = 1; i < sorted.length; i++) {
+    const [prevTime, prevValue] = sorted[i - 1];
+    const [currTime, currValue] = sorted[i];
+
+    const deltaValue = parseFloat(currValue) - parseFloat(prevValue);
+    const deltaTime = (currTime - prevTime) / 1000; // convert ms to seconds
+
+    if (deltaValue >= 0 && deltaTime > 0) {
+      totalDelta += deltaValue;
+      totalTime += deltaTime;
+    }
+  }
+
+  if (totalTime === 0) {
+    return undefined;
+  }
+  // Average rate per second
+  return totalDelta / totalTime;
+}
+
+export function getLatestValue(
+  metricData: [number, string][] | undefined
+): number | null {
+  if (!metricData || metricData.length === 0) {
+    return null;
+  }
+  // Sort by timestamp descending and pick the first
+  const latest = metricData.reduce(
+    (max, curr) => (curr[0] > max[0] ? curr : max),
+    metricData[0]
+  );
+  return parseFloat(latest[1]);
+}
+
+export function getAvgValue(
+  metricData: [number, string][] | undefined
+): number | undefined {
+  if (!metricData || metricData.length === 0) {
+    return undefined;
+  }
+  const sum = metricData.reduce((acc, [, value]) => acc + parseFloat(value), 0);
+  return sum / metricData.length;
+}

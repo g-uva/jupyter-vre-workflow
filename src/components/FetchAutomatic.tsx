@@ -22,8 +22,11 @@ export default function FetchAutomatic(props: IFetchAutomatic) {
       <FormControl>
         <TextField
           label="Fetch interval (s)"
-          value={fetchInterval / 1000}
-          onChange={e => setFetchInterval(Number(e.target.value))}
+          value={fetchInterval}
+          onChange={e => {
+            const newValue = Number(e.target.value);
+            setFetchInterval(newValue >= 5 ? newValue : 5);
+          }}
           type="number"
           size="small"
           slotProps={{ htmlInput: { min: 5, max: 360 } }}

@@ -16,8 +16,6 @@ import { KPIComponent } from '../components/KPIComponent';
 import { getDateNow } from '../helpers/utils';
 // import ScaphInstaller from '../components/ScaphInstaller';
 
-const FETCH_INTERVAL = 30_000;
-
 export const styles: Record<string, SxProps> = {
   main: {
     display: 'flex',
@@ -73,7 +71,7 @@ export default function WelcomePage({
 
   const [isFetchMetrics, setIsFetchMetrics] = React.useState<boolean>(false);
 
-  const [fetchInterval, setFetchInterval] = React.useState<number>(30_000);
+  const [fetchIntervalS, setFetchIntervalS] = React.useState<number>(30);
 
   function handleUpdateSelectedMetric(index: number, newMetric: string) {
     setSelectedMetric(prev => {
@@ -132,7 +130,7 @@ export default function WelcomePage({
     if (isFetchMetrics === true) {
       intervalId = setInterval(() => {
         fetchMetrics();
-      }, FETCH_INTERVAL);
+      }, fetchIntervalS * 1000);
     }
 
     return () => {
@@ -192,8 +190,8 @@ export default function WelcomePage({
               fetchMetrics={handleSetMetrics}
               username={username}
               setUsername={setUsername}
-              fetchInterval={fetchInterval}
-              setFetchInterval={setFetchInterval}
+              fetchInterval={fetchIntervalS}
+              setFetchInterval={setFetchIntervalS}
               setIsFetchMetrics={setIsFetchMetrics}
             />
           </Grid2>
