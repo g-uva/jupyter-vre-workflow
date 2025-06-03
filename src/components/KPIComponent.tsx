@@ -59,7 +59,7 @@ async function prometheusMetricsProxy(
       : getLatestValue(rawFunctionalUnit)) ?? 0;
 
   return {
-    energyConsumed,
+    energyConsumed: Math.abs(energyConsumed),
     carbonIntensity,
     embodiedEmissions,
     functionalUnit
@@ -74,9 +74,7 @@ function calculateSCI(sciValues: ISCIProps): IKPIValues {
 
   // Example extra KPIs:
   const sciPerUnit = R > 0 ? sci / R : 0;
-  const energyPerUnit = R > 0 ? E / R : 0;
-
-  // HEPScore23 could be just the metric, or some normalisation.
+  const energyPerUnit = (R > 0 ? E / R : 0) * 1000; // Convert kWh to Wh
 
   return {
     sci,
@@ -146,7 +144,7 @@ const kpiCardsData: Array<{
   {
     key: 'energyPerUnit',
     title: 'Energy/U',
-    unit: 'kWh/unit',
+    unit: 'Wh/unit',
     color: mainColour03,
     icon: (
       <SolarPowerOutlinedIcon

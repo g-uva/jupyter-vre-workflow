@@ -60,11 +60,17 @@ export function shortenNumber(num: number) {
     unitIndex++;
   }
 
-  // Limit to 1 decimal place
-  const rounded = Math.floor(num * 10) / 10;
+  // Determine precision based on the value
+  let rounded: string;
+  if (num < 1) {
+    rounded = num.toFixed(3); // Show up to 3 decimal places if < 1
+  } else {
+    rounded = (Math.floor(num * 10) / 10).toString(); // 1 decimal place for >= 1
+  }
 
   return `${rounded}${units[unitIndex]}`;
 }
+
 
 export function getDeltaAverage(
   metricData: [number, string][] | undefined
