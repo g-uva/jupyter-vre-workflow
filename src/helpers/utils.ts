@@ -71,7 +71,6 @@ export function shortenNumber(num: number) {
   return `${rounded}${units[unitIndex]}`;
 }
 
-
 export function getDeltaAverage(
   metricData: [number, string][] | undefined
 ): number | undefined {

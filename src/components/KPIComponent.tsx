@@ -28,7 +28,7 @@ import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import EnergySavingsLeafOutlinedIcon from '@mui/icons-material/EnergySavingsLeafOutlined';
 
 import KpiValue from './KpiValue';
-import getDynamicCarbonIntensity from '../api/getCarbonIntensityData';
+// import getDynamicCarbonIntensity from '../api/getCarbonIntensityData';
 import { mainColour01, mainColour02, mainColour03 } from '../helpers/constants';
 import dayjs from 'dayjs';
 
@@ -43,8 +43,9 @@ async function prometheusMetricsProxy(
   type: MetricProfile,
   raw: RawMetrics
 ): Promise<IPrometheusMetrics> {
-  const carbonIntensity =
-    (await getDynamicCarbonIntensity()) ?? defaultCarbonIntensity;
+  // const carbonIntensity =
+  //   (await getDynamicCarbonIntensity()) ?? defaultCarbonIntensity;
+  const carbonIntensity = defaultCarbonIntensity;
   const rawEnergyConsumed = raw.get(METRIC_KEY_MAP.energyConsumed);
   const rawFunctionalUnit = raw.get(METRIC_KEY_MAP.functionalUnit);
 

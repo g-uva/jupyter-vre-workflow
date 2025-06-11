@@ -14,7 +14,6 @@ import { NR_CHARTS } from '../helpers/constants';
 import { RawMetrics } from '../helpers/types';
 import TabPaperDashboard from '../components/TabPaper';
 import DashboardChartView from './DashboardChartView';
-import createExperimentMarker from '../api/CreateExperimentMarker';
 
 export const styles: Record<string, SxProps> = {
   main: {
@@ -72,8 +71,6 @@ export default function GeneralDashboard({
   setSelectedMetric,
   loading
 }: IGeneralDashboardProps) {
-  createExperimentMarker();
-
   const Charts: React.ReactElement[] = [];
   for (let i = 0; i < NR_CHARTS; i++) {
     Charts.push(

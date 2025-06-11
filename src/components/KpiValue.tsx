@@ -40,7 +40,10 @@ export default function KpiValue(props: IKpiValue) {
     <Grid2 size="grow" sx={{ color }}>
       <Paper
         elevation={0}
-        sx={{ ...styles.paperKpi, border: `1px solid ${color}` }}
+        sx={{
+          ...styles.paperKpi,
+          border: `1px solid ${color}`
+        }}
       >
         {Icon}
         <Typography sx={{ ...styles.typographyTitle, color }}>
