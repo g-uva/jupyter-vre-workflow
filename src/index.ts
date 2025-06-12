@@ -17,7 +17,16 @@ import {
 } from '@jupyterlab/notebook';
 
 import { MainWidget } from './widget';
-import { handleFirstCellExecution, handleLastCellExecution } from './api/handleNotebookContents';
+
+import {
+  createExperimentIdFolderSh,
+  generateExperimentId,
+  getExperimentId,
+  handleFirstCellExecution,
+  handleLastCellExecution,
+  handleNotebookSessionContents,
+  saveUsernameSh
+} from './api/handleNotebookContents';
 
 /**
  * Main reference: https://github.com/jupyterlab/extension-examples/blob/71486d7b891175fb3883a8b136b8edd2cd560385/react/react-widget/src/index.ts
@@ -130,6 +139,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
           }
         });
       });
+
+      handleNotebookSessionContents(panel, saveUsernameSh);
+      handleNotebookSessionContents(panel, generateExperimentId);
+      handleNotebookSessionContents(panel, createExperimentIdFolderSh);
+      handleNotebookSessionContents(panel, getExperimentId);
     });
   }
 };
