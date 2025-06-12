@@ -17,6 +17,7 @@ import {
 } from '@jupyterlab/notebook';
 
 import { MainWidget } from './widget';
+import { handleFirstCellExecution, handleLastCellExecution } from './api/handleNotebookContents';
 
 /**
  * Main reference: https://github.com/jupyterlab/extension-examples/blob/71486d7b891175fb3883a8b136b8edd2cd560385/react/react-widget/src/index.ts
@@ -111,44 +112,21 @@ const plugin: JupyterFrontEndPlugin<void> = {
     }
 
     notebookTracker.widgetAdded.connect((_: unknown, panel: NotebookPanel) => {
-      console.log('Notebook opened:', panel.id);
       panel.context.ready.then(() => {
-        const notebook = panel.content;
-        notebook.activeCellChanged.connect(() => {
-          // You could detect first/last here too
-        });
+        // const notebook = panel.content;
+        // notebook.activeCellChanged.connect(() => {
+        //   // I could detect first/last here too
+        // });
         NotebookActions.executed.connect(async (_, args) => {
           const { cell, notebook } = args;
           const index = notebook.widgets.indexOf(cell);
           const isFirst = index === 0;
           const isLast = index === notebook.widgets.length - 1;
           if (isFirst) {
-            // Trigger your script for "notebook start"
-            // fetch('/metrics-hook/start', { method: 'POST' });
-            console.log('TEST: Notebook started');
-            // writeMetricsFile(panel, `Started at: ${new Date().toISOString()}`);
-            await app.serviceManager.contents.save(
-              'notebook-metrics-test-start.txt',
-              {
-                type: 'file',
-                format: 'text',
-                content: 'Hello, this is the first cell\n'
-              }
-            );
+            await handleFirstCellExecution(app);
           }
           if (isLast) {
-            // Trigger your script for "notebook end"
-            // fetch('/metrics-hook/end', { method: 'POST' });
-            console.log('TEST: Notebook ended');
-            // writeMetricsFile(panel, `Ended at: ${new Date().toISOString()}`);
-            await app.serviceManager.contents.save(
-              'notebook-metrics-test-end.txt',
-              {
-                type: 'file',
-                format: 'text',
-                content: 'Hello, this is the end cell\n'
-              }
-            );
+            await handleLastCellExecution(app);
           }
         });
       });
