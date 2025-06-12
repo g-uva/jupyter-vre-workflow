@@ -1,11 +1,11 @@
-import { JupyterFrontEnd } from '@jupyterlab/application';
 import { NotebookPanel } from '@jupyterlab/notebook';
 import { KernelMessage } from '@jupyterlab/services';
 
 export const saveUsernameSh = `
-!mkdir -p .lib
-!echo \${HOSTNAME#jupyter-} > .lib/hostname
-!echo "✅ Username saved to .lib/hostname"
+%%bash
+mkdir -p .lib
+echo \${HOSTNAME#jupyter-} > .lib/hostname
+echo "Username saved to .lib/hostname"
 `;
 
 export const generateExperimentId = `
@@ -14,14 +14,16 @@ from datetime import UTC, datetime, timezone
 import hashlib
 
 ts = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+os.environ["START_TIME"] = ts
 experiment_id = f"experiment-{hashlib.sha256(ts.encode()).hexdigest()[:8]}-{ts}"
 os.environ["EXPERIMENT_ID"] = experiment_id
-!echo "Created experiment ID environment var $EXPERIMENT_ID"
+print("Created experiment ID environment var $EXPERIMENT_ID")
 `;
 
 export const createExperimentIdFolderSh = `
-!mkdir -p ".lib/$EXPERIMENT_ID"
-!echo "Created experiment ID folder $EXPERIMENT_ID"
+%%bash
+mkdir -p ".lib/$EXPERIMENT_ID"
+echo "Created experiment ID folder $EXPERIMENT_ID"
 `;
 
 export const getExperimentId = `
@@ -29,63 +31,70 @@ import os
 print("Getting experiment ID: " + os.environ["EXPERIMENT_ID"])
 `;
 
-// const getUsernameCode = `
-// print("to test")
-// `;
+export const getUsernameSh = `
+%%bash
+cat .lib/hostname
+`;
 
-// Create and save session ID
+export const installPrometheusScaphandre = `
+%%bash
+curl -O https://raw.githubusercontent.com/g-uva/JupyterK8sMonitor/refs/heads/master/scaphandre-prometheus-ownpod/install-scaphandre-prometheus.sh
+sudo chmod +x install-scaphandre-prometheus.sh
+./install-scaphandre-prometheus.sh
+sudo rm -rf ./install-scaphandre-prometheus.sh
+`;
+
+export const cleanExperimentId = `
+import os
+os.environ["EXPERIMENT_ID"] = ""
+print("Cleared EXPERIMENT_ID")
+`;
+
+export const moveExperimentFolder = `
+%%bash
+# HOME="/home/jovyan"
+HOME="."
+if [ -n "$EXPERIMENT_ID" ]; then
+  mkdir -p $HOME/experiments
+  mv $HOME/.lib/experiments/$EXPERIMENT_ID $HOME/experiments/$EXPERIMENT_ID
+  echo "Moved experiment: $EXPERIMENT_ID"
+else
+  echo "No EXPERIMENT_ID set, skipping move."
+fi
+`;
+
+export const getStartEndTime = `
+import os
+st = os.environ["START_TIME"]
+et = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+print(st + et)
+`;
+
 /**
- * {
-            "experiment_id": self.experiment_id,
-            "start_time": str(self.start_time),
-            "end_time": str(end_time),
-            "duration_sec": duration,
-            "cells_executed": self.executed_cells,
-            "cells_failed": self.failed_cells
-        }
+ * TODO @goncalo for adnan:
+ * - Folder skeleton (python, shell script)
+ * - Pre-populate with files (execute script sh)
  */
-// Get all session IDs
-// Install Scaphandre and Prometheus
-// Start Prometheus server and Scaphandre
+
+// Start/end time
+// Cell executed + failed + time for each
+// Everything in JSON format.
+
+// Manual with buttons
 // Export metrics
+// Install + start scaphandre and Prometheus
 
-export async function handleFirstCellExecution(
-  app: JupyterFrontEnd<JupyterFrontEnd.IShell, 'desktop' | 'mobile'>
-) {
-  /**
-   * TODO @goncalo:
-   * - Folder skeleton (python, shell script)
-   * - Pre-populate with files (execute script sh)
-   *
-   * - Save start time
-   * - Generate and save experiment ID
-   * - Register cells executed and failed
-   */
+// automatic
+// Get all experiments' ids.
 
-  await app.serviceManager.contents.save('notebook-metrics-test-start.txt', {
-    type: 'file',
-    format: 'text',
-    content: 'Hello, this is the first cell\n'
-  });
-
-  await app.serviceManager.contents
-    .get('notebook-metrics-test-start.txt', { type: 'file' })
-    .then((data: { content: unknown }) => {
-      console.log('File content:', data.content);
-    })
-    .catch((error: Error) => {
-      console.error('Error reading file:', error);
-    });
+export async function handleFirstCellExecution(panel: NotebookPanel) {
+  await handleNotebookSessionContents(panel, generateExperimentId);
+  await handleNotebookSessionContents(panel, createExperimentIdFolderSh);
 }
 
-export async function handleLastCellExecution(
-  app: JupyterFrontEnd<JupyterFrontEnd.IShell, 'desktop' | 'mobile'>
-) {
-  await app.serviceManager.contents.save('notebook-metrics-test-end.txt', {
-    type: 'file',
-    format: 'text',
-    content: 'Hello, this is the end cell\n'
-  });
+export async function handleLastCellExecution(panel: NotebookPanel) {
+  await handleNotebookSessionContents(panel, moveExperimentFolder);
+  await handleNotebookSessionContents(panel, cleanExperimentId);
 }
 
 /**
@@ -114,10 +123,7 @@ export async function handleNotebookSessionContents(
 }
 
 // Used for debugging purposes, to handle IOPub messages from the kernel.
-function handleIOPubResult(
-  msg: KernelMessage.IIOPubMessage
-  // callback: (content: KernelMessage.IIOPubMessage['content']) => void
-) {
+function handleIOPubResult(msg: KernelMessage.IIOPubMessage) {
   const msgType = msg.header.msg_type;
 
   if (msgType === 'stream') {
