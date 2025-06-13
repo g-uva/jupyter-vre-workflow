@@ -85,6 +85,7 @@ const App = (): JSX.Element => {
         handleRealTimeClick={handleRealTimeClick}
         handlePredictionClick={handlePredictionClick}
         handleGrafanaClick={handleGrafanaClick}
+        username="goncalo"
       />
     ),
     [Page.ChartsPage]: <ChartsPage handleGoBack={goToMainPage} />,

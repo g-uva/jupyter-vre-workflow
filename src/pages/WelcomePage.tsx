@@ -51,14 +51,15 @@ interface IWelcomePage {
   handleRealTimeClick: () => void;
   handlePredictionClick: () => void;
   handleGrafanaClick: () => void;
+  username: string;
 }
 
 export default function WelcomePage({
   handleRealTimeClick,
   handlePredictionClick,
-  handleGrafanaClick
+  handleGrafanaClick,
+  username
 }: IWelcomePage) {
-  const [username, setUsername] = React.useState<string>('');
   const [startDate, setStartDate] = React.useState<Dayjs>(startDateJs);
   const [endDate, setEndDate] = React.useState<Dayjs>(endDateJs);
 
@@ -188,8 +189,6 @@ export default function WelcomePage({
           <Grid2 sx={styles.topRibbon}>
             <FetchMetricsComponent
               fetchMetrics={handleSetMetrics}
-              username={username}
-              setUsername={setUsername}
               fetchInterval={fetchIntervalS}
               setFetchInterval={setFetchIntervalS}
               setIsFetchMetrics={setIsFetchMetrics}

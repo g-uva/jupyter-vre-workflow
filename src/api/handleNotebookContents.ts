@@ -133,3 +133,24 @@ function handleIOPubResult(msg: KernelMessage.IIOPubMessage) {
     console.warn(`Message type ${msgType} not handled yet.`);
   }
 }
+
+export function fetchUsernameFromKernel(panel: NotebookPanel): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const kernel = panel.sessionContext.session?.kernel;
+    if (!kernel) {
+      reject('No kernel available');
+      return;
+    }
+
+    let username = '';
+
+    const future = kernel.requestExecute({ code: getUsernameSh });
+    future.onIOPub = msg => {
+      if (msg.header.msg_type === 'stream') {
+        const text = (msg.content as any).text;
+        username += text.trim();
+      }
+    };
+    future.done.then(() => resolve(username)).catch(err => reject(err));
+  });
+}
