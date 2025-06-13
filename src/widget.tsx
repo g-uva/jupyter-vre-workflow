@@ -8,6 +8,8 @@ import VerticalLinearStepper from './components/VerticalLinearStepper';
 import GoBackButton from './components/GoBackButton';
 import GrafanaPage from './pages/GrafanaPage';
 import { CONTAINER_ID } from './helpers/constants';
+import { NotebookPanel } from '@jupyterlab/notebook';
+import { handleNotebookSessionContents } from './api/handleNotebookContents';
 
 const styles: Record<string, React.CSSProperties> = {
   main: {
@@ -55,6 +57,8 @@ export enum Page {
 
 interface IAppProps {
   username: string;
+  panel: NotebookPanel;
+  // onRunScript: ({ script }: { script?: string }) => void;
 }
 
 /**
@@ -62,7 +66,7 @@ interface IAppProps {
  *
  * @returns The React component
  */
-const App = ({ username }: IAppProps): JSX.Element => {
+const App = ({ username, panel }: IAppProps): JSX.Element => {
   const [activePageState, setActivePageState] = React.useState<Page>(
     Page.WelcomePage
   );
@@ -83,6 +87,12 @@ const App = ({ username }: IAppProps): JSX.Element => {
     setActivePageState(Page.WelcomePage);
   }
 
+  function handleRunScript({ script }: { script?: string }) {
+    if (script !== null && script !== undefined) {
+      handleNotebookSessionContents(panel, script);
+    }
+  }
+
   const ActivePage: Record<Page, React.JSX.Element> = {
     [Page.WelcomePage]: (
       <WelcomePage
@@ -90,6 +100,7 @@ const App = ({ username }: IAppProps): JSX.Element => {
         handlePredictionClick={handlePredictionClick}
         handleGrafanaClick={handleGrafanaClick}
         username={username}
+        onRunScript={handleRunScript}
       />
     ),
     [Page.ChartsPage]: <ChartsPage handleGoBack={goToMainPage} />,
@@ -111,13 +122,27 @@ const App = ({ username }: IAppProps): JSX.Element => {
  */
 export class MainWidget extends ReactWidget {
   private _username: string;
-  constructor(username: string) {
+  private _panel: NotebookPanel;
+  // private _onRunScript: ({ script }: { script?: string }) => void;
+  constructor(
+    username: string,
+    panel: NotebookPanel
+    // onRunScript: ({ script }: { script?: string }) => void
+  ) {
     super();
     this.addClass('jp-ReactWidget');
     this._username = username;
+    this._panel = panel;
+    // this._onRunScript = onRunScript;
   }
 
   render(): JSX.Element {
-    return <App username={this._username} />;
+    return (
+      <App
+        username={this._username}
+        panel={this._panel}
+        //onRunScript={this._onRunScript}
+      />
+    );
   }
 }

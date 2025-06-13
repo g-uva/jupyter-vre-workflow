@@ -1,5 +1,5 @@
 import React from 'react';
-import { Grid2, SxProps, Typography } from '@mui/material';
+import { Button, Grid2, SxProps, Typography } from '@mui/material';
 import GeneralDashboard from './GeneralDashboard';
 import { Dayjs } from 'dayjs';
 import getScaphData from '../api/getScaphData';
@@ -14,6 +14,7 @@ import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
 import { KPIComponent } from '../components/KPIComponent';
 import { getDateNow } from '../helpers/utils';
+import { installPrometheusScaphandre } from '../api/handleNotebookContents';
 // import ScaphInstaller from '../components/ScaphInstaller';
 
 export const styles: Record<string, SxProps> = {
@@ -52,13 +53,15 @@ interface IWelcomePage {
   handlePredictionClick: () => void;
   handleGrafanaClick: () => void;
   username: string;
+  onRunScript: ({ script }: { script?: string }) => void;
 }
 
 export default function WelcomePage({
-  handleRealTimeClick,
-  handlePredictionClick,
-  handleGrafanaClick,
-  username
+  // handleRealTimeClick,
+  // handlePredictionClick,
+  // handleGrafanaClick,
+  username,
+  onRunScript
 }: IWelcomePage) {
   const [startDate, setStartDate] = React.useState<Dayjs>(startDateJs);
   const [endDate, setEndDate] = React.useState<Dayjs>(endDateJs);
@@ -146,6 +149,11 @@ export default function WelcomePage({
       <Typography variant="h4" sx={styles.title}>
         🌱🌍♻️ EcoJupyter Dashboard
       </Typography>
+      <Button
+        onClick={() => onRunScript({ script: installPrometheusScaphandre })}
+      >
+        Test Install Prometheus Scaphandre
+      </Button>
       <Grid2 sx={styles.topRibbon}>
         <Grid2
           sx={{

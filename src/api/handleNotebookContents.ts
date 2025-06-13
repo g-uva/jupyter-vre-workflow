@@ -36,7 +36,7 @@ export const getUsernameSh = `
 cat .lib/hostname
 `;
 
-export const installPrometheusScaphandre = `
+export const installPrometheusScaphandre: string = `
 %%bash
 curl -O https://raw.githubusercontent.com/g-uva/JupyterK8sMonitor/refs/heads/master/scaphandre-prometheus-ownpod/install-scaphandre-prometheus.sh
 sudo chmod +x install-scaphandre-prometheus.sh

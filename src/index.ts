@@ -1,3 +1,5 @@
+// import React from 'react';
+
 import {
   ILayoutRestorer,
   JupyterFrontEnd,
@@ -48,6 +50,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     restorer: ILayoutRestorer,
     notebookTracker: INotebookTracker
   ) => {
+    // const [currentPanel, setCurrentPanel] = React.useState<NotebookPanel | null>(null);
     const { shell } = app;
 
     // Create a widget tracker
@@ -63,8 +66,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
     });
 
     // Define a widget creator function
-    const newWidget = async (username: string): Promise<MainAreaWidget<MainWidget>> => {
-      const content = new MainWidget(username);
+    const newWidget = async (
+      username: string,
+      panel: NotebookPanel
+    ): Promise<MainAreaWidget<MainWidget>> => {
+      const content = new MainWidget(username, panel);
       const widget = new MainAreaWidget({ content });
       widget.id = 'gd-ecojupyter';
       widget.title.label = 'GreenDIGIT EcoJupyter Dashboard';
@@ -78,11 +84,12 @@ const plugin: JupyterFrontEndPlugin<void> = {
     async function addNewWidget(
       shell: JupyterFrontEnd.IShell,
       widget: MainAreaWidget<MainWidget> | null,
-      username: string
+      username: string,
+      panel: NotebookPanel
     ) {
       // If the widget is not provided or is disposed, create a new one
       if (!widget || widget.isDisposed) {
-        widget = await newWidget(username);
+        widget = await newWidget(username, panel);
         // Add the widget to the tracker and shell
         tracker.add(widget);
         shell.add(widget, 'main');
@@ -105,11 +112,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
         try {
           const username = await fetchUsernameFromKernel(panel);
-          await addNewWidget(shell, tracker.currentWidget, username);
+          await addNewWidget(shell, tracker.currentWidget, username, panel);
         } catch (err) {
           console.error('Failed to fetch username:', err);
         }
-      
       }
     });
 
@@ -121,23 +127,26 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     // Restore the widget if available
     if (!tracker.currentWidget) {
-        const panel = notebookTracker.currentWidget;
-        let username: string | null = null;
+      const panel = notebookTracker.currentWidget;
+      let username: string | null = null;
 
-        if (panel) {
-          await panel.context.ready;
-          try {
-            username = await fetchUsernameFromKernel(panel);
-          } catch (err) {
-            console.warn('Could not fetch username during restore, using default:', err);
-          }
+      if (panel) {
+        await panel.context.ready;
+        try {
+          username = await fetchUsernameFromKernel(panel);
+        } catch (err) {
+          console.warn(
+            'Could not fetch username during restore, using default:',
+            err
+          );
         }
+      }
 
-        if (username !== null) {
-          const widget = await newWidget(username);
-          tracker.add(widget);
-          shell.add(widget, 'main');
-        }
+      if (username !== null && panel !== null) {
+        const widget = await newWidget(username, panel);
+        tracker.add(widget);
+        shell.add(widget, 'main');
+      }
     }
 
     const seenKey = 'greendigit-ecojupyter-seen';
@@ -149,7 +158,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
         await panel.context.ready;
         try {
           const username = await fetchUsernameFromKernel(panel);
-          await addNewWidget(shell, tracker.currentWidget, username);
+          await addNewWidget(shell, tracker.currentWidget, username, panel);
         } catch (err) {
           console.error('Failed to fetch username on seen restore:', err);
         }
@@ -158,10 +167,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     notebookTracker.widgetAdded.connect((_: unknown, panel: NotebookPanel) => {
       panel.context.ready.then(() => {
+        // setCurrentPanel(panel);
         fetchUsernameFromKernel(panel)
           .then(async username => {
-            console.log('✅ Username:', username);
-            await addNewWidget(shell, tracker.currentWidget, username);
+            await addNewWidget(shell, tracker.currentWidget, username, panel);
           })
           .catch(err => {
             console.error('Failed to get username:', err);
