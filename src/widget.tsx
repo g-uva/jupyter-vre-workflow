@@ -53,12 +53,16 @@ export enum Page {
   Grafana
 }
 
+interface IAppProps {
+  username: string;
+}
+
 /**
  * React component for a counter.
  *
  * @returns The React component
  */
-const App = (): JSX.Element => {
+const App = ({ username }: IAppProps): JSX.Element => {
   const [activePageState, setActivePageState] = React.useState<Page>(
     Page.WelcomePage
   );
@@ -85,7 +89,7 @@ const App = (): JSX.Element => {
         handleRealTimeClick={handleRealTimeClick}
         handlePredictionClick={handlePredictionClick}
         handleGrafanaClick={handleGrafanaClick}
-        username="goncalo"
+        username={username}
       />
     ),
     [Page.ChartsPage]: <ChartsPage handleGoBack={goToMainPage} />,
@@ -106,15 +110,14 @@ const App = (): JSX.Element => {
  * A Counter Lumino Widget that wraps a CounterComponent.
  */
 export class MainWidget extends ReactWidget {
-  /**
-   * Constructs a new CounterWidget.
-   */
-  constructor() {
+  private _username: string;
+  constructor(username: string) {
     super();
     this.addClass('jp-ReactWidget');
+    this._username = username;
   }
 
   render(): JSX.Element {
-    return <App />;
+    return <App username={this._username} />;
   }
 }
