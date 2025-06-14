@@ -64,10 +64,9 @@ export TWINE_PASSWORD=$PYPI_TOKEN
 python3 -m twine upload dist/*
 
 echo "Package uploaded successfully."
-echo "############################"
 echo "Cleaning up build environment..."
 deactivate
 rm -rf build-env
 echo "Build environment cleaned up."
-echo "############################"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "DONE :)"
