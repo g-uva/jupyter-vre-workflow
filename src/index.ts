@@ -196,10 +196,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
       });
 
       // handleNotebookSessionContents(panel, saveUsernameSh);
-      // handleNotebookSessionContents(panel, installPrometheusScaphandre).then(
-      //   () => {
-      //   }
-      // );
       // handleNotebookSessionContents(panel, getExperimentId);
     });
   }

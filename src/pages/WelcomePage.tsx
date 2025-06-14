@@ -53,7 +53,7 @@ interface IWelcomePage {
   handlePredictionClick: () => void;
   handleGrafanaClick: () => void;
   username: string;
-  onRunScript: ({ script }: { script?: string }) => void;
+  onRunScript: ({ script }: { script?: string }) => Promise<void>;
 }
 
 export default function WelcomePage({

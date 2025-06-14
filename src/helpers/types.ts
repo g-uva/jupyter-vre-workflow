@@ -30,3 +30,7 @@ export interface IPrometheusMetrics {
   functionalUnit: number; // R
   // hepScore23: number; // HEPScore23
 }
+
+export interface IHandleRunApi {
+  script?: string;
+}

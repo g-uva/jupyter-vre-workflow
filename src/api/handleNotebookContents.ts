@@ -129,6 +129,15 @@ function handleIOPubResult(msg: KernelMessage.IIOPubMessage) {
   if (msgType === 'stream') {
     const content = msg.content as KernelMessage.IStreamMsg['content'];
     console.log('Stream:', content.text);
+  } else if (msgType === 'execute_result') {
+    const content = msg.content as KernelMessage.IExecuteResultMsg['content'];
+    console.log('Execute result:', content.data['text/plain']);
+  } else if (msgType === 'error') {
+    const content = msg.content as KernelMessage.IErrorMsg['content'];
+    console.error('Kernel error:', content.ename, content.evalue);
+  } else if (msgType === 'status') {
+    const content = msg.content as KernelMessage.IStatusMsg['content'];
+    console.log('Kernel status:', content.execution_state);
   } else {
     console.warn(`Message type ${msgType} not handled yet.`);
   }

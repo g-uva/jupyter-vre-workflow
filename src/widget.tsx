@@ -87,9 +87,9 @@ const App = ({ username, panel }: IAppProps): JSX.Element => {
     setActivePageState(Page.WelcomePage);
   }
 
-  function handleRunScript({ script }: { script?: string }) {
+  async function handleRunScript({ script }: { script?: string }) {
     if (script !== null && script !== undefined) {
-      handleNotebookSessionContents(panel, script);
+      await handleNotebookSessionContents(panel, script);
     }
   }
 
