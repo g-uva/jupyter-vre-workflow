@@ -1,5 +1,6 @@
 import { NotebookPanel } from '@jupyterlab/notebook';
 import { KernelMessage } from '@jupyterlab/services';
+import { Kernel } from '@jupyterlab/services';
 
 export const saveUsernameSh = `
 %%bash
@@ -22,7 +23,7 @@ print("Created experiment ID environment var $EXPERIMENT_ID")
 
 export const createExperimentIdFolderSh = `
 %%bash
-mkdir -p ".lib/$EXPERIMENT_ID"
+mkdir -p ".lib/experiments/$EXPERIMENT_ID"
 echo "Created experiment ID folder $EXPERIMENT_ID"
 `;
 
@@ -33,7 +34,7 @@ print("Getting experiment ID: " + os.environ["EXPERIMENT_ID"])
 
 export const getUsernameSh = `
 %%bash
-cat .lib/hostname
+echo "$(cat .lib/hostname)"
 `;
 
 export const installPrometheusScaphandre: string = `
@@ -48,6 +49,18 @@ export const cleanExperimentId = `
 import os
 os.environ["EXPERIMENT_ID"] = ""
 print("Cleared EXPERIMENT_ID")
+`;
+
+export const getExperimentList = `
+%%bash
+BASE_PATH=".lib/experiments/"
+FOLDER_NAMES=()
+
+for dir in "$BASE_PATH"/*/; do
+  [ -d "$dir" ] && FOLDER_NAMES+=("$(basename "$dir")")
+done
+
+echo "\${FOLDER_NAMES[@]}"
 `;
 
 export const moveExperimentFolder = `
@@ -109,62 +122,76 @@ export async function handleLastCellExecution(panel: NotebookPanel) {
 export async function handleNotebookSessionContents(
   panel: NotebookPanel,
   code: string
-) {
-  panel.sessionContext.ready.then(() => {
-    const kernel = panel.sessionContext.session?.kernel;
-    if (kernel) {
-      kernel.requestExecute({ code }).onIOPub = (
-        msg: KernelMessage.IIOPubMessage
-      ) => handleIOPubResult(msg);
-    } else {
-      console.warn('No active kernel found.');
-    }
-  });
+): Promise<string | void> {
+  await panel.sessionContext.ready;
+  const kernel = panel.sessionContext.session?.kernel;
+  if (kernel) {
+    const future = kernel.requestExecute({ code });
+    return await captureKernelOutput(future).then(output => {
+      return output;
+    });
+  } else {
+    console.warn('No active kernel found.');
+  }
 }
 
 // Used for debugging purposes, to handle IOPub messages from the kernel.
-function handleIOPubResult(msg: KernelMessage.IIOPubMessage) {
-  const msgType = msg.header.msg_type;
+// function handleIOPubResult(msg: KernelMessage.IIOPubMessage) {
+//   const msgType = msg.header.msg_type;
 
-  if (msgType === 'stream') {
-    const content = msg.content as KernelMessage.IStreamMsg['content'];
-    console.log('Stream:', content.text);
-  } else if (msgType === 'execute_result') {
-    const content = msg.content as KernelMessage.IExecuteResultMsg['content'];
-    console.log('Execute result:', content.data['text/plain']);
-  } else if (msgType === 'error') {
-    const content = msg.content as KernelMessage.IErrorMsg['content'];
-    console.error('Kernel error:', content.ename, content.evalue);
-  } else if (msgType === 'status') {
-    const content = msg.content as KernelMessage.IStatusMsg['content'];
-    console.log('Kernel status:', content.execution_state);
-  } else {
-    console.warn(`Message type ${msgType} not handled yet.`);
-  }
+//   if (msgType === 'stream') {
+//     const content = msg.content as KernelMessage.IStreamMsg['content'];
+//     console.log('Stream:', content.text);
+//   } else if (msgType === 'execute_result') {
+//     const content = msg.content as KernelMessage.IExecuteResultMsg['content'];
+//     console.log('Execute result:', content.data['text/plain']);
+//   } else if (msgType === 'error') {
+//     const content = msg.content as KernelMessage.IErrorMsg['content'];
+//     console.error('Kernel error:', content.ename, content.evalue);
+//   } else if (msgType === 'status') {
+//     const content = msg.content as KernelMessage.IStatusMsg['content'];
+//     console.log('Kernel status:', content.execution_state);
+//   } else {
+//     console.warn(`Message type ${msgType} not handled yet.`);
+//   }
+// }
+
+export function captureKernelOutput(
+  future: Kernel.IFuture<
+    KernelMessage.IExecuteRequestMsg,
+    KernelMessage.IExecuteReplyMsg
+  >
+): Promise<string> {
+  return new Promise(resolve => {
+    let result = '';
+
+    future.onIOPub = (msg: KernelMessage.IIOPubMessage) => {
+      const msgType = msg.header.msg_type;
+
+      if (msgType === 'stream') {
+        const content = msg.content as KernelMessage.IStreamMsg['content'];
+        result += content.text;
+      } else if (msgType === 'execute_result') {
+        const content =
+          msg.content as KernelMessage.IExecuteResultMsg['content'];
+        const data = content.data['text/plain'];
+        result += data;
+      } else if (msgType === 'error') {
+        const content = msg.content as KernelMessage.IErrorMsg['content'];
+        result += content.ename + ': ' + content.evalue;
+      }
+    };
+
+    future.done.then(() => resolve(result.trim()));
+  });
 }
 
-/**
- * Fetch the current username from the kernel's hostname
- */
-export async function fetchUsernameFromKernel(
+export async function handleLoadExperimentList(
   panel: NotebookPanel
-): Promise<string> {
-  const kernel = panel.sessionContext.session?.kernel;
-  if (!kernel) {
-    throw new Error('No kernel available');
-  }
-
-  const code = getUsernameSh;
-
-  let username = '';
-  const future = kernel.requestExecute({ code });
-  future.onIOPub = msg => {
-    if (msg.header.msg_type === 'stream') {
-      const content = msg.content as any;
-      username = content.text.trim();
-    }
-  };
-
-  await future.done;
-  return username;
+): Promise<string[]> {
+  const experimentList = await handleNotebookSessionContents(
+    panel,
+    getExperimentList
+  );
+  return experimentList ? experimentList.split(' ') : [''];
 }

@@ -54,6 +54,7 @@ interface IWelcomePage {
   handleGrafanaClick: () => void;
   username: string;
   onRunScript: ({ script }: { script?: string }) => Promise<void>;
+  experimentList: string[];
 }
 
 export default function WelcomePage({
@@ -61,7 +62,8 @@ export default function WelcomePage({
   // handlePredictionClick,
   // handleGrafanaClick,
   username,
-  onRunScript
+  onRunScript,
+  experimentList
 }: IWelcomePage) {
   const [startDate, setStartDate] = React.useState<Dayjs>(startDateJs);
   const [endDate, setEndDate] = React.useState<Dayjs>(endDateJs);
@@ -164,7 +166,7 @@ export default function WelcomePage({
             borderRadius: '15px'
           }}
         >
-          <KPIComponent rawMetrics={dataMap} />
+          <KPIComponent rawMetrics={dataMap} experimentList={experimentList} />
         </Grid2>
       </Grid2>
       {/* <ScaphInstaller /> */}

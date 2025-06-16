@@ -58,6 +58,7 @@ export enum Page {
 interface IAppProps {
   username: string;
   panel: NotebookPanel;
+  experimentList: string[];
   // onRunScript: ({ script }: { script?: string }) => void;
 }
 
@@ -66,7 +67,7 @@ interface IAppProps {
  *
  * @returns The React component
  */
-const App = ({ username, panel }: IAppProps): JSX.Element => {
+const App = ({ username, panel, experimentList }: IAppProps): JSX.Element => {
   const [activePageState, setActivePageState] = React.useState<Page>(
     Page.WelcomePage
   );
@@ -101,6 +102,7 @@ const App = ({ username, panel }: IAppProps): JSX.Element => {
         handleGrafanaClick={handleGrafanaClick}
         username={username}
         onRunScript={handleRunScript}
+        experimentList={experimentList}
       />
     ),
     [Page.ChartsPage]: <ChartsPage handleGoBack={goToMainPage} />,
@@ -123,16 +125,19 @@ const App = ({ username, panel }: IAppProps): JSX.Element => {
 export class MainWidget extends ReactWidget {
   private _username: string;
   private _panel: NotebookPanel;
+  private _experimentList: string[];
   // private _onRunScript: ({ script }: { script?: string }) => void;
   constructor(
     username: string,
-    panel: NotebookPanel
+    panel: NotebookPanel,
+    experimentList: string[]
     // onRunScript: ({ script }: { script?: string }) => void
   ) {
     super();
     this.addClass('jp-ReactWidget');
     this._username = username;
     this._panel = panel;
+    this._experimentList = experimentList;
     // this._onRunScript = onRunScript;
   }
 
@@ -141,6 +146,7 @@ export class MainWidget extends ReactWidget {
       <App
         username={this._username}
         panel={this._panel}
+        experimentList={this._experimentList}
         //onRunScript={this._onRunScript}
       />
     );

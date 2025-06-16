@@ -108,6 +108,7 @@ export async function calculateKPIs(
 
 interface IKPIComponentProps {
   rawMetrics: RawMetrics;
+  experimentList: string[];
 }
 
 const START = 1748855616000;
@@ -155,10 +156,14 @@ const kpiCardsData: Array<{
   }
 ];
 
-const experimentId = '778e776b_1748618120';
-
-export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
+export const KPIComponent = ({
+  rawMetrics,
+  experimentList
+}: IKPIComponentProps) => {
   const [kpi, setKpi] = React.useState<IKPIValues | null>(null);
+  const [selectedExperimentIndex, setSelectedExperimentIndex] = React.useState<
+    number | null
+  >(0);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -187,22 +192,30 @@ export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
       >
         <Typography variant="h6">
           <span style={{ fontWeight: 'bold' }}>Experiment ID</span> <br />
-          <span style={{ fontStyle: 'italic' }}>{experimentId}</span> <br />
+          <span style={{ fontStyle: 'italic' }}>
+            {selectedExperimentIndex}
+          </span>{' '}
+          <br />
         </Typography>
         <Box gap={2} sx={{ display: 'flex', alignItems: 'center' }}>
           <FormControl>
             <InputLabel sx={{ background: 'white' }}>
               Selected Experiment ID
             </InputLabel>
-            <Select size="small" defaultValue={1}>
+            <Select
+              size="small"
+              value={selectedExperimentIndex}
+              onChange={e =>
+                e !== null && setSelectedExperimentIndex(Number(e))
+              }
+            >
               <MenuItem disabled value="">
                 <em>Select Experiment</em>
               </MenuItem>
-              <MenuItem value={1}>778e776b_1748618120</MenuItem>
-              <MenuItem value={2}>c84f2b61_1748629325</MenuItem>
-              <MenuItem value={3}>9ba4e93d_1748619740</MenuItem>
-              <MenuItem value={4}>e59b0a7c_1748620421</MenuItem>
-              <MenuItem value={5}>4dc8a3b2_1748621093</MenuItem>
+              {experimentList &&
+                experimentList.map((experimentId: string, index: number) => {
+                  return <MenuItem value={index}>{experimentId}</MenuItem>;
+                })}
             </Select>
           </FormControl>
           <Typography variant="body2">
