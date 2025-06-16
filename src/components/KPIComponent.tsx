@@ -162,8 +162,8 @@ export const KPIComponent = ({
 }: IKPIComponentProps) => {
   const [kpi, setKpi] = React.useState<IKPIValues | null>(null);
   const [selectedExperimentIndex, setSelectedExperimentIndex] = React.useState<
-    number | null
-  >(0);
+    string | null
+  >('0');
 
   React.useEffect(() => {
     let isMounted = true;
@@ -193,7 +193,7 @@ export const KPIComponent = ({
         <Typography variant="h6">
           <span style={{ fontWeight: 'bold' }}>Experiment ID</span> <br />
           <span style={{ fontStyle: 'italic' }}>
-            {selectedExperimentIndex}
+            {experimentList[Number(selectedExperimentIndex)]}
           </span>{' '}
           <br />
         </Typography>
@@ -205,9 +205,9 @@ export const KPIComponent = ({
             <Select
               size="small"
               value={selectedExperimentIndex}
-              onChange={e =>
-                e !== null && setSelectedExperimentIndex(Number(e))
-              }
+              onChange={e => {
+                e !== null && setSelectedExperimentIndex(e.target.value);
+              }}
             >
               <MenuItem disabled value="">
                 <em>Select Experiment</em>
