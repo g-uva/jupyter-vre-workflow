@@ -103,6 +103,7 @@ const App = ({ username, panel, experimentList }: IAppProps): JSX.Element => {
         username={username}
         onRunScript={handleRunScript}
         experimentList={experimentList}
+        panel={panel}
       />
     ),
     [Page.ChartsPage]: <ChartsPage handleGoBack={goToMainPage} />,

@@ -21,13 +21,13 @@ import {
 import { MainWidget } from './widget';
 
 import {
-  getUsernameSh,
   handleFirstCellExecution,
   handleLastCellExecution,
   handleNotebookSessionContents,
-  saveUsernameSh,
   handleLoadExperimentList
 } from './api/handleNotebookContents';
+
+import { getUsernameSh, saveUsernameSh } from './api/apiScripts';
 
 // import { monitorCellExecutions } from './api/monitorCellExecutions';
 

@@ -5,11 +5,9 @@ import {
   generateExperimentId,
   createExperimentIdFolderSh,
   getAndSetWorkflowId,
-  cleanExperimentId,
-  getStartEndTime,
-  getExperimentList,
-  exportJson,
-  IExportJsonProps
+  // cleanExperimentId,
+  // getStartEndTime,
+  getExperimentList
 } from './apiScripts';
 
 export async function handleFirstCellExecution(panel: NotebookPanel) {
@@ -18,16 +16,9 @@ export async function handleFirstCellExecution(panel: NotebookPanel) {
   await handleNotebookSessionContents(panel, getAndSetWorkflowId);
 }
 
-export async function handleLastCellExecution(panel: NotebookPanel) {
-  const props: IExportJsonProps = {
-    creator: 'goncalo',
-    orcid: '12345',
-    email: 'goncalo.ferreira@student.uva.nl'
-  };
-  await handleNotebookSessionContents(panel, exportJson(props));
-  // await handleNotebookSessionContents(panel, moveExperimentFolder);
-  await handleNotebookSessionContents(panel, cleanExperimentId);
-  await handleNotebookSessionContents(panel, getStartEndTime);
+export async function handleLastCellExecution(_panel: NotebookPanel) {
+  // await handleNotebookSessionContents(panel, cleanExperimentId);
+  // await handleNotebookSessionContents(panel, getStartEndTime);
 }
 
 /**

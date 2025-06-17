@@ -14,8 +14,14 @@ import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
 import { KPIComponent } from '../components/KPIComponent';
 import { getDateNow } from '../helpers/utils';
-import { installPrometheusScaphandre } from '../api/handleNotebookContents';
-// import ScaphInstaller from '../components/ScaphInstaller';
+import {
+  exportSendJson,
+  IExportJsonProps,
+  installPrometheusScaphandre
+} from '../api/apiScripts';
+import ApiSubmitForm from '../components/ApiSubmitForm';
+import { NotebookPanel } from '@jupyterlab/notebook';
+import { handleNotebookSessionContents } from '../api/handleNotebookContents';
 
 export const styles: Record<string, SxProps> = {
   main: {
@@ -55,6 +61,7 @@ interface IWelcomePage {
   username: string;
   onRunScript: ({ script }: { script?: string }) => Promise<void>;
   experimentList: string[];
+  panel: NotebookPanel;
 }
 
 export default function WelcomePage({
@@ -63,7 +70,8 @@ export default function WelcomePage({
   // handleGrafanaClick,
   username,
   onRunScript,
-  experimentList
+  experimentList,
+  panel
 }: IWelcomePage) {
   const [startDate, setStartDate] = React.useState<Dayjs>(startDateJs);
   const [endDate, setEndDate] = React.useState<Dayjs>(endDateJs);
@@ -78,6 +86,8 @@ export default function WelcomePage({
   const [isFetchMetrics, setIsFetchMetrics] = React.useState<boolean>(false);
 
   const [fetchIntervalS, setFetchIntervalS] = React.useState<number>(30);
+
+  const [openDialog, setOpenDialog] = React.useState<boolean>(false);
 
   function handleUpdateSelectedMetric(index: number, newMetric: string) {
     setSelectedMetric(prev => {
@@ -131,6 +141,19 @@ export default function WelcomePage({
     fetchMetrics();
   }
 
+  function handleSubmitValues(
+    args: Pick<IExportJsonProps, 'title' | 'creator' | 'email' | 'orcid'>
+  ) {
+    handleNotebookSessionContents(
+      panel,
+      exportSendJson({
+        ...args,
+        session_metrics: '', // TODO Goncalo
+        creation_date: '2025-06-17 14:05'
+      })
+    );
+  }
+
   React.useEffect(() => {
     let intervalId: NodeJS.Timeout;
     if (isFetchMetrics === true) {
@@ -147,31 +170,40 @@ export default function WelcomePage({
   }, [isFetchMetrics]);
 
   return (
-    <Grid2 sx={styles.main}>
-      <Typography variant="h4" sx={styles.title}>
-        🌱🌍♻️ EcoJupyter Dashboard
-      </Typography>
-      <Button
-        onClick={() => onRunScript({ script: installPrometheusScaphandre })}
-      >
-        Test Install Prometheus Scaphandre
-      </Button>
-      <Grid2 sx={styles.topRibbon}>
-        <Grid2
-          sx={{
-            width: '100%',
-            p: 2,
-            m: 2,
-            border: '1px solid #ccc',
-            borderRadius: '15px'
-          }}
-        >
-          <KPIComponent rawMetrics={dataMap} experimentList={experimentList} />
-        </Grid2>
-      </Grid2>
-      {/* <ScaphInstaller /> */}
+    <>
+      <Grid2 sx={styles.main}>
+        <Typography variant="h4" sx={styles.title}>
+          🌱🌍♻️ EcoJupyter Dashboard
+        </Typography>
 
-      {/* <Grid2 sx={styles.buttonGrid}>
+        <Button variant="outlined" onClick={() => setOpenDialog(true)}>
+          Submit Experiment metadata to API
+        </Button>
+        <Button
+          onClick={() => onRunScript({ script: installPrometheusScaphandre })}
+          variant="outlined"
+        >
+          Test Install Prometheus Scaphandre
+        </Button>
+        <Grid2 sx={styles.topRibbon}>
+          <Grid2
+            sx={{
+              width: '100%',
+              p: 2,
+              m: 2,
+              border: '1px solid #ccc',
+              borderRadius: '15px'
+            }}
+          >
+            <KPIComponent
+              rawMetrics={dataMap}
+              experimentList={experimentList}
+            />
+          </Grid2>
+        </Grid2>
+        {/* <ScaphInstaller /> */}
+
+        {/* <Grid2 sx={styles.buttonGrid}>
         <Button variant="outlined">
           Install and run Scaphandre + Prometheus
         </Button>
@@ -182,42 +214,48 @@ export default function WelcomePage({
           ZIP metrics
         </Button>
       </Grid2> */}
-      <Grid2 sx={styles.buttonGrid}>
-        {/* <Button variant="outlined" disabled onClick={handleRealTimeClick}>
+        <Grid2 sx={styles.buttonGrid}>
+          {/* <Button variant="outlined" disabled onClick={handleRealTimeClick}>
           Real-time Tracking Monitor
         </Button> */}
-        {/* <Button variant="outlined" disabled onClick={handlePredictionClick}>
+          {/* <Button variant="outlined" disabled onClick={handlePredictionClick}>
           Resource Usage Prediction
         </Button> */}
-        {/* <Button variant="outlined" disabled onClick={handleGrafanaClick}>
+          {/* <Button variant="outlined" disabled onClick={handleGrafanaClick}>
           Grafana Dashboard
         </Button> */}
-      </Grid2>
+        </Grid2>
 
-      {metrics && (
-        <>
-          <Grid2 sx={styles.topRibbon}>
-            <FetchMetricsComponent
-              fetchMetrics={handleSetMetrics}
-              fetchInterval={fetchIntervalS}
-              setFetchInterval={setFetchIntervalS}
-              setIsFetchMetrics={setIsFetchMetrics}
+        {metrics && (
+          <>
+            <Grid2 sx={styles.topRibbon}>
+              <FetchMetricsComponent
+                fetchMetrics={handleSetMetrics}
+                fetchInterval={fetchIntervalS}
+                setFetchInterval={setFetchIntervalS}
+                setIsFetchMetrics={setIsFetchMetrics}
+              />
+            </Grid2>
+
+            <GeneralDashboard
+              startDate={startDate}
+              setStartDate={setStartDate}
+              setEndDate={setEndDate}
+              endDate={endDate}
+              metrics={metrics}
+              dataMap={dataMap}
+              selectedMetric={selectedMetric}
+              setSelectedMetric={handleUpdateSelectedMetric}
+              loading={loading}
             />
-          </Grid2>
-
-          <GeneralDashboard
-            startDate={startDate}
-            setStartDate={setStartDate}
-            setEndDate={setEndDate}
-            endDate={endDate}
-            metrics={metrics}
-            dataMap={dataMap}
-            selectedMetric={selectedMetric}
-            setSelectedMetric={handleUpdateSelectedMetric}
-            loading={loading}
-          />
-        </>
-      )}
-    </Grid2>
+          </>
+        )}
+      </Grid2>
+      <ApiSubmitForm
+        open={openDialog}
+        setOpen={(newValue: boolean) => setOpenDialog(newValue)}
+        submitValues={handleSubmitValues}
+      />
+    </>
   );
 }

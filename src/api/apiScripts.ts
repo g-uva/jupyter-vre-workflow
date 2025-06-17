@@ -1,16 +1,3 @@
-// User input
-// Creator name + email + orcid
-
-// Creation date
-// Environment OS
-// Platform: GreenDIGIT
-// GreenDIGIT node
-// Dependencies
-// Experiment ID
-// Project ID (notebook)
-// Session Reading metrics
-// System:type -> experiment
-
 export const getOS = `
 echo "=== OS Detection ==="
 uname_str="$(uname -s)"
@@ -56,67 +43,91 @@ esac
 export OS_INFO="$os_info"
 `;
 
+// export const sendJson = `
+
+// `;
+
 export interface IExportJsonProps {
+  title: string;
   creator: string;
   email: string;
   orcid: string;
+  session_metrics: string;
+  creation_date: string;
 }
 
-export const exportJson = ({ creator, email, orcid }: IExportJsonProps) => `
+export const exportSendJson = (props: IExportJsonProps) => `
 %%bash
 
-${getOS}
+export EXPORT_JSON_PATH=".lib/export_metadata.json"
 
-WORKFLOW_ID=$WORKFLOW_ID
-EXPERIMENT_ID=$EXPERIMENT_ID
-OS_INFO="$OS_INFO"
-CREATOR=${creator}
-EMAIL=${email}
-ORCID=${orcid}
-START_TIME=$START_TIME
-SESSION_READING_METRICS="zip file"
+title=${props.title}
+creator=${props.creator}
+workflow_id=$WORKFLOW_ID
+experiment_id=$EXPERIMENT_ID
+os=$OS_INFO
+email=${props.email}
+pi=${props.orcid}
+metrics=${props.session_metrics}
+platform="GreenDIGIT"
+node="node_01"
+lang="python"
+creation_date=${props.creation_date}
+project_id="greendigit_development"
 
-jq -n \
-  --arg creator "$CREATOR" \
-  --arg workflow_id "$WORKFLOW_ID" \
-  --arg experiment_id "$EXPERIMENT_ID" \
-  --arg os "$OS_INFO" \
-  --arg email "$EMAIL" \
-  --arg pi "$ORCID" \
-  --arg metrics "session_reading_metrics" \
-  --arg platform "GreenDIGIT" \
-  --arg node "node_01" \
-  --arg lang "python" \
-  --arg creation_date "$START_TIME" \
-  "{
-    name: \\"programmatic_test_attach_curl\\",
-    title: \\"Test Experiment Attach Curl\\",
-    license_id: \\"AFL-3.0\\",
-    private: false,
-    notes: \\"Testing call from environment\\",
-    url: null,
-    tags: [{ name: \\"Test\\" }],
+json_payload=$(jq -n \
+  --arg title "$title" \
+  --arg creator "$creator" \
+  --arg workflow_id "$workflow_id" \
+  --arg experiment_id "$experiment_id" \
+  --arg os "$os" \
+  --arg email "$email" \
+  --arg pi "$pi" \
+  --arg metrics "$metrics" \
+  --arg platform "$platform" \
+  --arg node "$node" \
+  --arg lang "$lang" \
+  --arg creation_date "$creation_date" \
+  --arg project_id "$project_id" \
+  '{
+    name: $title,
+    title: "Testing submitting with the notebook",
+    license_id: "AFL-3.0",
+    private: "False",
+    notes: "Testing call from environment",
+    url: "null",
+    tags: [{ name: "Test" }],
     resources: [{
-      name: \\"Parrot image\\",
-      url: \\"https://data.d4science.net/5Apv\\",
-      format: \\"jpg\\"
+      name: "RO-Crate metadata",
+      url: "https://data.d4science.net/5Apv",
+      format: "zip"
     }],
     extras: [
-      { key: \\"Creation Date\\", value: \\$creation_date },
-      { key: \\"Creator\\", value: \\$creator },
-      { key: \\"Creator Email\\", value: \\$email },
-      { key: \\"Creator Name PI (Principal Investigator)\\", value: \\$pi },
-      { key: \\"Environment OS\\", value: \\$os },
-      { key: \\"Environment Platform\\", value: \\$platform },
-      { key: \\"Experiment Dependencies\\", value: null },
-      { key: \\"Experiment ID\\", value: \\$experiment_id },
-      { key: \\"GreenDIGIT Node\\", value: \\$node },
-      { key: \\"Programming Language\\", value: \\$lang },
-      { key: \\"Project ID\\", value: \\$project_id },
-      { key: \\"Session reading metrics\\", value: \\$metrics },
-      { key: \\"system:type\\", value: \\"Experiment\\" }
+      { key: "Creation Date", value: $creation_date },
+      { key: "Creator", value: $creator },
+      { key: "Creator Email", value: $email },
+      { key: "Creator Name PI (Principal Investigator)", value: $pi },
+      { key: "Environment OS", value: $os },
+      { key: "Environment Platform", value: $platform },
+      { key: "Experiment Dependencies", value: "null" },
+      { key: "Experiment ID", value: $experiment_id },
+      { key: "GreenDIGIT Node", value: $node },
+      { key: "Programming Language", value: $lang },
+      { key: "Project ID", value: $project_id },
+      { key: "Session reading metrics", value: $metrics },
+      { key: "system:type", value: "Experiment" }
     ]
-  }" > .bin/test.json
+  }')
+
+# echo $json_payload > $EXPORT_JSON_PATH
+
+AUTH_TOKEN="eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJySUJPYjZZY3p2ZE4xNVpuNHFkUTRLdEQ5VUhyY1dwNWJCT3NaLXpYbXM0In0.eyJleHAiOjE3NTAyMjMyMjMsImlhdCI6MTc1MDE2MjY1MCwiYXV0aF90aW1lIjoxNzUwMTU4NDA0LCJqdGkiOiI0NmVhN2ExNS00NzdiLTRiMTgtYmM3MC1jZmJiZGE2MTc1MmEiLCJpc3MiOiJodHRwczovL2FjY291bnRzLmQ0c2NpZW5jZS5vcmcvYXV0aC9yZWFsbXMvZDRzY2llbmNlIiwiYXVkIjoiJTJGZDRzY2llbmNlLnJlc2VhcmNoLWluZnJhc3RydWN0dXJlcy5ldSUyRkQ0UmVzZWFyY2glMkZHcmVlbkRJR0lUIiwic3ViIjoiOWVkMzU2MzgtODY4ZC00NjIwLWEyYmMtZTVlNWQwOTMxMGU5IiwidHlwIjoiQmVhcmVyIiwiYXpwIjoidG9rZW4tZXhjaGFuZ2UtZGVkaWNhdGVkIiwic2Vzc2lvbl9zdGF0ZSI6ImZjZmRhMDA0LTA5MmEtNDQxNS1iZTVjLTk1OTkwYzU2NDI3MSIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZGVmYXVsdC1yb2xlcy1kNHNjaWVuY2UiLCJvZmZsaW5lX2FjY2VzcyIsInVtYV9hdXRob3JpemF0aW9uIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiJTJGZDRzY2llbmNlLnJlc2VhcmNoLWluZnJhc3RydWN0dXJlcy5ldSUyRkQ0UmVzZWFyY2glMkZHcmVlbkRJR0lUIjp7InJvbGVzIjpbIkNhdGFsb2d1ZS1FZGl0b3IiLCJNZW1iZXIiXX19LCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwic2lkIjoiZmNmZGEwMDQtMDkyYS00NDE1LWJlNWMtOTU5OTBjNTY0MjcxIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5hbWUiOiJHb27Dp2FsbyBGZXJyZWlyYSIsInByZWZlcnJlZF91c2VybmFtZSI6ImdvbmNhbG8uZmVycmVpcmE1MzhhNCIsImdpdmVuX25hbWUiOiJHb27Dp2FsbyIsImZhbWlseV9uYW1lIjoiRmVycmVpcmEiLCJlbWFpbCI6ImdvbmNhbG8uZmVycmVpcmFAc3R1ZGVudC51dmEubmwifQ.AftngCY9vX6LVsM7NRm-VL9eMLaLSjfoO0EB_dNVYzVXC2G5KGJmx-OOSQOZy1IrE36V92yj1BJZgn7IZPqd03q-f1gO26NlcL2mgiwmxj9XWp9rusSuwhpx_pw7Xi1ebT52QDa60XlprJQv6ixQHD8kmRO57Zo85m2IXbd2K3S32-CKkouMMWUFJ8tMDQ_d9oGh5vEsXMwyCHlXHyqcSjR-cnwM-bKqvwnHS_PKpBj-dTF-uiRp23jxVLtUf6onkCRN2X00_rEdT4MA5Iw7_fbwiqU2KwurOmzyUaJTHIqVwdL4TCy80plrz9OvhgxCVNzyd-V5SEqe_SNdThaAkQ"
+
+curl \
+--header "Content-Type: application/json" \
+--header "Authorization: Bearer $AUTH_TOKEN" \
+--location "https://api.d4science.org/gcat/items" \
+--data-raw "$json_payload"
 `;
 
 export const saveUsernameSh = `
