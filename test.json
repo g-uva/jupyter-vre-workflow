@@ -1,0 +1,74 @@
+{
+  "name": "programmatic_test_attach_curl",
+  "title": "Test Experiment Attach Curl",
+  "license_id": "AFL-3.0",
+  "private": false,
+  "notes": "Testing call from environment",
+  "url": null,
+  "tags": [
+    {
+      "name": "Test"
+    }
+  ],
+  "resources": [
+    {
+      "name": "Parrot image",
+      "url": "https://data.d4science.net/5Apv",
+      "format": "jpg"
+    }
+  ],
+  "extras": [
+    {
+      "key": "Creation Date",
+      "value": "2025-06-17"
+    },
+    {
+      "key": "Creator",
+      "value": "Gonçalo Ferreira"
+    },
+    {
+      "key": "Creator Email",
+      "value": "goncalo.ferreira@student.uva.nl"
+    },
+    {
+      "key": "Creator Name PI (Principal Investigator)",
+      "value": "my_orcid"
+    },
+    {
+      "key": "Environment OS",
+      "value": "MacOS"
+    },
+    {
+      "key": "Environment Platform",
+      "value": "GreenDIGIT"
+    },
+    {
+      "key": "Experiment Dependencies",
+      "value": null
+    },
+    {
+      "key": "Experiment ID",
+      "value": "exp_456"
+    },
+    {
+      "key": "GreenDIGIT Node",
+      "value": "node_01"
+    },
+    {
+      "key": "Programming Language",
+      "value": "python"
+    },
+    {
+      "key": "Project ID",
+      "value": "project_789"
+    },
+    {
+      "key": "Session reading metrics",
+      "value": "session_reading_metrics"
+    },
+    {
+      "key": "system:type",
+      "value": "Experiment"
+    }
+  ]
+}

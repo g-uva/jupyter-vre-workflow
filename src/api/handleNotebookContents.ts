@@ -1,113 +1,33 @@
 import { NotebookPanel } from '@jupyterlab/notebook';
 import { KernelMessage } from '@jupyterlab/services';
 import { Kernel } from '@jupyterlab/services';
-
-export const saveUsernameSh = `
-%%bash
-mkdir -p .lib
-echo \${HOSTNAME#jupyter-} > .lib/hostname
-echo "Username saved to .lib/hostname"
-`;
-
-export const generateExperimentId = `
-import os
-from datetime import UTC, datetime, timezone
-import hashlib
-
-ts = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
-os.environ["START_TIME"] = ts
-experiment_id = f"experiment-{hashlib.sha256(ts.encode()).hexdigest()[:8]}-{ts}"
-os.environ["EXPERIMENT_ID"] = experiment_id
-print("Created experiment ID environment var $EXPERIMENT_ID")
-`;
-
-export const createExperimentIdFolderSh = `
-%%bash
-mkdir -p ".lib/experiments/$EXPERIMENT_ID"
-echo "Created experiment ID folder $EXPERIMENT_ID"
-`;
-
-export const getExperimentId = `
-import os
-print("Getting experiment ID: " + os.environ["EXPERIMENT_ID"])
-`;
-
-export const getUsernameSh = `
-%%bash
-echo "$(cat .lib/hostname)"
-`;
-
-export const installPrometheusScaphandre: string = `
-%%bash
-curl -O https://raw.githubusercontent.com/g-uva/JupyterK8sMonitor/refs/heads/master/scaphandre-prometheus-ownpod/install-scaphandre-prometheus.sh
-sudo chmod +x install-scaphandre-prometheus.sh
-./install-scaphandre-prometheus.sh
-sudo rm -rf ./install-scaphandre-prometheus.sh
-`;
-
-export const cleanExperimentId = `
-import os
-os.environ["EXPERIMENT_ID"] = ""
-print("Cleared EXPERIMENT_ID")
-`;
-
-export const getExperimentList = `
-%%bash
-BASE_PATH=".lib/experiments/"
-FOLDER_NAMES=()
-
-for dir in "$BASE_PATH"/*/; do
-  [ -d "$dir" ] && FOLDER_NAMES+=("$(basename "$dir")")
-done
-
-echo "\${FOLDER_NAMES[@]}"
-`;
-
-export const moveExperimentFolder = `
-%%bash
-# HOME="/home/jovyan"
-HOME="."
-if [ -n "$EXPERIMENT_ID" ]; then
-  mkdir -p $HOME/experiments
-  mv $HOME/.lib/experiments/$EXPERIMENT_ID $HOME/experiments/$EXPERIMENT_ID
-  echo "Moved experiment: $EXPERIMENT_ID"
-else
-  echo "No EXPERIMENT_ID set, skipping move."
-fi
-`;
-
-export const getStartEndTime = `
-import os
-st = os.environ["START_TIME"]
-et = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
-print(st + et)
-`;
-
-/**
- * TODO @goncalo for adnan:
- * - Folder skeleton (python, shell script)
- * - Pre-populate with files (execute script sh)
- */
-
-// Start/end time
-// Cell executed + failed + time for each
-// Everything in JSON format.
-
-// Manual with buttons
-// Export metrics
-// Install + start scaphandre and Prometheus
-
-// automatic
-// Get all experiments' ids.
+import {
+  generateExperimentId,
+  createExperimentIdFolderSh,
+  getAndSetWorkflowId,
+  cleanExperimentId,
+  getStartEndTime,
+  getExperimentList,
+  exportJson,
+  IExportJsonProps
+} from './apiScripts';
 
 export async function handleFirstCellExecution(panel: NotebookPanel) {
   await handleNotebookSessionContents(panel, generateExperimentId);
   await handleNotebookSessionContents(panel, createExperimentIdFolderSh);
+  await handleNotebookSessionContents(panel, getAndSetWorkflowId);
 }
 
 export async function handleLastCellExecution(panel: NotebookPanel) {
-  await handleNotebookSessionContents(panel, moveExperimentFolder);
+  const props: IExportJsonProps = {
+    creator: 'goncalo',
+    orcid: '12345',
+    email: 'goncalo.ferreira@student.uva.nl'
+  };
+  await handleNotebookSessionContents(panel, exportJson(props));
+  // await handleNotebookSessionContents(panel, moveExperimentFolder);
   await handleNotebookSessionContents(panel, cleanExperimentId);
+  await handleNotebookSessionContents(panel, getStartEndTime);
 }
 
 /**
@@ -134,27 +54,6 @@ export async function handleNotebookSessionContents(
     console.warn('No active kernel found.');
   }
 }
-
-// Used for debugging purposes, to handle IOPub messages from the kernel.
-// function handleIOPubResult(msg: KernelMessage.IIOPubMessage) {
-//   const msgType = msg.header.msg_type;
-
-//   if (msgType === 'stream') {
-//     const content = msg.content as KernelMessage.IStreamMsg['content'];
-//     console.log('Stream:', content.text);
-//   } else if (msgType === 'execute_result') {
-//     const content = msg.content as KernelMessage.IExecuteResultMsg['content'];
-//     console.log('Execute result:', content.data['text/plain']);
-//   } else if (msgType === 'error') {
-//     const content = msg.content as KernelMessage.IErrorMsg['content'];
-//     console.error('Kernel error:', content.ename, content.evalue);
-//   } else if (msgType === 'status') {
-//     const content = msg.content as KernelMessage.IStatusMsg['content'];
-//     console.log('Kernel status:', content.execution_state);
-//   } else {
-//     console.warn(`Message type ${msgType} not handled yet.`);
-//   }
-// }
 
 export function captureKernelOutput(
   future: Kernel.IFuture<
