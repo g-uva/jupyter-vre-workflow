@@ -175,9 +175,6 @@ export const KPIComponent = ({
   setSelectedWorkflow
 }: IKPIComponentProps) => {
   const [kpi, setKpi] = React.useState<IKPIValues | null>(null);
-  const [selectedExperimentIndex, setSelectedExperimentIndex] = React.useState<
-    string | null
-  >('0');
 
   React.useEffect(() => {
     let isMounted = true;
@@ -206,9 +203,7 @@ export const KPIComponent = ({
       >
         <Typography variant="h6">
           <span style={{ fontWeight: 'bold' }}>Experiment ID</span> <br />
-          <span style={{ fontStyle: 'italic' }}>
-            {experimentList[Number(selectedExperimentIndex)]}
-          </span>{' '}
+          <span style={{ fontStyle: 'italic' }}>{selectedExperiment}</span>{' '}
           <br />
         </Typography>
         <Box gap={2} sx={{ display: 'flex', alignItems: 'center' }}>
@@ -218,13 +213,14 @@ export const KPIComponent = ({
 
           <FormControl>
             <InputLabel sx={{ background: 'white' }}>
-              Selected Experiment ID
+              Selected Workflow ID
             </InputLabel>
             <Select
+              key={selectedWorkflow || 'workflow-select'}
               size="small"
-              value={selectedExperimentIndex}
+              value={selectedWorkflow || ''}
               onChange={e => {
-                e !== null && setSelectedExperimentIndex(e.target.value);
+                e !== null && setSelectedWorkflow(e.target.value ?? '');
               }}
             >
               <MenuItem disabled value="">
@@ -232,7 +228,11 @@ export const KPIComponent = ({
               </MenuItem>
               {workflowList &&
                 workflowList.map((workflowId: string, index: number) => {
-                  return <MenuItem value={index}>{workflowId}</MenuItem>;
+                  return (
+                    <MenuItem key={index} value={workflowId}>
+                      {workflowId}
+                    </MenuItem>
+                  );
                 })}
             </Select>
           </FormControl>
@@ -241,10 +241,11 @@ export const KPIComponent = ({
               Selected Experiment ID
             </InputLabel>
             <Select
+              key={selectedExperiment || 'experiment-select'}
               size="small"
-              value={selectedExperimentIndex}
+              value={selectedExperiment || ''}
               onChange={e => {
-                e !== null && setSelectedExperimentIndex(e.target.value);
+                e !== null && setSelectedExperiment(e.target.value ?? '');
               }}
             >
               <MenuItem disabled value="">
@@ -252,7 +253,11 @@ export const KPIComponent = ({
               </MenuItem>
               {experimentList &&
                 experimentList.map((experimentId: string, index: number) => {
-                  return <MenuItem value={index}>{experimentId}</MenuItem>;
+                  return (
+                    <MenuItem key={index} value={experimentId}>
+                      {experimentId}
+                    </MenuItem>
+                  );
                 })}
             </Select>
           </FormControl>
