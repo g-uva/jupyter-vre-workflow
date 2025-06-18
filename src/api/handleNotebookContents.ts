@@ -2,23 +2,23 @@ import { NotebookPanel } from '@jupyterlab/notebook';
 import { KernelMessage } from '@jupyterlab/services';
 import { Kernel } from '@jupyterlab/services';
 import {
-  generateExperimentId,
+  generateExperimentIdAndStartTime,
   createExperimentIdFolderSh,
   getAndSetWorkflowId,
   // cleanExperimentId,
-  // getStartEndTime,
-  getExperimentList
+  getExperimentList,
+  getEndTime
 } from './apiScripts';
 
 export async function handleFirstCellExecution(panel: NotebookPanel) {
-  await handleNotebookSessionContents(panel, generateExperimentId);
-  await handleNotebookSessionContents(panel, createExperimentIdFolderSh);
+  await handleNotebookSessionContents(panel, generateExperimentIdAndStartTime);
   await handleNotebookSessionContents(panel, getAndSetWorkflowId);
+  await handleNotebookSessionContents(panel, createExperimentIdFolderSh);
 }
 
-export async function handleLastCellExecution(_panel: NotebookPanel) {
+export async function handleLastCellExecution(panel: NotebookPanel) {
   // await handleNotebookSessionContents(panel, cleanExperimentId);
-  // await handleNotebookSessionContents(panel, getStartEndTime);
+  await handleNotebookSessionContents(panel, getEndTime);
 }
 
 /**

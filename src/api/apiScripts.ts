@@ -1,5 +1,8 @@
+// const token = process.env.REACT_APP_D4SCIENCE_TOKEN;
+const token =
+  'eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJySUJPYjZZY3p2ZE4xNVpuNHFkUTRLdEQ5VUhyY1dwNWJCT3NaLXpYbXM0In0.eyJleHAiOjE3NTAyMjMyMjMsImlhdCI6MTc1MDE2MjY1MCwiYXV0aF90aW1lIjoxNzUwMTU4NDA0LCJqdGkiOiI0NmVhN2ExNS00NzdiLTRiMTgtYmM3MC1jZmJiZGE2MTc1MmEiLCJpc3MiOiJodHRwczovL2FjY291bnRzLmQ0c2NpZW5jZS5vcmcvYXV0aC9yZWFsbXMvZDRzY2llbmNlIiwiYXVkIjoiJTJGZDRzY2llbmNlLnJlc2VhcmNoLWluZnJhc3RydWN0dXJlcy5ldSUyRkQ0UmVzZWFyY2glMkZHcmVlbkRJR0lUIiwic3ViIjoiOWVkMzU2MzgtODY4ZC00NjIwLWEyYmMtZTVlNWQwOTMxMGU5IiwidHlwIjoiQmVhcmVyIiwiYXpwIjoidG9rZW4tZXhjaGFuZ2UtZGVkaWNhdGVkIiwic2Vzc2lvbl9zdGF0ZSI6ImZjZmRhMDA0LTA5MmEtNDQxNS1iZTVjLTk1OTkwYzU2NDI3MSIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZGVmYXVsdC1yb2xlcy1kNHNjaWVuY2UiLCJvZmZsaW5lX2FjY2VzcyIsInVtYV9hdXRob3JpemF0aW9uIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiJTJGZDRzY2llbmNlLnJlc2VhcmNoLWluZnJhc3RydWN0dXJlcy5ldSUyRkQ0UmVzZWFyY2glMkZHcmVlbkRJR0lUIjp7InJvbGVzIjpbIkNhdGFsb2d1ZS1FZGl0b3IiLCJNZW1iZXIiXX19LCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwic2lkIjoiZmNmZGEwMDQtMDkyYS00NDE1LWJlNWMtOTU5OTBjNTY0MjcxIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5hbWUiOiJHb27Dp2FsbyBGZXJyZWlyYSIsInByZWZlcnJlZF91c2VybmFtZSI6ImdvbmNhbG8uZmVycmVpcmE1MzhhNCIsImdpdmVuX25hbWUiOiJHb27Dp2FsbyIsImZhbWlseV9uYW1lIjoiRmVycmVpcmEiLCJlbWFpbCI6ImdvbmNhbG8uZmVycmVpcmFAc3R1ZGVudC51dmEubmwifQ.AftngCY9vX6LVsM7NRm-VL9eMLaLSjfoO0EB_dNVYzVXC2G5KGJmx-OOSQOZy1IrE36V92yj1BJZgn7IZPqd03q-f1gO26NlcL2mgiwmxj9XWp9rusSuwhpx_pw7Xi1ebT52QDa60XlprJQv6ixQHD8kmRO57Zo85m2IXbd2K3S32-CKkouMMWUFJ8tMDQ_d9oGh5vEsXMwyCHlXHyqcSjR-cnwM-bKqvwnHS_PKpBj-dTF-uiRp23jxVLtUf6onkCRN2X00_rEdT4MA5Iw7_fbwiqU2KwurOmzyUaJTHIqVwdL4TCy80plrz9OvhgxCVNzyd-V5SEqe_SNdThaAkQ';
+
 export const getOS = `
-echo "=== OS Detection ==="
 uname_str="$(uname -s)"
 os_info=""
 
@@ -43,10 +46,6 @@ esac
 export OS_INFO="$os_info"
 `;
 
-// export const sendJson = `
-
-// `;
-
 export interface IExportJsonProps {
   title: string;
   creator: string;
@@ -72,7 +71,7 @@ metrics=${props.session_metrics}
 platform="GreenDIGIT"
 node="node_01"
 lang="python"
-creation_date=${props.creation_date}
+creation_date=$START_TIME
 project_id="greendigit_development"
 
 json_payload=$(jq -n \
@@ -121,7 +120,7 @@ json_payload=$(jq -n \
 
 # echo $json_payload > $EXPORT_JSON_PATH
 
-AUTH_TOKEN="eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJySUJPYjZZY3p2ZE4xNVpuNHFkUTRLdEQ5VUhyY1dwNWJCT3NaLXpYbXM0In0.eyJleHAiOjE3NTAyMjMyMjMsImlhdCI6MTc1MDE2MjY1MCwiYXV0aF90aW1lIjoxNzUwMTU4NDA0LCJqdGkiOiI0NmVhN2ExNS00NzdiLTRiMTgtYmM3MC1jZmJiZGE2MTc1MmEiLCJpc3MiOiJodHRwczovL2FjY291bnRzLmQ0c2NpZW5jZS5vcmcvYXV0aC9yZWFsbXMvZDRzY2llbmNlIiwiYXVkIjoiJTJGZDRzY2llbmNlLnJlc2VhcmNoLWluZnJhc3RydWN0dXJlcy5ldSUyRkQ0UmVzZWFyY2glMkZHcmVlbkRJR0lUIiwic3ViIjoiOWVkMzU2MzgtODY4ZC00NjIwLWEyYmMtZTVlNWQwOTMxMGU5IiwidHlwIjoiQmVhcmVyIiwiYXpwIjoidG9rZW4tZXhjaGFuZ2UtZGVkaWNhdGVkIiwic2Vzc2lvbl9zdGF0ZSI6ImZjZmRhMDA0LTA5MmEtNDQxNS1iZTVjLTk1OTkwYzU2NDI3MSIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZGVmYXVsdC1yb2xlcy1kNHNjaWVuY2UiLCJvZmZsaW5lX2FjY2VzcyIsInVtYV9hdXRob3JpemF0aW9uIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiJTJGZDRzY2llbmNlLnJlc2VhcmNoLWluZnJhc3RydWN0dXJlcy5ldSUyRkQ0UmVzZWFyY2glMkZHcmVlbkRJR0lUIjp7InJvbGVzIjpbIkNhdGFsb2d1ZS1FZGl0b3IiLCJNZW1iZXIiXX19LCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwic2lkIjoiZmNmZGEwMDQtMDkyYS00NDE1LWJlNWMtOTU5OTBjNTY0MjcxIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsIm5hbWUiOiJHb27Dp2FsbyBGZXJyZWlyYSIsInByZWZlcnJlZF91c2VybmFtZSI6ImdvbmNhbG8uZmVycmVpcmE1MzhhNCIsImdpdmVuX25hbWUiOiJHb27Dp2FsbyIsImZhbWlseV9uYW1lIjoiRmVycmVpcmEiLCJlbWFpbCI6ImdvbmNhbG8uZmVycmVpcmFAc3R1ZGVudC51dmEubmwifQ.AftngCY9vX6LVsM7NRm-VL9eMLaLSjfoO0EB_dNVYzVXC2G5KGJmx-OOSQOZy1IrE36V92yj1BJZgn7IZPqd03q-f1gO26NlcL2mgiwmxj9XWp9rusSuwhpx_pw7Xi1ebT52QDa60XlprJQv6ixQHD8kmRO57Zo85m2IXbd2K3S32-CKkouMMWUFJ8tMDQ_d9oGh5vEsXMwyCHlXHyqcSjR-cnwM-bKqvwnHS_PKpBj-dTF-uiRp23jxVLtUf6onkCRN2X00_rEdT4MA5Iw7_fbwiqU2KwurOmzyUaJTHIqVwdL4TCy80plrz9OvhgxCVNzyd-V5SEqe_SNdThaAkQ"
+AUTH_TOKEN="${token}"
 
 curl \
 --header "Content-Type: application/json" \
@@ -137,12 +136,12 @@ echo \${HOSTNAME#jupyter-} > .lib/hostname
 echo "Username saved to .lib/hostname"
 `;
 
-export const generateExperimentId = `
+export const generateExperimentIdAndStartTime = `
 import os
 from datetime import UTC, datetime, timezone
 import hashlib
 
-ts = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M")
 os.environ["START_TIME"] = ts
 experiment_id = f"experiment-{hashlib.sha256(ts.encode()).hexdigest()[:8]}-{ts}"
 os.environ["EXPERIMENT_ID"] = experiment_id
@@ -151,8 +150,8 @@ print("Created experiment ID environment var $EXPERIMENT_ID")
 
 export const createExperimentIdFolderSh = `
 %%bash
-mkdir -p ".lib/experiments/$EXPERIMENT_ID"
-echo "Created experiment ID folder $EXPERIMENT_ID"
+mkdir -p ".lib/experiments/$WORKFLOW_ID/$EXPERIMENT_ID"
+echo "Created Experiment ID folder $EXPERIMENT_ID in workflow $WORKFLOW_ID"
 `;
 
 export const getExperimentId = `
@@ -209,11 +208,36 @@ else
 fi
 `;
 
-export const getStartEndTime = `
+export const getEndTime = `
 import os
-st = os.environ["START_TIME"]
-et = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
-print(st + et)
+et = datetime.now(UTC).strftime("%Y-%m-%d %H:%M")
+os.environ["END_TIME"] = et
+`;
+
+export const saveStartEndTime = `
+%%bash
+export START_TIME="2025-02-02"
+export END_TIME="2025-02-03"
+jq -n \
+    --arg start_time "$START_TIME" \
+    --arg end_time "$END_TIME" \
+    '{
+      "start_time": $start_time,
+      "end_time": $end_time
+    }' > .lib/experiments/$WORKFLOW_ID/$EXPERIMENT_ID/timestamps.json
+unset START_TIME
+unset END_TIME
+`;
+
+export const getTime = `
+%%bash
+TIMESTAMP_FILE=".lib/experiments/$WORKFLOW_ID/$EXPERIMENT_ID/timestamps.json"
+
+if [ -f "$TIMESTAMP_FILE" ]; then
+  cat "$TIMESTAMP_FILE"
+else
+  echo "{ \\"start_time\\": \\"$START_TIME\\", \\"end_time\\": null }"
+fi
 `;
 
 export const getAndSetWorkflowId = `
