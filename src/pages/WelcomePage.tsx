@@ -182,6 +182,10 @@ export default function WelcomePage({
     }
   }
 
+  function handleSubmitExport() {
+    setOpenDialog(true);
+  }
+
   React.useEffect(() => {
     let intervalId: NodeJS.Timeout;
     if (isFetchMetrics === true) {
@@ -212,10 +216,6 @@ export default function WelcomePage({
         <Typography variant="h4" sx={styles.title}>
           🌱🌍♻️ EcoJupyter Dashboard
         </Typography>
-
-        <Button variant="outlined" onClick={() => setOpenDialog(true)}>
-          Submit Experiment metadata to API
-        </Button>
         <Button
           onClick={() => onRunScript({ script: installPrometheusScaphandre })}
           variant="outlined"
@@ -236,6 +236,7 @@ export default function WelcomePage({
               rawMetrics={dataMap}
               experimentList={experimentList}
               workflowList={workflowList}
+              handleSubmitExport={handleSubmitExport}
               handleRefreshExperimentList={handleRefreshWorkflowList}
               selectedExperiment={selectedExperiment}
               setSelectedExperiment={setSelectedExperiment}

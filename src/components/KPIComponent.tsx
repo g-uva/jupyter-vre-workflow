@@ -1,4 +1,6 @@
 import React from 'react';
+// import dayjs from 'dayjs';
+
 import {
   IKPIValues,
   ISCIProps,
@@ -6,22 +8,25 @@ import {
   RawMetrics,
   IPrometheusMetrics
 } from '../helpers/types';
+
 import {
   getAvgValue,
   getDeltaAverage,
   getLatestValue,
   microjoulesToKWh
 } from '../helpers/utils';
+
 import {
   Box,
+  Button,
   FormControl,
   Grid2,
   IconButton,
   InputLabel,
   MenuItem,
   Select,
-  Stack,
-  Typography
+  Stack
+  // Typography
 } from '@mui/material';
 
 import SolarPowerOutlinedIcon from '@mui/icons-material/SolarPowerOutlined';
@@ -32,7 +37,7 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import KpiValue from './KpiValue';
 // import getDynamicCarbonIntensity from '../api/getCarbonIntensityData';
 import { mainColour01, mainColour02, mainColour03 } from '../helpers/constants';
-import dayjs from 'dayjs';
+import { styles } from '../pages/WelcomePage';
 
 type MetricProfile = 'Last' | 'Avg';
 
@@ -112,6 +117,7 @@ interface IKPIComponentProps {
   rawMetrics: RawMetrics;
   experimentList: string[];
   workflowList: string[];
+  handleSubmitExport: () => void;
   handleRefreshExperimentList: () => void;
   selectedExperiment: string | null;
   setSelectedExperiment: (newValue: string) => void;
@@ -119,8 +125,8 @@ interface IKPIComponentProps {
   setSelectedWorkflow: (newValue: string) => void;
 }
 
-const START = 1748855616000;
-const END = 1748858436000;
+// const START = 1748855616000;
+// const END = 1748858436000;
 
 const kpiCardsData: Array<{
   key: keyof IKPIValues;
@@ -172,7 +178,8 @@ export const KPIComponent = ({
   selectedExperiment,
   setSelectedExperiment,
   selectedWorkflow,
-  setSelectedWorkflow
+  setSelectedWorkflow,
+  handleSubmitExport
 }: IKPIComponentProps) => {
   const [kpi, setKpi] = React.useState<IKPIValues | null>(null);
 
@@ -201,12 +208,7 @@ export const KPIComponent = ({
           alignItems: 'flex-end'
         }}
       >
-        <Typography variant="h6">
-          <span style={{ fontWeight: 'bold' }}>Experiment ID</span> <br />
-          <span style={{ fontStyle: 'italic' }}>{selectedExperiment}</span>{' '}
-          <br />
-        </Typography>
-        <Box gap={2} sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box gap={2} sx={styles.buttonGrid}>
           <IconButton onClick={handleRefreshExperimentList}>
             <RefreshRoundedIcon />
           </IconButton>
@@ -222,6 +224,7 @@ export const KPIComponent = ({
               onChange={e => {
                 e !== null && setSelectedWorkflow(e.target.value ?? '');
               }}
+              sx={{ minWidth: '150px' }}
             >
               <MenuItem disabled value="">
                 <em>Select Workflow</em>
@@ -247,6 +250,7 @@ export const KPIComponent = ({
               onChange={e => {
                 e !== null && setSelectedExperiment(e.target.value ?? '');
               }}
+              sx={{ minWidth: '150px' }}
             >
               <MenuItem disabled value="">
                 <em>Select Experiment</em>
@@ -261,12 +265,17 @@ export const KPIComponent = ({
                 })}
             </Select>
           </FormControl>
-          <Typography variant="body2">
+          {/* <Typography variant="body2">
             <span style={{ fontWeight: 'bold' }}>Start: </span>{' '}
             {dayjs(START).toString()} <br />
             <span style={{ fontWeight: 'bold' }}>End: </span>{' '}
             {dayjs(END).toString()}
-          </Typography>
+          </Typography> */}
+        </Box>
+        <Box sx={styles.buttonGrid}>
+          <Button variant="outlined" onClick={handleSubmitExport}>
+            Submit Experiment metadata to API
+          </Button>
         </Box>
       </Stack>
       <Stack direction="row" gap={2}>
