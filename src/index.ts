@@ -23,8 +23,7 @@ import { MainWidget } from './widget';
 import {
   handleFirstCellExecution,
   handleLastCellExecution,
-  handleNotebookSessionContents,
-  handleLoadExperimentList
+  handleNotebookSessionContents
 } from './api/handleNotebookContents';
 
 import { getUsernameSh, saveUsernameSh } from './api/apiScripts';
@@ -70,10 +69,9 @@ const plugin: JupyterFrontEndPlugin<void> = {
     // Define a widget creator function
     const newWidget = async (
       username: string,
-      panel: NotebookPanel,
-      experimentList: string[]
+      panel: NotebookPanel
     ): Promise<MainAreaWidget<MainWidget>> => {
-      const content = new MainWidget(username, panel, experimentList);
+      const content = new MainWidget(username, panel);
       const widget = new MainAreaWidget({ content });
       widget.id = 'gd-ecojupyter';
       widget.title.label = 'GreenDIGIT EcoJupyter Dashboard';
@@ -88,12 +86,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
       shell: JupyterFrontEnd.IShell,
       widget: MainAreaWidget<MainWidget> | null,
       username: string,
-      panel: NotebookPanel,
-      experimentList: string[]
+      panel: NotebookPanel
     ) {
       // If the widget is not provided or is disposed, create a new one
       if (!widget || widget.isDisposed) {
-        widget = await newWidget(username, panel, experimentList);
+        widget = await newWidget(username, panel);
         // Add the widget to the tracker and shell
         tracker.add(widget);
         shell.add(widget, 'main');
@@ -117,16 +114,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
         try {
           const username =
             (await handleNotebookSessionContents(panel, getUsernameSh)) ?? '';
-          const experimentList = (await handleLoadExperimentList(panel)) ?? [
-            ''
-          ];
-          await addNewWidget(
-            shell,
-            tracker.currentWidget,
-            username,
-            panel,
-            experimentList
-          );
+          await addNewWidget(shell, tracker.currentWidget, username, panel);
         } catch (err) {
           console.error('Failed to fetch username:', err);
         }
@@ -143,14 +131,12 @@ const plugin: JupyterFrontEndPlugin<void> = {
     if (!tracker.currentWidget) {
       const panel = notebookTracker.currentWidget;
       let username: string | null = null;
-      let experimentList: string[] = [];
 
       if (panel) {
         await panel.context.ready;
         try {
           username =
             (await handleNotebookSessionContents(panel, getUsernameSh)) ?? null;
-          experimentList = (await handleLoadExperimentList(panel)) ?? [''];
         } catch (err) {
           console.warn(
             'Could not fetch username during restore, using default:',
@@ -160,7 +146,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       }
 
       if (username !== null && panel !== null) {
-        const widget = await newWidget(username, panel, experimentList);
+        const widget = await newWidget(username, panel);
         tracker.add(widget);
         shell.add(widget, 'main');
       }
@@ -178,17 +164,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
             panel,
             getUsernameSh
           );
-          const experimentList = (await handleLoadExperimentList(panel)) ?? [
-            ''
-          ];
           if (username) {
-            await addNewWidget(
-              shell,
-              tracker.currentWidget,
-              username,
-              panel,
-              experimentList
-            );
+            await addNewWidget(shell, tracker.currentWidget, username, panel);
           }
         } catch (err) {
           console.error('Failed to fetch username on seen restore:', err);
@@ -202,15 +179,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
         await handleNotebookSessionContents(panel, saveUsernameSh);
         const username =
           (await handleNotebookSessionContents(panel, getUsernameSh)) ?? '';
-        const experimentList = await handleLoadExperimentList(panel);
 
-        await addNewWidget(
-          shell,
-          tracker.currentWidget,
-          username,
-          panel,
-          experimentList
-        );
+        await addNewWidget(shell, tracker.currentWidget, username, panel);
 
         NotebookActions.executed.connect(async (_, args) => {
           const { cell, notebook } = args;

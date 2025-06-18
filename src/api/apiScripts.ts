@@ -179,9 +179,21 @@ os.environ["WORKFLOW_ID"] = ""
 print("Cleared EXPERIMENT_ID and WORKFLOW_ID.")
 `;
 
-export const getExperimentList = `
+export const getWorkflowList = `
 %%bash
 BASE_PATH=".lib/experiments/"
+FOLDER_NAMES=()
+
+for dir in "$BASE_PATH"/*/; do
+  [ -d "$dir" ] && FOLDER_NAMES+=("$(basename "$dir")")
+done
+
+echo "\${FOLDER_NAMES[@]}"
+`;
+
+export const getExperimentList = (workflowId: string) => `
+%%bash
+BASE_PATH=".lib/experiments/${workflowId}"
 FOLDER_NAMES=()
 
 for dir in "$BASE_PATH"/*/; do

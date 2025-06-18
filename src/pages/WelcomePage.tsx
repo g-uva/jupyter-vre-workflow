@@ -21,7 +21,11 @@ import {
 } from '../api/apiScripts';
 import ApiSubmitForm from '../components/ApiSubmitForm';
 import { NotebookPanel } from '@jupyterlab/notebook';
-import { handleNotebookSessionContents } from '../api/handleNotebookContents';
+import {
+  handleLoadExperimentList,
+  handleLoadWorkflowList,
+  handleNotebookSessionContents
+} from '../api/handleNotebookContents';
 
 export const styles: Record<string, SxProps> = {
   main: {
@@ -60,7 +64,6 @@ interface IWelcomePage {
   handleGrafanaClick: () => void;
   username: string;
   onRunScript: ({ script }: { script?: string }) => Promise<void>;
-  experimentList: string[];
   panel: NotebookPanel;
 }
 
@@ -70,7 +73,6 @@ export default function WelcomePage({
   // handleGrafanaClick,
   username,
   onRunScript,
-  experimentList,
   panel
 }: IWelcomePage) {
   const [startDate, setStartDate] = React.useState<Dayjs>(startDateJs);
@@ -88,6 +90,15 @@ export default function WelcomePage({
   const [fetchIntervalS, setFetchIntervalS] = React.useState<number>(30);
 
   const [openDialog, setOpenDialog] = React.useState<boolean>(false);
+
+  const [workflowList, setWorkflowList] = React.useState<string[]>([]);
+  const [experimentList, setExperimentList] = React.useState<string[]>([]);
+  const [selectedWorkflow, setSelectedWorkflow] = React.useState<string | null>(
+    null
+  );
+  const [selectedExperiment, setSelectedExperiment] = React.useState<
+    string | null
+  >(null);
 
   function handleUpdateSelectedMetric(index: number, newMetric: string) {
     setSelectedMetric(prev => {
@@ -154,6 +165,23 @@ export default function WelcomePage({
     );
   }
 
+  async function handleRefreshWorkflowList() {
+    const newWorkflowList = await handleLoadWorkflowList(panel);
+    setWorkflowList(newWorkflowList);
+    setSelectedWorkflow(newWorkflowList[0]);
+  }
+
+  async function handleRefreshExperimentList() {
+    if (selectedWorkflow) {
+      const newExperimentList = await handleLoadExperimentList(
+        selectedWorkflow,
+        panel
+      );
+      setExperimentList(newExperimentList);
+      setSelectedExperiment(newExperimentList[0]);
+    }
+  }
+
   React.useEffect(() => {
     let intervalId: NodeJS.Timeout;
     if (isFetchMetrics === true) {
@@ -168,6 +196,15 @@ export default function WelcomePage({
       }
     }; // Clear the interval Id when umounting ;)
   }, [isFetchMetrics]);
+
+  // Just run it once the component mounts.
+  React.useEffect(() => {
+    handleRefreshWorkflowList();
+  }, []);
+
+  React.useEffect(() => {
+    handleRefreshExperimentList();
+  }, [workflowList, selectedWorkflow]);
 
   return (
     <>
@@ -198,6 +235,12 @@ export default function WelcomePage({
             <KPIComponent
               rawMetrics={dataMap}
               experimentList={experimentList}
+              workflowList={workflowList}
+              handleRefreshExperimentList={handleRefreshWorkflowList}
+              selectedExperiment={selectedExperiment}
+              setSelectedExperiment={setSelectedExperiment}
+              selectedWorkflow={selectedWorkflow}
+              setSelectedWorkflow={setSelectedWorkflow}
             />
           </Grid2>
         </Grid2>

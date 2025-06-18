@@ -16,6 +16,7 @@ import {
   Box,
   FormControl,
   Grid2,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
@@ -26,6 +27,7 @@ import {
 import SolarPowerOutlinedIcon from '@mui/icons-material/SolarPowerOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import EnergySavingsLeafOutlinedIcon from '@mui/icons-material/EnergySavingsLeafOutlined';
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 
 import KpiValue from './KpiValue';
 // import getDynamicCarbonIntensity from '../api/getCarbonIntensityData';
@@ -109,6 +111,12 @@ export async function calculateKPIs(
 interface IKPIComponentProps {
   rawMetrics: RawMetrics;
   experimentList: string[];
+  workflowList: string[];
+  handleRefreshExperimentList: () => void;
+  selectedExperiment: string | null;
+  setSelectedExperiment: (newValue: string) => void;
+  selectedWorkflow: string | null;
+  setSelectedWorkflow: (newValue: string) => void;
 }
 
 const START = 1748855616000;
@@ -158,7 +166,13 @@ const kpiCardsData: Array<{
 
 export const KPIComponent = ({
   rawMetrics,
-  experimentList
+  experimentList,
+  workflowList,
+  handleRefreshExperimentList,
+  selectedExperiment,
+  setSelectedExperiment,
+  selectedWorkflow,
+  setSelectedWorkflow
 }: IKPIComponentProps) => {
   const [kpi, setKpi] = React.useState<IKPIValues | null>(null);
   const [selectedExperimentIndex, setSelectedExperimentIndex] = React.useState<
@@ -198,6 +212,30 @@ export const KPIComponent = ({
           <br />
         </Typography>
         <Box gap={2} sx={{ display: 'flex', alignItems: 'center' }}>
+          <IconButton onClick={handleRefreshExperimentList}>
+            <RefreshRoundedIcon />
+          </IconButton>
+
+          <FormControl>
+            <InputLabel sx={{ background: 'white' }}>
+              Selected Experiment ID
+            </InputLabel>
+            <Select
+              size="small"
+              value={selectedExperimentIndex}
+              onChange={e => {
+                e !== null && setSelectedExperimentIndex(e.target.value);
+              }}
+            >
+              <MenuItem disabled value="">
+                <em>Select Workflow</em>
+              </MenuItem>
+              {workflowList &&
+                workflowList.map((workflowId: string, index: number) => {
+                  return <MenuItem value={index}>{workflowId}</MenuItem>;
+                })}
+            </Select>
+          </FormControl>
           <FormControl>
             <InputLabel sx={{ background: 'white' }}>
               Selected Experiment ID

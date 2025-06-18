@@ -6,8 +6,9 @@ import {
   createExperimentIdFolderSh,
   getAndSetWorkflowId,
   // cleanExperimentId,
-  getExperimentList,
-  getEndTime
+  getWorkflowList,
+  getEndTime,
+  getExperimentList
 } from './apiScripts';
 
 export async function handleFirstCellExecution(panel: NotebookPanel) {
@@ -76,12 +77,25 @@ export function captureKernelOutput(
   });
 }
 
-export async function handleLoadExperimentList(
+export async function handleLoadWorkflowList(
   panel: NotebookPanel
 ): Promise<string[]> {
   const experimentList = await handleNotebookSessionContents(
     panel,
-    getExperimentList
+    getWorkflowList
   );
   return experimentList ? experimentList.split(' ') : [''];
+}
+
+export async function handleLoadExperimentList(
+  worfklowId: string,
+  panel: NotebookPanel
+): Promise<string[]> {
+  const experimentList = await handleNotebookSessionContents(
+    panel,
+    getExperimentList(worfklowId)
+  );
+  return experimentList
+    ? experimentList.match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/g) || []
+    : [''];
 }
