@@ -290,7 +290,20 @@ os.environ["WORKFLOW_ID"] = get_notebook_name()
 
 export const saveSessionMetrics = `
 %%bash
-st = $START_TIME
-et = $END_TIME
+username=$(cat .lib/hostname)
+output_file=".lib/$WORKFLOW_ID/$EXPERIMENT_ID/metrics.csv"
+prom_url="https://mc-a4.lab.uvalight.net/prometheus-$username"
+st=$(date -d "$START_TIME" --iso-8601=seconds)
+et=$(date -d "$END_TIME" --iso-8601=seconds)
 
+metric_names = $(curl -s "$prom_url/api/v1/label/__name__/values" | \
+  jq -r '.data[] | select(startswith("scaph_"))' > "$output_file")
+
+for metric in metric_names; do
+  curl -s "$prometheus_url/api/v1/query_range" \
+    --data-urlencode "query=$metric" \
+    --data-urlencode "start=$st" \
+    --data-urlencode "end=$et" \
+    jq -r --arg m "$metric" '.data.result[]?.values[] | [$m, .[0], .[1]] | @csv' >> "$output_file"
+done
 `;
