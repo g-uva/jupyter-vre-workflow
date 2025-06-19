@@ -3,25 +3,28 @@ import { Grid2, Button } from '@mui/material';
 import { styles } from '../pages/WelcomePage';
 import FetchAutomatic from './FetchAutomatic';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import { handleNotebookSessionContents } from '../api/handleNotebookContents';
 
 interface IFetchMetricsComponent {
   fetchMetrics: () => void;
   fetchInterval: number;
   setFetchInterval: (value: number) => void;
   setIsFetchMetrics: (value: boolean) => void;
+  handleInstallMetrics: () => void;
 }
 
 export default function FetchMetricsComponent({
   fetchMetrics,
   fetchInterval,
   setFetchInterval,
-  setIsFetchMetrics
+  setIsFetchMetrics,
+  handleInstallMetrics
 }: IFetchMetricsComponent) {
   return (
     <Grid2 sx={{ ...styles.buttonGrid, mb: 0 }}>
       <Button
         variant="outlined"
-        onClick={fetchMetrics}
+        onClick={handleInstallMetrics}
         sx={{ maxHeight: '40px' }}
         startIcon={<RefreshRoundedIcon />}
       >

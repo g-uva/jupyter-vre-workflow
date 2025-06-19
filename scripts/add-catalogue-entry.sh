@@ -18,7 +18,12 @@ curl \
             "name": "Test"
         }
     ],
-    "resources": [],
+    "resources": [
+        {
+            "name": "RO-Crate metadata",
+            "url": "https://link-to-metadata",
+            "format": "zip"
+        }],
     "extras": [
         {
             "key": "Creation Date",

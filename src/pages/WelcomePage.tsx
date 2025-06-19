@@ -63,7 +63,6 @@ interface IWelcomePage {
   handlePredictionClick: () => void;
   handleGrafanaClick: () => void;
   username: string;
-  onRunScript: ({ script }: { script?: string }) => Promise<void>;
   panel: NotebookPanel;
 }
 
@@ -72,7 +71,6 @@ export default function WelcomePage({
   // handlePredictionClick,
   // handleGrafanaClick,
   username,
-  onRunScript,
   panel
 }: IWelcomePage) {
   const [startDate, setStartDate] = React.useState<Dayjs>(startDateJs);
@@ -155,6 +153,9 @@ export default function WelcomePage({
   function handleSubmitValues(
     args: Pick<IExportJsonProps, 'title' | 'creator' | 'email' | 'orcid'>
   ) {
+    // TODO: the dialog should show the selected workflow and experiment
+    // Send those over to the backend.
+    // If workflow is still ongoing, prevent and send a message
     handleNotebookSessionContents(
       panel,
       exportSendJson({
@@ -180,6 +181,10 @@ export default function WelcomePage({
       setExperimentList(newExperimentList);
       setSelectedExperiment(newExperimentList[0]);
     }
+  }
+
+  async function handleInstallMetrics() {
+    await handleNotebookSessionContents(panel, installPrometheusScaphandre);
   }
 
   function handleSubmitExport() {
@@ -216,12 +221,6 @@ export default function WelcomePage({
         <Typography variant="h4" sx={styles.title}>
           🌱🌍♻️ EcoJupyter Dashboard
         </Typography>
-        <Button
-          onClick={() => onRunScript({ script: installPrometheusScaphandre })}
-          variant="outlined"
-        >
-          Test Install Prometheus Scaphandre
-        </Button>
         <Grid2 sx={styles.topRibbon}>
           <Grid2
             sx={{
@@ -278,6 +277,7 @@ export default function WelcomePage({
                 fetchInterval={fetchIntervalS}
                 setFetchInterval={setFetchIntervalS}
                 setIsFetchMetrics={setIsFetchMetrics}
+                handleInstallMetrics={handleInstallMetrics}
               />
             </Grid2>
 

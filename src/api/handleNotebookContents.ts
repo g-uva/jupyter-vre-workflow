@@ -5,10 +5,12 @@ import {
   generateExperimentIdAndStartTime,
   createExperimentIdFolderSh,
   getAndSetWorkflowId,
-  // cleanExperimentId,
   getWorkflowList,
   getEndTime,
-  getExperimentList
+  getExperimentList,
+  saveStartEndTime,
+  cleanExperimentMetadata,
+  saveSessionMetrics
 } from './apiScripts';
 
 export async function handleFirstCellExecution(panel: NotebookPanel) {
@@ -18,8 +20,10 @@ export async function handleFirstCellExecution(panel: NotebookPanel) {
 }
 
 export async function handleLastCellExecution(panel: NotebookPanel) {
-  // await handleNotebookSessionContents(panel, cleanExperimentId);
   await handleNotebookSessionContents(panel, getEndTime);
+  await handleNotebookSessionContents(panel, saveSessionMetrics);
+  await handleNotebookSessionContents(panel, saveStartEndTime);
+  await handleNotebookSessionContents(panel, cleanExperimentMetadata);
 }
 
 /**

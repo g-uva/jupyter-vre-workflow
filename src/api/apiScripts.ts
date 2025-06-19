@@ -172,11 +172,14 @@ sudo chmod +x install-scaphandre-prometheus.sh
 sudo rm -rf ./install-scaphandre-prometheus.sh
 `;
 
-export const cleanExperimentId = `
-import os
-os.environ["EXPERIMENT_ID"] = ""
-os.environ["WORKFLOW_ID"] = ""
-print("Cleared EXPERIMENT_ID and WORKFLOW_ID.")
+export const cleanExperimentMetadata = `
+%%bash
+experiment_temp = $EXPERIMENT_ID
+unset EXPERIMENT_ID
+unset WORKFLOW_ID
+unset START_TIME
+unset END_TIME
+echo "Cleared Experiment $experiment_temp metadata."
 `;
 
 export const getWorkflowList = `
@@ -237,8 +240,6 @@ jq -n \
       "start_time": $start_time,
       "end_time": $end_time
     }' > .lib/experiments/$WORKFLOW_ID/$EXPERIMENT_ID/timestamps.json
-unset START_TIME
-unset END_TIME
 `;
 
 export const getTime = `
@@ -285,4 +286,11 @@ def get_notebook_name():
 
 print(get_notebook_name())
 os.environ["WORKFLOW_ID"] = get_notebook_name()
+`;
+
+export const saveSessionMetrics = `
+%%bash
+st = $START_TIME
+et = $END_TIME
+
 `;
