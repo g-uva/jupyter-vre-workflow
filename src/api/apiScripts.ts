@@ -292,18 +292,48 @@ export const saveSessionMetrics = `
 %%bash
 username=$(cat .lib/hostname)
 output_file=".lib/$WORKFLOW_ID/$EXPERIMENT_ID/metrics.csv"
+sudo rm -rf $output_file
 prom_url="https://mc-a4.lab.uvalight.net/prometheus-$username"
-st=$(date -d "$START_TIME" --iso-8601=seconds)
-et=$(date -d "$END_TIME" --iso-8601=seconds)
+st=$(date -d "$START_TIME UTC -2 hours" +"%Y-%m-%dT%H:%M:%SZ")
+et=$(date -d "$END_TIME UTC -2 hours" +"%Y-%m-%dT%H:%M:%SZ")
 
-metric_names = $(curl -s "$prom_url/api/v1/label/__name__/values" | \
-  jq -r '.data[] | select(startswith("scaph_"))' > "$output_file")
+metric_names=$(curl -s "$prom_url/api/v1/label/__name__/values" | jq -r '.data[] | select(startswith("scaph_"))')
 
-for metric in metric_names; do
-  curl -s "$prometheus_url/api/v1/query_range" \
-    --data-urlencode "query=$metric" \
-    --data-urlencode "start=$st" \
-    --data-urlencode "end=$et" \
-    jq -r --arg m "$metric" '.data.result[]?.values[] | [$m, .[0], .[1]] | @csv' >> "$output_file"
+tmp_dir=".lib/tmp_metrics"
+rm -rf "$tmp_dir"
+mkdir -p "$tmp_dir"
+
+for metric in $metric_names; do
+  curl -s -G "$prom_url/api/v1/query_range" \\
+    --data-urlencode "query=\${metric}" \\
+    --data-urlencode "start=$st" \\
+    --data-urlencode "end=$et" \\
+    --data-urlencode "step=15s" | \\
+    jq -r '.data.result[]?.values[] | @csv' > "$tmp_dir/\${metric}.csv"
 done
+
+first=1
+for file in "$tmp_dir"/*.csv; do
+  if [ $first -eq 1 ]; then
+    cut -d',' -f1 "$file" > "$output_file"
+    first=0
+  fi
+done
+
+for file in "$tmp_dir"/*.csv; do
+  cut -d',' -f2 "$file" > "\${file}.val"
+  paste -d',' "$output_file" "\${file}.val" > "\${output_file}.tmp"
+  mv "\${output_file}.tmp" "$output_file"
+done
+
+# Add header (except for first timestamp column which has no header)
+echo -n "" > "\${output_file}.header"
+for file in "$tmp_dir"/*.csv; do
+  metric=$(basename "$file" .csv)
+  echo -n ",$metric" >> "\${output_file}.header"
+done
+cat "\${output_file}.header" "$output_file" > "\${output_file}.final"
+mv "\${output_file}.final" "$output_file"
+
+rm -rf "$tmp_dir"
 `;
