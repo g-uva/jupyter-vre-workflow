@@ -198,9 +198,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
         // Monitor cell execution
         // monitorCellExecutions(panel);
       });
-
-      // handleNotebookSessionContents(panel, saveUsernameSh);
-      // handleNotebookSessionContents(panel, getExperimentId);
     });
   }
 };

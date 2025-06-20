@@ -9,8 +9,8 @@ import {
   getEndTime,
   getExperimentList,
   saveStartEndTime,
-  cleanExperimentMetadata,
-  saveSessionMetrics
+  cleanExperimentMetadata
+  // saveSessionMetrics
 } from './apiScripts';
 
 export async function handleFirstCellExecution(panel: NotebookPanel) {
@@ -20,10 +20,14 @@ export async function handleFirstCellExecution(panel: NotebookPanel) {
 }
 
 export async function handleLastCellExecution(panel: NotebookPanel) {
-  await handleNotebookSessionContents(panel, getEndTime);
-  await handleNotebookSessionContents(panel, saveSessionMetrics);
-  await handleNotebookSessionContents(panel, saveStartEndTime);
-  await handleNotebookSessionContents(panel, cleanExperimentMetadata);
+  try {
+    await handleNotebookSessionContents(panel, getEndTime);
+    // await handleNotebookSessionContents(panel, saveSessionMetrics);
+    await handleNotebookSessionContents(panel, saveStartEndTime);
+    await handleNotebookSessionContents(panel, cleanExperimentMetadata);
+  } catch (err) {
+    console.error(err, 'Error detected');
+  }
 }
 
 /**

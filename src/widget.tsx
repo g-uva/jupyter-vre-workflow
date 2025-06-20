@@ -9,7 +9,6 @@ import GoBackButton from './components/GoBackButton';
 import GrafanaPage from './pages/GrafanaPage';
 import { CONTAINER_ID } from './helpers/constants';
 import { NotebookPanel } from '@jupyterlab/notebook';
-import { handleNotebookSessionContents } from './api/handleNotebookContents';
 
 const styles: Record<string, React.CSSProperties> = {
   main: {
@@ -86,12 +85,6 @@ const App = ({ username, panel }: IAppProps): JSX.Element => {
     setActivePageState(Page.WelcomePage);
   }
 
-  async function handleRunScript({ script }: { script?: string }) {
-    if (script !== null && script !== undefined) {
-      await handleNotebookSessionContents(panel, script);
-    }
-  }
-
   const ActivePage: Record<Page, React.JSX.Element> = {
     [Page.WelcomePage]: (
       <WelcomePage
@@ -99,7 +92,6 @@ const App = ({ username, panel }: IAppProps): JSX.Element => {
         handlePredictionClick={handlePredictionClick}
         handleGrafanaClick={handleGrafanaClick}
         username={username}
-        onRunScript={handleRunScript}
         panel={panel}
       />
     ),

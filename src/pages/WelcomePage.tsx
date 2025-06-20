@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Grid2, SxProps, Typography } from '@mui/material';
+import { Grid2, SxProps, Typography } from '@mui/material';
 import GeneralDashboard from './GeneralDashboard';
 import { Dayjs } from 'dayjs';
 import getScaphData from '../api/getScaphData';
@@ -16,6 +16,7 @@ import { KPIComponent } from '../components/KPIComponent';
 import { getDateNow } from '../helpers/utils';
 import {
   exportSendJson,
+  getTime,
   IExportJsonProps,
   installPrometheusScaphandre
 } from '../api/apiScripts';
@@ -115,13 +116,30 @@ export default function WelcomePage({
   }, [metrics]);
 
   async function fetchMetrics() {
+    console.log('fetching metrics');
     const container = document.getElementById(CONTAINER_ID);
     const scrollPosition = container?.scrollTop;
 
     setLoading(true);
 
-    const now = getDateNow();
-    setEndDate(now);
+    // const now = getDateNow();
+    // setEndDate(now);
+    if (selectedWorkflow && selectedExperiment) {
+      const jsonStringTime = await handleNotebookSessionContents(
+        panel,
+        getTime(selectedWorkflow, selectedExperiment)
+      );
+      interface IJSONTime {
+        start_time: string;
+        end_time: string;
+      }
+      if (typeof jsonStringTime === 'string') {
+        const jsonTime = JSON.parse(jsonStringTime) as IJSONTime;
+        const { start_time, end_time } = jsonTime;
+        const startTimeUnix = new Dayjs(start_time).unix();
+        const endTimeUnix = new Dayjs(end_time).unix();
+      }
+    }
 
     getScaphData({
       url: `https://mc-a4.lab.uvalight.net/prometheus-${username}/`,

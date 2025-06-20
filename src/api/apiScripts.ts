@@ -231,25 +231,25 @@ os.environ["END_TIME"] = et
 
 export const saveStartEndTime = `
 %%bash
-export START_TIME="2025-02-02"
-export END_TIME="2025-02-03"
+start_time=$START_TIME
+end_time=$END_TIME
 jq -n \
-    --arg start_time "$START_TIME" \
-    --arg end_time "$END_TIME" \
+    --arg start_time "$start_time" \
+    --arg end_time "$end_time" \
     '{
       "start_time": $start_time,
       "end_time": $end_time
-    }' > .lib/experiments/$WORKFLOW_ID/$EXPERIMENT_ID/timestamps.json
+    }' > .lib/experiments/"$WORKFLOW_ID"/"$EXPERIMENT_ID"/timestamps.json
 `;
 
-export const getTime = `
+export const getTime = (workflow: string, experiment: string) => `
 %%bash
-TIMESTAMP_FILE=".lib/experiments/$WORKFLOW_ID/$EXPERIMENT_ID/timestamps.json"
+TIMESTAMP_FILE=".lib/experiments/${workflow}/${experiment}/timestamps.json"
 
 if [ -f "$TIMESTAMP_FILE" ]; then
   cat "$TIMESTAMP_FILE"
 else
-  echo "{ \\"start_time\\": \\"$START_TIME\\", \\"end_time\\": null }"
+  echo "{ \\"start_time\\": \\"$START_TIME\\", \\"end_time\\": "$END_TIME" }"
 fi
 `;
 
@@ -291,7 +291,7 @@ os.environ["WORKFLOW_ID"] = get_notebook_name()
 export const saveSessionMetrics = `
 %%bash
 username=$(cat .lib/hostname)
-output_file=".lib/$WORKFLOW_ID/$EXPERIMENT_ID/metrics.csv"
+output_file=".lib/experiments/$WORKFLOW_ID/$EXPERIMENT_ID/metrics.csv"
 sudo rm -rf $output_file
 prom_url="https://mc-a4.lab.uvalight.net/prometheus-$username"
 st=$(date -d "$START_TIME UTC -2 hours" +"%Y-%m-%dT%H:%M:%SZ")

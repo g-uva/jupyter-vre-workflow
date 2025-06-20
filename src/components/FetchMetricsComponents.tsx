@@ -3,7 +3,6 @@ import { Grid2, Button } from '@mui/material';
 import { styles } from '../pages/WelcomePage';
 import FetchAutomatic from './FetchAutomatic';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
-import { handleNotebookSessionContents } from '../api/handleNotebookContents';
 
 interface IFetchMetricsComponent {
   fetchMetrics: () => void;
