@@ -13,7 +13,6 @@ import {
 import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
 import { KPIComponent } from '../components/KPIComponent';
-import { getDateNow } from '../helpers/utils';
 import {
   exportSendJson,
   getTime,
@@ -116,14 +115,14 @@ export default function WelcomePage({
   }, [metrics]);
 
   async function fetchMetrics() {
-    console.log('fetching metrics');
     const container = document.getElementById(CONTAINER_ID);
     const scrollPosition = container?.scrollTop;
 
     setLoading(true);
 
-    // const now = getDateNow();
-    // setEndDate(now);
+    let startTimeUnix: number = 0;
+    let endTimeUnix: number = 0;
+
     if (selectedWorkflow && selectedExperiment) {
       const jsonStringTime = await handleNotebookSessionContents(
         panel,
@@ -136,15 +135,15 @@ export default function WelcomePage({
       if (typeof jsonStringTime === 'string') {
         const jsonTime = JSON.parse(jsonStringTime) as IJSONTime;
         const { start_time, end_time } = jsonTime;
-        const startTimeUnix = new Dayjs(start_time).unix();
-        const endTimeUnix = new Dayjs(end_time).unix();
+        startTimeUnix = new Dayjs(start_time).unix();
+        endTimeUnix = new Dayjs(end_time).unix();
       }
     }
 
     getScaphData({
       url: `https://mc-a4.lab.uvalight.net/prometheus-${username}/`,
-      startTime: startDate.unix(),
-      endTime: now.unix()
+      startTime: startTimeUnix,
+      endTime: endTimeUnix
     }).then(results => {
       if (container !== null && scrollPosition !== undefined) {
         container.scrollTop = scrollPosition;

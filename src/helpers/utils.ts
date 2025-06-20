@@ -1,4 +1,4 @@
-import dayjs from 'dayjs';
+// import dayjs from 'dayjs';
 
 // Downsample: pick every Nth point to reduce chart density
 export function downSample<T>(data: T[], maxPoints = 250): T[] {
@@ -46,9 +46,9 @@ export function microjoulesToKWh(uj: number): number {
   return uj / 1_000_000 / 3_600_000;
 }
 
-export function getDateNow() {
-  return dayjs(new Date());
-}
+// export function getDateNow() {
+//   return dayjs(new Date());
+// }
 
 export function shortenNumber(num: number) {
   const units = ['', 'K', 'M', 'B', 'T'];
