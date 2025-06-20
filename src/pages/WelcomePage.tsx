@@ -1,7 +1,7 @@
 import React from 'react';
 import { Grid2, SxProps, Typography } from '@mui/material';
 import GeneralDashboard from './GeneralDashboard';
-import { Dayjs } from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs';
 import getScaphData from '../api/getScaphData';
 import {
   startDateJs,
@@ -130,15 +130,19 @@ export default function WelcomePage({
       );
       interface IJSONTime {
         start_time: string;
-        end_time: string;
+        end_time: string | null;
       }
       if (typeof jsonStringTime === 'string') {
         const jsonTime = JSON.parse(jsonStringTime) as IJSONTime;
         const { start_time, end_time } = jsonTime;
-        startTimeUnix = new Dayjs(start_time).unix();
-        endTimeUnix = new Dayjs(end_time).unix();
+        console.log(start_time, end_time);
+        startTimeUnix = dayjs(start_time).unix();
+        endTimeUnix =
+          end_time !== null ? dayjs(end_time).unix() : dayjs().unix();
       }
     }
+
+    console.log(startTimeUnix, endTimeUnix);
 
     getScaphData({
       url: `https://mc-a4.lab.uvalight.net/prometheus-${username}/`,

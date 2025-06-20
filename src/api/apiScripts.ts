@@ -249,7 +249,12 @@ TIMESTAMP_FILE=".lib/experiments/${workflow}/${experiment}/timestamps.json"
 if [ -f "$TIMESTAMP_FILE" ]; then
   cat "$TIMESTAMP_FILE"
 else
-  echo "{ \\"start_time\\": \\"$START_TIME\\", \\"end_time\\": "$END_TIME" }"
+  echo -n "{ \\"start_time\\": \\"$START_TIME\\", \\"end_time\\": "
+    if [ -z "$END_TIME" ]; then
+      echo "null }"
+    else
+      echo "\\"$END_TIME\\" }"
+    fi
 fi
 `;
 
