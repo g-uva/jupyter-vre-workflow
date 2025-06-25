@@ -4,7 +4,6 @@ os_info=""
 
 case "\${uname_str}" in
     Linux*)
-        os="Linux"
         if [ -f /etc/os-release ]; then
             # Parse common distro info
             . /etc/os-release
@@ -14,7 +13,6 @@ case "\${uname_str}" in
         fi
         ;;
     Darwin*)
-        os="Mac"
         # Use sw_vers for macOS version info
         if command -v sw_vers &>/dev/null; then
             product_name=$(sw_vers -productName)
@@ -25,10 +23,9 @@ case "\${uname_str}" in
         fi
         ;;
     CYGWIN*|MINGW*|MSYS*)
-        os="Windows"
         # Try to get Windows version info
         if command -v cmd.exe &>/dev/null; then
-            win_ver=$(cmd.exe /c ver | tr -d '\r\n')
+            win_ver=$(cmd.exe /c ver | tr -d '\r')
             os_info="Windows ($win_ver)"
         else
             os_info="Windows (Unknown version)"
@@ -65,7 +62,7 @@ title="${props.title}"
 creator="${props.creator}"
 workflow_id="${props.workflow_id}"
 experiment_id="${props.experiment_id}"
-os=$OS_INFO
+os="$OS_INFO"
 email="${props.email}"
 pi="${props.orcid}"
 metrics="${props.session_metrics}"
@@ -123,11 +120,12 @@ echo $json_payload > $EXPORT_JSON_PATH
 
 AUTH_TOKEN="${props.token}"
 
-curl \
-  --header "Content-Type: application/json" \
-  --header "Authorization: Bearer $AUTH_TOKEN" \
-  --location "https://api.d4science.org/gcat/items" \
-  --data-raw "$json_payload"
+json_obj=$(jq . ".lib/export_metadata.json")
+echo $json_obj
+curl --header "Content-Type: application/json" \
+    --header "Authorization: Bearer $AUTH_TOKEN" \
+    --location "https://api.d4science.org/gcat/items" \
+    --data-raw "$json_obj"
 `;
 
 export const saveUsernameSh = `
