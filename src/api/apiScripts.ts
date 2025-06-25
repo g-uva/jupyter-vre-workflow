@@ -124,10 +124,10 @@ echo $json_payload > $EXPORT_JSON_PATH
 AUTH_TOKEN="${props.token}"
 
 curl \
---header "Content-Type: application/json" \
---header "Authorization: Bearer $AUTH_TOKEN" \
---location "https://api.d4science.org/gcat/items" \
---data-raw "$json_payload"
+  --header "Content-Type: application/json" \
+  --header "Authorization: Bearer $AUTH_TOKEN" \
+  --location "https://api.d4science.org/gcat/items" \
+  --data-raw "$json_payload"
 `;
 
 export const saveUsernameSh = `
