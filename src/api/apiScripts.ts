@@ -28,7 +28,7 @@ case "\${uname_str}" in
         os="Windows"
         # Try to get Windows version info
         if command -v cmd.exe &>/dev/null; then
-            win_ver=$(cmd.exe /c ver | tr -d '\r')
+            win_ver=$(cmd.exe /c ver | tr -d '\r\n')
             os_info="Windows ($win_ver)"
         else
             os_info="Windows (Unknown version)"
@@ -61,18 +61,18 @@ ${getOS}
 
 export EXPORT_JSON_PATH=".lib/export_metadata.json"
 
-title=${props.title}
-creator=${props.creator}
-workflow_id=${props.workflow_id}
-experiment_id=${props.experiment_id}
+title="${props.title}"
+creator="${props.creator}"
+workflow_id="${props.workflow_id}"
+experiment_id="${props.experiment_id}"
 os=$OS_INFO
-email=${props.email}
-pi=${props.orcid}
-metrics=${props.session_metrics}
+email="${props.email}"
+pi="${props.orcid}"
+metrics="${props.session_metrics}"
 platform="GreenDIGIT"
 node="node_01"
 lang="python"
-creation_date=${props.creation_date}
+creation_date="${props.creation_date}"
 project_id="greendigit_development"
 
 json_payload=$(jq -n \
@@ -119,7 +119,7 @@ json_payload=$(jq -n \
     ]
   }')
 
-# echo $json_payload > $EXPORT_JSON_PATH
+echo $json_payload > $EXPORT_JSON_PATH
 
 AUTH_TOKEN="${props.token}"
 
