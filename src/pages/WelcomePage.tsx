@@ -185,7 +185,9 @@ export default function WelcomePage({
         const code = exportSendJson({
           ...args,
           session_metrics,
-          creation_date: startEndTime.start_time
+          creation_date: startEndTime.start_time,
+          experiment_id: selectedExperiment,
+          workflow_id: selectedWorkflow
         });
         console.log(code);
         handleNotebookSessionContents(panel, code);

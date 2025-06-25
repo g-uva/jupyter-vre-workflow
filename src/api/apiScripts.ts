@@ -50,17 +50,21 @@ export interface IExportJsonProps {
   session_metrics: string;
   creation_date: string;
   token: string;
+  experiment_id: string;
+  workflow_id: string;
 }
 
 export const exportSendJson = (props: IExportJsonProps) => `
 %%bash
 
+${getOS}
+
 export EXPORT_JSON_PATH=".lib/export_metadata.json"
 
 title=${props.title}
 creator=${props.creator}
-workflow_id=$WORKFLOW_ID
-experiment_id=$EXPERIMENT_ID
+workflow_id=${props.workflow_id}
+experiment_id=${props.experiment_id}
 os=$OS_INFO
 email=${props.email}
 pi=${props.orcid}
@@ -68,7 +72,7 @@ metrics=${props.session_metrics}
 platform="GreenDIGIT"
 node="node_01"
 lang="python"
-creation_date=$START_TIME
+creation_date=${props.creation_date}
 project_id="greendigit_development"
 
 json_payload=$(jq -n \
