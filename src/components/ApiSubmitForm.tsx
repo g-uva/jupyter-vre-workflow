@@ -12,7 +12,10 @@ interface IApiSubmitForm {
   open: boolean;
   setOpen: (newValue: boolean) => void;
   submitValues: (
-    values: Pick<IExportJsonProps, 'title' | 'creator' | 'email' | 'orcid'>
+    values: Pick<
+      IExportJsonProps,
+      'title' | 'creator' | 'email' | 'orcid' | 'token'
+    >
   ) => void;
 }
 
@@ -42,14 +45,16 @@ export default function ApiSubmitForm({
               const creator: string = formJson.creator;
               const email: string = formJson.email;
               const orcid: string = formJson.orcid;
+              const token: string = formJson.token;
 
               if (
                 typeof title === 'string' &&
                 typeof creator === 'string' &&
                 typeof email === 'string' &&
-                typeof orcid === 'string'
+                typeof orcid === 'string' &&
+                typeof token === 'string'
               ) {
-                submitValues({ title, creator, email, orcid });
+                submitValues({ title, creator, email, orcid, token });
                 handleClose();
               }
             }
@@ -104,6 +109,18 @@ export default function ApiSubmitForm({
             id="title"
             name="title"
             label="Title"
+            type="text"
+            fullWidth
+            variant="outlined"
+          />
+
+          <TextField
+            autoFocus
+            required
+            margin="dense"
+            id="token"
+            name="token"
+            label="FDMI Token"
             type="text"
             fullWidth
             variant="outlined"

@@ -165,7 +165,10 @@ export default function WelcomePage({
   }
 
   async function handleSubmitValues(
-    args: Pick<IExportJsonProps, 'title' | 'creator' | 'email' | 'orcid'>
+    args: Pick<
+      IExportJsonProps,
+      'title' | 'creator' | 'email' | 'orcid' | 'token'
+    >
   ) {
     if (selectedWorkflow && selectedExperiment) {
       const session_metrics = await getHandleSessionMetrics(
