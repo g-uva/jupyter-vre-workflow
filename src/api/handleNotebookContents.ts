@@ -141,12 +141,12 @@ export async function handleGetTime(
   if (typeof jsonStringTime === 'string') {
     const jsonTime = JSON.parse(jsonStringTime) as IJSONTime;
     const { start_time, end_time } = jsonTime;
-    const twoHoursUnix = 60 * 60 * getOffsetHours();
-    const startTimeUnix = dayjs(start_time).unix() + twoHoursUnix;
+    const differenceUnix = 60 * 60 * getOffsetHours();
+    const startTimeUnix = dayjs(start_time).unix() + differenceUnix;
     const endTimeUnix =
       end_time !== null
         ? dayjs(end_time).unix()
-        : dayjs().unix() + twoHoursUnix;
+        : dayjs().unix() + differenceUnix;
     return { startTimeUnix, endTimeUnix, start_time };
   }
   return null;
