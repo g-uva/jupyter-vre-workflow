@@ -138,7 +138,7 @@ export default function WelcomePage({
     }
 
     getScaphData({
-      url: `https://mc-a4.lab.uvalight.net/prometheus-${username}/`,
+      url: `https://mc-a4.lab.uvalight.net/prometheus-${username}`,
       startTime: startTimeUnix,
       endTime: endTimeUnix
     }).then(results => {
