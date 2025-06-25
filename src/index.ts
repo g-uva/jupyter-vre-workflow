@@ -7,10 +7,8 @@ import {
 } from '@jupyterlab/application';
 
 import {
-  Dialog,
   ICommandPalette,
   MainAreaWidget,
-  showDialog,
   WidgetTracker
 } from '@jupyterlab/apputils';
 
@@ -29,6 +27,7 @@ import {
 } from './api/handleNotebookContents';
 
 import { getUsernameSh, saveUsernameSh } from './api/apiScripts';
+import JupyterDialogWarning from './components/JupyterDialogWarning';
 
 // import { monitorCellExecutions } from './api/monitorCellExecutions';
 
@@ -124,12 +123,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
     });
 
     app.restored.then(() => {
-      showDialog({
-        title: 'Reload Required',
-        body: 'EcoJupyter has been installed. Please reload the window to activate it.',
-        buttons: [Dialog.okButton({ label: 'Reload Now' })]
-      }).then(() => {
-        window.location.reload();
+      JupyterDialogWarning({
+        message:
+          'EcoJupyter has been installed. Please reload the window to activate it.',
+        buttonLabel: 'Reload window',
+        action: () => window.location.reload()
       });
     });
 
