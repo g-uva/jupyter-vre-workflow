@@ -7,8 +7,10 @@ import {
 } from '@jupyterlab/application';
 
 import {
+  Dialog,
   ICommandPalette,
   MainAreaWidget,
+  showDialog,
   WidgetTracker
 } from '@jupyterlab/apputils';
 
@@ -41,7 +43,7 @@ const namespaceId = 'gdapod';
  * Initialization data for the GreenDIGIT JupyterLab extension.
  */
 const plugin: JupyterFrontEndPlugin<void> = {
-  id: 'jupyterlab-ecojupyter',
+  id: 'ecojupyter',
   description: 'GreenDIGIT EcoJupyter App',
   autoStart: true,
   requires: [ICommandPalette, ILayoutRestorer, INotebookTracker],
@@ -119,6 +121,16 @@ const plugin: JupyterFrontEndPlugin<void> = {
           console.error('Failed to fetch username:', err);
         }
       }
+    });
+
+    app.restored.then(() => {
+      showDialog({
+        title: 'Reload Required',
+        body: 'EcoJupyter has been installed. Please reload the window to activate it.',
+        buttons: [Dialog.okButton({ label: 'Reload Now' })]
+      }).then(() => {
+        window.location.reload();
+      });
     });
 
     // Add the command to the palette
