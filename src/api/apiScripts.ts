@@ -151,6 +151,10 @@ mkdir -p ".lib/experiments/$WORKFLOW_ID/$EXPERIMENT_ID"
 echo "Created Experiment ID folder $EXPERIMENT_ID in workflow $WORKFLOW_ID"
 `;
 
+export const installJqPackage = `
+sudo apt install jq -y
+`;
+
 export const getExperimentId = `
 import os
 print("Getting experiment ID: " + os.environ["EXPERIMENT_ID"])
@@ -296,8 +300,8 @@ username=$(cat .lib/hostname)
 output_file=".lib/experiments/$WORKFLOW_ID/$EXPERIMENT_ID/metrics.csv"
 sudo rm -rf $output_file
 prom_url="https://mc-a4.lab.uvalight.net/prometheus-$username"
-st=$(date -d "$START_TIME UTC" +"%Y-%m-%dT%H:%M:%SZ")
-et=$(date -d "$END_TIME UTC" +"%Y-%m-%dT%H:%M:%SZ")
+st=$(date -u -d "$START_TIME" +"%Y-%m-%dT%H:%M:%SZ")
+et=$(date -u -d "$END_TIME" +"%Y-%m-%dT%H:%M:%SZ")
 
 metric_names=$(curl -s "$prom_url/api/v1/label/__name__/values" | jq -r '.data[] | select(startswith("scaph_"))')
 

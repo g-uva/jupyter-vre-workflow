@@ -12,7 +12,8 @@ import {
   cleanExperimentMetadata,
   saveSessionMetrics,
   getSessionMetrics,
-  getTime
+  getTime,
+  installJqPackage
 } from './apiScripts';
 import dayjs from 'dayjs';
 
@@ -20,6 +21,7 @@ export async function handleFirstCellExecution(panel: NotebookPanel) {
   await handleNotebookSessionContents(panel, generateExperimentIdAndStartTime);
   await handleNotebookSessionContents(panel, getAndSetWorkflowId);
   await handleNotebookSessionContents(panel, createExperimentIdFolderSh);
+  await handleNotebookSessionContents(panel, installJqPackage);
 }
 
 export async function handleLastCellExecution(panel: NotebookPanel) {
