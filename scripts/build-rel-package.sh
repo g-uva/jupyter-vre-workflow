@@ -2,6 +2,26 @@
 
 set -e  # Exit on error
 
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -m|--message)
+            COMMIT_MSG="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown parameter passed: $1"
+            echo "Usage: $0 -m|--message \"Commit message\""
+            exit 1
+            ;;
+    esac
+done
+
+if [ -z "$COMMIT_MSG" ]; then
+    echo "Error: Commit message is required."
+    echo "Usage: $0 -m|--message \"Your commit message\""
+    exit 1
+fi
+
 # Activate conda env
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE/etc/profile.d/conda.sh"
@@ -28,7 +48,7 @@ fi
 version=$(grep '"version":' package.json | head -1 | sed -E 's/.*"version": *"([^"]+)".*/\1/')
 echo "Pushing current version $version"
 
-git commit -am "Bump version to $version"
+git commit -am "Bump version to $version - $COMMIT_MSG"
 
 # Create a new tag
 git tag "v$version"

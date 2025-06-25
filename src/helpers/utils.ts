@@ -126,3 +126,8 @@ export function getOffsetHours(): number {
   const offsetHours = -offsetMinutes / 60;
   return offsetHours;
 }
+
+export function toLowerCaseWithUnderscores(input: string) {
+  const formatted = input.toLowerCase().replace(/\s+/g, '_');
+  return formatted;
+}

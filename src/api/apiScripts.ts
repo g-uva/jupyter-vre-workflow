@@ -1,3 +1,5 @@
+import { toLowerCaseWithUnderscores } from '../helpers/utils';
+
 export const getOS = `
 uname_str="$(uname -s)"
 os_info=""
@@ -58,6 +60,7 @@ ${getOS}
 
 export EXPORT_JSON_PATH=".lib/export_metadata.json"
 
+name=${toLowerCaseWithUnderscores(props.title)}
 title="${props.title}"
 creator="${props.creator}"
 workflow_id="${props.workflow_id}"
@@ -73,6 +76,7 @@ creation_date="${props.creation_date}"
 project_id="greendigit_development"
 
 json_payload=$(jq -n \
+  --arg name $name \
   --arg title "$title" \
   --arg creator "$creator" \
   --arg workflow_id "$workflow_id" \
@@ -87,11 +91,11 @@ json_payload=$(jq -n \
   --arg creation_date "$creation_date" \
   --arg project_id "$project_id" \
   '{
-    name: $title,
-    title: "Testing submitting with the notebook",
+    name: $name,
+    title: $title,
     license_id: "AFL-3.0",
     private: "False",
-    notes: "Testing call from environment",
+    notes: "GD call test environmnet.",
     url: "null",
     tags: [{ name: "Test" }],
     resources: [{
