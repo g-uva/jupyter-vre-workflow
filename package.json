@@ -1,6 +1,6 @@
 {
   "name": "ecojupyter",
-  "version": "0.1.228",
+  "version": "0.1.229",
   "description": "A JupyterLab extension for workflow sustainability metrics.",
   "keywords": [
     "jupyter",
