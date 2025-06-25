@@ -145,7 +145,7 @@ export async function handleGetTime(
     const startTimeUnix = dayjs(start_time).unix() + differenceUnix;
     const endTimeUnix =
       end_time !== null
-        ? dayjs(end_time).unix()
+        ? dayjs(end_time).unix() + differenceUnix
         : dayjs().unix() + differenceUnix;
     return { startTimeUnix, endTimeUnix, start_time };
   }
