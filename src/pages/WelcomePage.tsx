@@ -1,7 +1,7 @@
 import React from 'react';
 import { Grid2, SxProps, Typography } from '@mui/material';
 import GeneralDashboard from './GeneralDashboard';
-import dayjs, { Dayjs } from 'dayjs';
+import { Dayjs } from 'dayjs';
 import getScaphData from '../api/getScaphData';
 import {
   startDateJs,
@@ -15,17 +15,19 @@ import FetchMetricsComponent from '../components/FetchMetricsComponents';
 import { KPIComponent } from '../components/KPIComponent';
 import {
   exportSendJson,
-  getTime,
   IExportJsonProps,
   installPrometheusScaphandre
 } from '../api/apiScripts';
 import ApiSubmitForm from '../components/ApiSubmitForm';
 import { NotebookPanel } from '@jupyterlab/notebook';
 import {
+  getHandleSessionMetrics,
+  handleGetTime,
   handleLoadExperimentList,
   handleLoadWorkflowList,
   handleNotebookSessionContents
 } from '../api/handleNotebookContents';
+import JupyterDialogWarning from '../components/JupyterDialogWarning';
 
 export const styles: Record<string, SxProps> = {
   main: {
@@ -124,25 +126,16 @@ export default function WelcomePage({
     let endTimeUnix: number = 0;
 
     if (selectedWorkflow && selectedExperiment) {
-      const jsonStringTime = await handleNotebookSessionContents(
-        panel,
-        getTime(selectedWorkflow, selectedExperiment)
+      const timeStartEnd = await handleGetTime(
+        selectedWorkflow,
+        selectedExperiment,
+        panel
       );
-      interface IJSONTime {
-        start_time: string;
-        end_time: string | null;
-      }
-      if (typeof jsonStringTime === 'string') {
-        const jsonTime = JSON.parse(jsonStringTime) as IJSONTime;
-        const { start_time, end_time } = jsonTime;
-        console.log(start_time, end_time);
-        startTimeUnix = dayjs(start_time).unix();
-        endTimeUnix =
-          end_time !== null ? dayjs(end_time).unix() : dayjs().unix();
+      if (timeStartEnd) {
+        startTimeUnix = timeStartEnd.startTimeUnix;
+        endTimeUnix = timeStartEnd.endTimeUnix;
       }
     }
-
-    console.log(startTimeUnix, endTimeUnix);
 
     getScaphData({
       url: `https://mc-a4.lab.uvalight.net/prometheus-${username}/`,
@@ -171,20 +164,39 @@ export default function WelcomePage({
     fetchMetrics();
   }
 
-  function handleSubmitValues(
+  async function handleSubmitValues(
     args: Pick<IExportJsonProps, 'title' | 'creator' | 'email' | 'orcid'>
   ) {
-    // TODO: the dialog should show the selected workflow and experiment
-    // Send those over to the backend.
-    // If workflow is still ongoing, prevent and send a message
-    handleNotebookSessionContents(
-      panel,
-      exportSendJson({
-        ...args,
-        session_metrics: '', // TODO Goncalo
-        creation_date: '2025-06-17 14:05'
-      })
-    );
+    if (selectedWorkflow && selectedExperiment) {
+      const session_metrics = await getHandleSessionMetrics(
+        selectedWorkflow,
+        selectedExperiment,
+        panel
+      );
+      const startEndTime = await handleGetTime(
+        selectedWorkflow,
+        selectedExperiment,
+        panel
+      );
+      if (session_metrics && startEndTime) {
+        handleNotebookSessionContents(
+          panel,
+          exportSendJson({
+            ...args,
+            session_metrics,
+            creation_date: startEndTime.start_time
+          })
+        );
+      } else {
+        JupyterDialogWarning({
+          message: 'Could not get selected session metrics or creation date.'
+        });
+      }
+    } else {
+      JupyterDialogWarning({
+        message: 'Could not get selected Experiment/Workflow.'
+      });
+    }
   }
 
   async function handleRefreshWorkflowList() {

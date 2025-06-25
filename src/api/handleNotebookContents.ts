@@ -10,8 +10,11 @@ import {
   getExperimentList,
   saveStartEndTime,
   cleanExperimentMetadata,
-  saveSessionMetrics
+  saveSessionMetrics,
+  getSessionMetrics,
+  getTime
 } from './apiScripts';
+import dayjs from 'dayjs';
 
 export async function handleFirstCellExecution(panel: NotebookPanel) {
   await handleNotebookSessionContents(panel, generateExperimentIdAndStartTime);
@@ -106,4 +109,39 @@ export async function handleLoadExperimentList(
   return experimentList
     ? experimentList.match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/g) || []
     : [''];
+}
+
+export async function getHandleSessionMetrics(
+  workflowId: string,
+  experimentId: string,
+  panel: NotebookPanel
+) {
+  return await handleNotebookSessionContents(
+    panel,
+    getSessionMetrics(workflowId, experimentId)
+  );
+}
+
+export async function handleGetTime(
+  workflowId: string,
+  experimentId: string,
+  panel: NotebookPanel
+) {
+  const jsonStringTime = await handleNotebookSessionContents(
+    panel,
+    getTime(workflowId, experimentId)
+  );
+  interface IJSONTime {
+    start_time: string;
+    end_time: string | null;
+  }
+  if (typeof jsonStringTime === 'string') {
+    const jsonTime = JSON.parse(jsonStringTime) as IJSONTime;
+    const { start_time, end_time } = jsonTime;
+    const startTimeUnix = dayjs(start_time).unix();
+    const endTimeUnix =
+      end_time !== null ? dayjs(end_time).unix() : dayjs().unix();
+    return { startTimeUnix, endTimeUnix, start_time };
+  }
+  return null;
 }

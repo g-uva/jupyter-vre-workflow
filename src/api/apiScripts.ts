@@ -342,3 +342,7 @@ mv "\${output_file}.final" "$output_file"
 
 rm -rf "$tmp_dir"
 `;
+
+export const getSessionMetrics = (workflowId: string, experimentId: string) => `
+echo .lib/experiments/${workflowId}/${experimentId}/metrics.csv
+`;
