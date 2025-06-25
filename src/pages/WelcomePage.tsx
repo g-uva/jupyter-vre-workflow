@@ -182,14 +182,13 @@ export default function WelcomePage({
         panel
       );
       if (session_metrics && startEndTime) {
-        handleNotebookSessionContents(
-          panel,
-          exportSendJson({
-            ...args,
-            session_metrics,
-            creation_date: startEndTime.start_time
-          })
-        );
+        const code = exportSendJson({
+          ...args,
+          session_metrics,
+          creation_date: startEndTime.start_time
+        });
+        console.log(code);
+        handleNotebookSessionContents(panel, code);
       } else {
         JupyterDialogWarning({
           message: 'Could not get selected session metrics or creation date.'
