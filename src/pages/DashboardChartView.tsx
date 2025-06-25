@@ -1,6 +1,5 @@
 import React from 'react';
 import { Grid2 } from '@mui/material';
-import DateTimeRange from '../components/DateTimeRange';
 import { styles } from './GeneralDashboard';
 import { Dayjs } from 'dayjs';
 
@@ -13,10 +12,10 @@ interface IDashboardChartView {
 }
 
 export default function DashboardChartView({
-  startDate,
-  setStartDate,
-  endDate,
-  setEndDate,
+  // startDate,
+  // setStartDate,
+  // endDate,
+  // setEndDate,
   children
 }: IDashboardChartView) {
   return (
@@ -28,7 +27,7 @@ export default function DashboardChartView({
           justifyContent: 'space-between'
         }}
       >
-        <Grid2>
+        {/* <Grid2>
           <DateTimeRange
             startTime={startDate}
             endTime={endDate}
@@ -43,7 +42,7 @@ export default function DashboardChartView({
               }
             }}
           />
-        </Grid2>
+        </Grid2> */}
       </Grid2>
       <Grid2 sx={{ ...styles.chartsWrapper }}>{children}</Grid2>
     </>
