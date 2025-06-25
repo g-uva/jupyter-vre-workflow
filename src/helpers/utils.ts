@@ -120,3 +120,9 @@ export function getAvgValue(
   const sum = metricData.reduce((acc, [, value]) => acc + parseFloat(value), 0);
   return sum / metricData.length;
 }
+
+export function getOffsetHours(): number {
+  const offsetMinutes = new Date().getTimezoneOffset();
+  const offsetHours = -offsetMinutes / 60;
+  return offsetHours;
+}

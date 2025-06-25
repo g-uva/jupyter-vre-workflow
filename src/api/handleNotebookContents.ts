@@ -16,6 +16,7 @@ import {
   installJqPackage
 } from './apiScripts';
 import dayjs from 'dayjs';
+import { getOffsetHours } from '../helpers/utils';
 
 export async function handleFirstCellExecution(panel: NotebookPanel) {
   await handleNotebookSessionContents(panel, generateExperimentIdAndStartTime);
@@ -140,7 +141,7 @@ export async function handleGetTime(
   if (typeof jsonStringTime === 'string') {
     const jsonTime = JSON.parse(jsonStringTime) as IJSONTime;
     const { start_time, end_time } = jsonTime;
-    const twoHoursUnix = 60 * 60 * 2;
+    const twoHoursUnix = 60 * 60 * getOffsetHours();
     const startTimeUnix = dayjs(start_time).unix() + twoHoursUnix;
     const endTimeUnix =
       end_time !== null
