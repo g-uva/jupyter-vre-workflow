@@ -27,7 +27,7 @@ import {
 } from './api/handleNotebookContents';
 
 import { getUsernameSh, saveUsernameSh } from './api/apiScripts';
-import JupyterDialogWarning from './components/JupyterDialogWarning';
+// import JupyterDialogWarning from './components/JupyterDialogWarning';
 
 // import { monitorCellExecutions } from './api/monitorCellExecutions';
 
@@ -122,14 +122,14 @@ const plugin: JupyterFrontEndPlugin<void> = {
       }
     });
 
-    app.restored.then(() => {
-      JupyterDialogWarning({
-        message:
-          'EcoJupyter has been installed. Please reload the window to activate it.',
-        buttonLabel: 'Reload window',
-        action: () => window.location.reload()
-      });
-    });
+    // app.restored.then(() => {
+    //   JupyterDialogWarning({
+    //     message:
+    //       'EcoJupyter has been installed. Please reload the window to activate it.',
+    //     buttonLabel: 'Reload window',
+    //     action: () => window.location.reload()
+    //   });
+    // });
 
     // Add the command to the palette
     palette.addItem({

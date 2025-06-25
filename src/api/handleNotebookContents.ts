@@ -140,9 +140,12 @@ export async function handleGetTime(
   if (typeof jsonStringTime === 'string') {
     const jsonTime = JSON.parse(jsonStringTime) as IJSONTime;
     const { start_time, end_time } = jsonTime;
-    const startTimeUnix = dayjs(start_time).unix();
+    const twoHoursUnix = 60 * 60 * 2;
+    const startTimeUnix = dayjs(start_time).unix() + twoHoursUnix;
     const endTimeUnix =
-      end_time !== null ? dayjs(end_time).unix() : dayjs().unix();
+      end_time !== null
+        ? dayjs(end_time).unix()
+        : dayjs().unix() + twoHoursUnix;
     return { startTimeUnix, endTimeUnix, start_time };
   }
   return null;
