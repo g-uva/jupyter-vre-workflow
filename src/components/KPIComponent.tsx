@@ -81,14 +81,16 @@ function calculateSCI(sciValues: ISCIProps): IKPIValues {
   const sci = R > 0 ? (E * I + M) / R : 0;
 
   // Example extra KPIs:
-  const sciPerUnit = R > 0 ? sci / R : 0;
+  // const sciPerUnit = R > 0 ? sci / R : 0;
   const energyPerUnit = (R > 0 ? E / R : 0) * 1000; // Convert kWh to Wh
+  const operationalEmissions = E * I;
 
   return {
     sci,
     // hepScore23,
-    sciPerUnit,
-    energyPerUnit
+    // sciPerUnit,
+    energyPerUnit,
+    operationalEmissions
   };
 }
 
@@ -103,13 +105,15 @@ export async function calculateKPIs(
     // hepScore23
   } = await prometheusMetricsProxy('Avg', rawMetrics);
 
-  const { sci, sciPerUnit, energyPerUnit } = calculateSCI({ E, I, M, R });
+  // eslint-disable-next-line prettier/prettier
+  const { sci, energyPerUnit, operationalEmissions } = calculateSCI({ E, I, M, R });
 
   return {
     sci,
     // hepScore23,
-    sciPerUnit,
-    energyPerUnit
+    // sciPerUnit,
+    energyPerUnit,
+    operationalEmissions
   };
 }
 
@@ -147,7 +151,7 @@ const kpiCardsData: Array<{
     )
   },
   {
-    key: 'sciPerUnit',
+    key: 'operationalEmissions',
     title: 'SCI per Unit',
     unit: 'gCO₂',
     color: mainColour02,

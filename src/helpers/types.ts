@@ -18,9 +18,9 @@ export interface ISCIProps {
 export interface IKPIValues {
   sci: number;
   // hepScore23: number;
-
-  sciPerUnit: number;
+  // sciPerUnit: number;
   energyPerUnit: number;
+  operationalEmissions: number;
 }
 
 export interface IPrometheusMetrics {

@@ -157,10 +157,6 @@ mkdir -p ".lib/experiments/$WORKFLOW_ID/$EXPERIMENT_ID"
 echo "Created Experiment ID folder $EXPERIMENT_ID in workflow $WORKFLOW_ID"
 `;
 
-export const installJqPackage = `
-sudo apt install jq -y
-`;
-
 export const getExperimentId = `
 import os
 print("Getting experiment ID: " + os.environ["EXPERIMENT_ID"])
