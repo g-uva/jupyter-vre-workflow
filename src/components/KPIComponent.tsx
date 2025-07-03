@@ -106,7 +106,12 @@ export async function calculateKPIs(
   } = await prometheusMetricsProxy('Avg', rawMetrics);
 
   // eslint-disable-next-line prettier/prettier
-  const { sci, energyPerUnit, operationalEmissions } = calculateSCI({ E, I, M, R });
+  const { sci, energyPerUnit, operationalEmissions } = calculateSCI({
+    E,
+    I,
+    M,
+    R
+  });
 
   return {
     sci,
@@ -152,7 +157,7 @@ const kpiCardsData: Array<{
   },
   {
     key: 'operationalEmissions',
-    title: 'SCI per Unit',
+    title: 'Operational Emissions',
     unit: 'gCO₂',
     color: mainColour02,
     icon: (

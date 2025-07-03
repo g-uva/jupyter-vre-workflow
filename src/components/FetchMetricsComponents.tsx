@@ -6,9 +6,9 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 
 interface IFetchMetricsComponent {
   fetchMetrics: () => void;
-  fetchInterval: number;
-  setFetchInterval: (value: number) => void;
-  setIsFetchMetrics: (value: boolean) => void;
+  // fetchInterval: number;
+  // setFetchInterval: (value: number) => void;
+  // setIsFetchMetrics: (value: boolean) => void;
   handleInstallMetrics: () => void;
 }
 

@@ -85,9 +85,9 @@ export default function WelcomePage({
   );
   const [loading, setLoading] = React.useState<boolean>(false);
 
-  const [isFetchMetrics, setIsFetchMetrics] = React.useState<boolean>(false);
+  // const [isFetchMetrics, setIsFetchMetrics] = React.useState<boolean>(false);
 
-  const [fetchIntervalS, setFetchIntervalS] = React.useState<number>(30);
+  // const [fetchIntervalS, setFetchIntervalS] = React.useState<number>(30);
 
   const [openDialog, setOpenDialog] = React.useState<boolean>(false);
 
@@ -160,7 +160,7 @@ export default function WelcomePage({
   }
 
   function handleSetMetrics() {
-    setIsFetchMetrics(true);
+    // setIsFetchMetrics(true);
     fetchMetrics();
   }
 
@@ -228,20 +228,20 @@ export default function WelcomePage({
     setOpenDialog(true);
   }
 
-  React.useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-    if (isFetchMetrics === true) {
-      intervalId = setInterval(() => {
-        fetchMetrics();
-      }, fetchIntervalS * 1000);
-    }
+  // React.useEffect(() => {
+  //   let intervalId: NodeJS.Timeout;
+  //   if (isFetchMetrics === true) {
+  //     intervalId = setInterval(() => {
+  //       fetchMetrics();
+  //     }, fetchIntervalS * 1000);
+  //   }
 
-    return () => {
-      if (intervalId) {
-        return clearInterval(intervalId);
-      }
-    }; // Clear the interval Id when umounting ;)
-  }, [isFetchMetrics]);
+  //   return () => {
+  //     if (intervalId) {
+  //       return clearInterval(intervalId);
+  //     }
+  //   }; // Clear the interval Id when umounting ;)
+  // }, [isFetchMetrics]);
 
   // Just run it once the component mounts.
   React.useEffect(() => {
@@ -311,9 +311,9 @@ export default function WelcomePage({
             <Grid2 sx={styles.topRibbon}>
               <FetchMetricsComponent
                 fetchMetrics={handleSetMetrics}
-                fetchInterval={fetchIntervalS}
-                setFetchInterval={setFetchIntervalS}
-                setIsFetchMetrics={setIsFetchMetrics}
+                // fetchInterval={fetchIntervalS}
+                // setFetchInterval={setFetchIntervalS}
+                // setIsFetchMetrics={setIsFetchMetrics}
                 handleInstallMetrics={handleInstallMetrics}
               />
             </Grid2>
