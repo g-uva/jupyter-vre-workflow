@@ -108,9 +108,8 @@ export async function handleLoadExperimentList(
     panel,
     getExperimentList(worfklowId)
   );
-  return experimentList
-    ? experimentList.match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/g) || []
-    : [''];
+  const entries = experimentList?.match(/experiment-[^\s]+ \d{2}:\d{2}/g);
+  return entries ?? [''];
 }
 
 export async function getHandleSessionMetrics(

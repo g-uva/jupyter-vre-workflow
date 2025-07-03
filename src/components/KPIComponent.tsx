@@ -268,7 +268,7 @@ export const KPIComponent = ({
                 experimentList.map((experimentId: string, index: number) => {
                   return (
                     <MenuItem key={index} value={experimentId}>
-                      {experimentId}
+                      {experimentId.match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/)?.[0]}
                     </MenuItem>
                   );
                 })}

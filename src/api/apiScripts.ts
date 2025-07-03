@@ -357,5 +357,5 @@ head -n 100 "$output_file"
 
 export const getSessionMetrics = (workflowId: string, experimentId: string) => `
 %%bash
-echo .lib/experiments/${workflowId}/${experimentId}/metrics.csv
+echo $(cat ".lib/experiments/${workflowId}/${experimentId}/metrics.csv")
 `;

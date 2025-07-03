@@ -23,7 +23,8 @@ const styles: Record<string, SxProps> = {
     justifyContent: 'center'
   },
   typographyTitle: {
-    fontSize: '32px'
+    fontSize: '32px',
+    textAlign: 'center'
   },
   typographyValue: {
     fontWeight: 'bold',
