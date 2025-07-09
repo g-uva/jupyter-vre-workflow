@@ -296,6 +296,122 @@ print(get_notebook_name())
 os.environ["WORKFLOW_ID"] = get_notebook_name()
 `;
 
+export const saveRoCrateMetadata = `
+import os
+import time
+import json
+import hashlib
+import zipfile
+
+# --- CONFIG ---
+workflow_id = os.environ["WORKFLOW_ID"]
+experiment_id = os.environ["EXPERIMENT_ID"]
+NOTEBOOK_PLACEHOLDER = f"/home/jovyan/{workflow_id}.ipynb"
+
+folder_structure = {
+    "data": {},
+    "logs": {},
+    "workflow": {},
+    "environment": {},
+    "experiment_setup": {
+        "test_generator": {}
+    },
+    "lifecycle-analysis": {},
+    "README.md": {}
+}
+
+# --- Generate metadata ---
+def generate_ro_crate_metadata(notebook_name):
+    return {
+        "@context": "https://w3id.org/ro/crate/1.1/context",
+        "@graph": [
+            {
+                "@id": "./",
+                "@type": "Dataset",
+                "name": f"RO-Crate for {workflow_id} / {experiment_id}",
+                "hasPart": [
+                    "workflow/",
+                    "data/",
+                    "logs/",
+                    "environment/",
+                    "experiment_setup/",
+                    "lifecycle-analysis/",
+                    "README.md"
+                ],
+                "license": "https://creativecommons.org/licenses/by/4.0/"
+            },
+            {
+                "@id": "ro-crate-metadata.json",
+                "@type": "CreativeWork",
+                "about": { "@id": "./" }
+            },
+            {
+                "@id": f"workflow/{notebook_name}",
+                "@type": "ComputationalWorkflow",
+                "name": "Jupyter Notebook workflow",
+                "programmingLanguage": {
+                    "@id": "https://w3id.org/ro/crate/terms/Python"
+                }
+            }
+        ]
+    }
+
+# --- Helpers ---
+def generate_experiment_path(workflow_id, experiment_id):
+    timestamp = int(time.time())
+    hash_suffix = hashlib.sha256(f"exp_{timestamp}".encode()).hexdigest()[:8]
+    folder_name = f"experiment_{timestamp}_{hash_suffix}"
+    return os.path.join(os.path.expanduser("~"), ".lib", "experiments", workflow_id, experiment_id, folder_name)
+
+def create_folders(base_path, structure):
+    for name, subdirs in structure.items():
+        if not name:
+            continue
+        path = os.path.join(base_path, name)
+        os.makedirs(path, exist_ok=True)
+        create_folders(path, subdirs)
+
+def zip_directory(folder_path, output_zip):
+    with zipfile.ZipFile(output_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for root, _, files in os.walk(folder_path):
+            for file in files:
+                full_path = os.path.join(root, file)
+                rel_path = os.path.relpath(full_path, os.path.dirname(folder_path))
+                zipf.write(full_path, rel_path)
+
+# --- MAIN ---
+full_path = generate_experiment_path(workflow_id, experiment_id)
+print(f"Creating: {full_path}")
+create_folders(full_path, folder_structure)
+
+# Notebook placeholder
+notebook_name = os.path.basename(NOTEBOOK_PLACEHOLDER)
+notebook_target = os.path.join(full_path, "workflow", notebook_name)
+with open(notebook_target, "w") as f:
+    f.write("# Placeholder for notebook")
+
+# Log placeholder
+metrics_path = os.path.join(full_path, "logs", "energy_log.json")
+with open(metrics_path, "w") as f:
+    json.dump({"metrics": "placeholder"}, f, indent=2)
+
+# Metadata
+rocrate_path = os.path.join(full_path, "ro-crate-metadata.json")
+with open(rocrate_path, "w") as f:
+    json.dump(generate_ro_crate_metadata(notebook_name), f, indent=2)
+
+# Final ZIP
+zip_path = f"{full_path}.zip"
+zip_directory(full_path, zip_path)
+
+# Output summary
+print(json.dumps({
+    "status": "success",
+    "folder": full_path,
+    "zip": zip_path
+}, indent=2))
+`;
+
 export const saveSessionMetrics = `
 %%bash
 username=$(cat .lib/hostname)
