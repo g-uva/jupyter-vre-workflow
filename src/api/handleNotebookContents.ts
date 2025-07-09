@@ -12,7 +12,8 @@ import {
   cleanExperimentMetadata,
   saveSessionMetrics,
   getSessionMetrics,
-  getTime
+  getTime,
+  saveRoCrateMetadata
 } from './apiScripts';
 import dayjs from 'dayjs';
 import { getOffsetHours } from '../helpers/utils';
@@ -21,13 +22,13 @@ export async function handleFirstCellExecution(panel: NotebookPanel) {
   await handleNotebookSessionContents(panel, generateExperimentIdAndStartTime);
   await handleNotebookSessionContents(panel, getAndSetWorkflowId);
   await handleNotebookSessionContents(panel, createExperimentIdFolderSh);
-  // await handleNotebookSessionContents(panel, installJqPackage);
 }
 
 export async function handleLastCellExecution(panel: NotebookPanel) {
   try {
     await handleNotebookSessionContents(panel, getEndTime);
     await handleNotebookSessionContents(panel, saveSessionMetrics);
+    await handleNotebookSessionContents(panel, saveRoCrateMetadata);
     await handleNotebookSessionContents(panel, saveStartEndTime);
     await handleNotebookSessionContents(panel, cleanExperimentMetadata);
   } catch (err) {

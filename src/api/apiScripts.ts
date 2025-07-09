@@ -95,12 +95,12 @@ json_payload=$(jq -n \
     title: $title,
     license_id: "AFL-3.0",
     private: "False",
-    notes: "GD call test environmnet.",
+    notes: "GreenDIGIT EcoJupyter submission dev.",
     url: "null",
-    tags: [{ name: "Test" }],
+    tags: [{ name: "sustainability" }],
     resources: [{
       name: "RO-Crate metadata",
-      url: "https://data.d4science.net/5Apv",
+      url: "https://mc-a4.lab.uvalight.net/",
       format: "zip"
     }],
     extras: [

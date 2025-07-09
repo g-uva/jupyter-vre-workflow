@@ -288,7 +288,7 @@ export const KPIComponent = ({
         </Box>
         <Box sx={styles.buttonGrid}>
           <Button variant="outlined" onClick={handleSubmitExport}>
-            Submit Experiment metadata to API
+            Submit to FDMI (SoBigData)
           </Button>
         </Box>
       </Stack>

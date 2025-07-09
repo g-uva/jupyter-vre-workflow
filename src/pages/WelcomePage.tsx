@@ -189,7 +189,7 @@ export default function WelcomePage({
           experiment_id: selectedExperiment,
           workflow_id: selectedWorkflow
         });
-        console.log(code);
+        // console.log(code);
         handleNotebookSessionContents(panel, code);
       } else {
         JupyterDialogWarning({
