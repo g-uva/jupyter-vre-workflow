@@ -143,6 +143,7 @@ const kpiCardsData: Array<{
   unit: string;
   color: React.CSSProperties['color'];
   icon: React.ReactNode;
+  tempValue: number;
 }> = [
   {
     key: 'sci',
@@ -153,18 +154,20 @@ const kpiCardsData: Array<{
       <EnergySavingsLeafOutlinedIcon
         sx={{ fontSize: '56px', '& path': { fill: mainColour01 } }}
       />
-    )
+    ),
+    tempValue: 1.23
   },
   {
     key: 'operationalEmissions',
-    title: 'Operational Emissions',
+    title: 'Op. Emissions',
     unit: 'gCO₂',
     color: mainColour02,
     icon: (
       <BoltOutlinedIcon
         sx={{ fontSize: '56px', '& path': { fill: mainColour02 } }}
       />
-    )
+    ),
+    tempValue: 3.33
   },
   {
     key: 'energyPerUnit',
@@ -175,7 +178,8 @@ const kpiCardsData: Array<{
       <SolarPowerOutlinedIcon
         sx={{ fontSize: '56px', '& path': { fill: mainColour03 } }}
       />
-    )
+    ),
+    tempValue: 12.54
   }
 ];
 
@@ -191,6 +195,7 @@ export const KPIComponent = ({
   handleSubmitExport
 }: IKPIComponentProps) => {
   const [kpi, setKpi] = React.useState<IKPIValues | null>(null);
+  console.log(kpi);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -292,7 +297,8 @@ export const KPIComponent = ({
           return (
             <KpiValue
               title={props.title}
-              value={kpi?.[props.key] ?? 0}
+              // value={kpi?.[props.key] ?? 0}
+              value={props.tempValue}
               unit={props.unit}
               color={props.color}
               Icon={props.icon}
