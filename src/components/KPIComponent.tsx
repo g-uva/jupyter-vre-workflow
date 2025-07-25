@@ -143,7 +143,6 @@ const kpiCardsData: Array<{
   unit: string;
   color: React.CSSProperties['color'];
   icon: React.ReactNode;
-  tempValue: number;
 }> = [
   {
     key: 'sci',
@@ -154,8 +153,7 @@ const kpiCardsData: Array<{
       <EnergySavingsLeafOutlinedIcon
         sx={{ fontSize: '56px', '& path': { fill: mainColour01 } }}
       />
-    ),
-    tempValue: 1.23
+    )
   },
   {
     key: 'operationalEmissions',
@@ -166,8 +164,7 @@ const kpiCardsData: Array<{
       <BoltOutlinedIcon
         sx={{ fontSize: '56px', '& path': { fill: mainColour02 } }}
       />
-    ),
-    tempValue: 3.33
+    )
   },
   {
     key: 'energyPerUnit',
@@ -178,8 +175,7 @@ const kpiCardsData: Array<{
       <SolarPowerOutlinedIcon
         sx={{ fontSize: '56px', '& path': { fill: mainColour03 } }}
       />
-    ),
-    tempValue: 12.54
+    )
   }
 ];
 
@@ -297,8 +293,7 @@ export const KPIComponent = ({
           return (
             <KpiValue
               title={props.title}
-              // value={kpi?.[props.key] ?? 0}
-              value={props.tempValue}
+              value={kpi?.[props.key] ?? 0}
               unit={props.unit}
               color={props.color}
               Icon={props.icon}
