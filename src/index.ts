@@ -39,11 +39,11 @@ import { getUsernameSh, saveUsernameSh } from './api/apiScripts';
 const namespaceId = 'gdapod';
 
 /**
- * Initialization data for the GreenDIGIT JupyterLab extension.
+ * Initialization data for the Jupyter VRE Workflow extension.
  */
 const plugin: JupyterFrontEndPlugin<void> = {
   id: 'ecojupyter',
-  description: 'GreenDIGIT EcoJupyter App',
+  description: 'Jupyter VRE Workflow',
   autoStart: true,
   requires: [ICommandPalette, ILayoutRestorer, INotebookTracker],
   activate: async (
@@ -75,7 +75,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       const content = new MainWidget(username, panel);
       const widget = new MainAreaWidget({ content });
       widget.id = 'gd-ecojupyter';
-      widget.title.label = 'GreenDIGIT EcoJupyter Dashboard';
+      widget.title.label = 'Jupyter VRE Workflow';
       widget.title.closable = true;
       return widget;
     };
@@ -103,7 +103,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     }
 
     app.commands.addCommand(openCommand, {
-      label: 'Open GreenDIGIT Dashboard',
+      label: 'Open Jupyter VRE Workflow',
       execute: async () => {
         const panel = notebookTracker.currentWidget;
         if (!panel) {
@@ -134,7 +134,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     // Add the command to the palette
     palette.addItem({
       command: openCommand,
-      category: 'Sustainability metrics'
+      category: 'Jupyter VRE Workflow'
     });
 
     // Restore the widget if available

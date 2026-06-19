@@ -1,5 +1,20 @@
 import React from 'react';
-import { Grid2, SxProps, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  FormControl,
+  Grid2,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  SxProps,
+  Tab,
+  Tabs,
+  Typography
+} from '@mui/material';
 import GeneralDashboard from './GeneralDashboard';
 import { Dayjs } from 'dayjs';
 import getScaphData from '../api/getScaphData';
@@ -7,7 +22,6 @@ import {
   startDateJs,
   endDateJs,
   NR_CHARTS,
-  mainColour01,
   CONTAINER_ID
 } from '../helpers/constants';
 import { RawMetrics } from '../helpers/types';
@@ -20,6 +34,13 @@ import {
 } from '../api/apiScripts';
 import ApiSubmitForm from '../components/ApiSubmitForm';
 import { NotebookPanel } from '@jupyterlab/notebook';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
+import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
+import MapComponent from '../components/map/MapComponent';
 import {
   getHandleSessionMetrics,
   handleGetTime,
@@ -33,14 +54,17 @@ export const styles: Record<string, SxProps> = {
   main: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%'
+    width: '100%',
+    gap: 2,
+    p: 2,
+    background: '#f6f8fb',
+    minHeight: '100%',
+    boxSizing: 'border-box'
   },
   title: {
-    fontWeight: 'bold',
-    color: mainColour01,
-    my: 2
+    fontWeight: 700,
+    color: '#1f2937',
+    letterSpacing: 0
   },
   topRibbon: {
     display: 'flex',
@@ -57,24 +81,62 @@ export const styles: Record<string, SxProps> = {
       textTransform: 'none'
     },
     mb: 2
+  },
+  pageHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: { xs: 'flex-start', md: 'center' },
+    gap: 2,
+    flexDirection: { xs: 'column', md: 'row' }
+  },
+  controlBar: {
+    position: 'sticky',
+    top: 0,
+    zIndex: 2,
+    width: '100%',
+    p: 2,
+    border: '1px solid #d7dde6',
+    borderRadius: '8px',
+    background: '#fff',
+    boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)'
+  },
+  moduleShell: {
+    width: '100%',
+    border: '1px solid #d7dde6',
+    borderRadius: '8px',
+    background: '#fff',
+    overflow: 'hidden',
+    boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)'
+  },
+  moduleHeader: {
+    px: 3,
+    py: 2,
+    borderBottom: '1px solid #e5eaf0',
+    background: '#fbfcfe'
+  },
+  moduleBody: {
+    p: 2
+  },
+  emptyState: {
+    border: '1px dashed #cbd5e1',
+    borderRadius: '8px',
+    p: 3,
+    background: '#f8fafc'
   }
 };
 
 interface IWelcomePage {
-  handleRealTimeClick: () => void;
-  handlePredictionClick: () => void;
-  handleGrafanaClick: () => void;
   username: string;
   panel: NotebookPanel;
 }
 
-export default function WelcomePage({
-  // handleRealTimeClick,
-  // handlePredictionClick,
-  // handleGrafanaClick,
-  username,
-  panel
-}: IWelcomePage) {
+enum WorkflowModule {
+  Telemetry = 0,
+  Reproducibility = 1,
+  Orchestration = 2
+}
+
+export default function WelcomePage({ username, panel }: IWelcomePage) {
   const [startDate, setStartDate] = React.useState<Dayjs>(startDateJs);
   const [endDate, setEndDate] = React.useState<Dayjs>(endDateJs);
 
@@ -90,6 +152,9 @@ export default function WelcomePage({
   // const [fetchIntervalS, setFetchIntervalS] = React.useState<number>(30);
 
   const [openDialog, setOpenDialog] = React.useState<boolean>(false);
+  const [activeModule, setActiveModule] = React.useState<WorkflowModule>(
+    WorkflowModule.Telemetry
+  );
 
   const [workflowList, setWorkflowList] = React.useState<string[]>([]);
   const [experimentList, setExperimentList] = React.useState<string[]>([]);
@@ -255,82 +320,226 @@ export default function WelcomePage({
   return (
     <>
       <Grid2 sx={styles.main}>
-        <Typography variant="h4" sx={styles.title}>
-          🌱🌍♻️ EcoJupyter Dashboard
-        </Typography>
-        <Grid2 sx={styles.topRibbon}>
-          <Grid2
+        <Grid2 sx={styles.pageHeader}>
+          <Box>
+            <Typography variant="h4" sx={styles.title}>
+              Jupyter VRE Workflow
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Telemetry, reproducibility, and orchestration for notebook-based
+              VRE experiments.
+            </Typography>
+          </Box>
+        </Grid2>
+
+        <Paper elevation={0} sx={styles.controlBar}>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            gap={2}
+            alignItems={{ xs: 'stretch', md: 'center' }}
+          >
+            <Stack direction="row" gap={1} alignItems="center">
+              <IconButton
+                onClick={handleRefreshWorkflowList}
+                size="small"
+                aria-label="Refresh workflows"
+              >
+                <RefreshRoundedIcon />
+              </IconButton>
+              <Typography variant="subtitle2" color="text.secondary">
+                Selected context
+              </Typography>
+            </Stack>
+
+            <FormControl size="small" sx={{ minWidth: 220 }}>
+              <InputLabel sx={{ background: '#fff' }}>Workflow ID</InputLabel>
+              <Select
+                key={selectedWorkflow || 'workflow-select'}
+                value={selectedWorkflow || ''}
+                label="Workflow ID"
+                onChange={e => {
+                  e !== null && setSelectedWorkflow(e.target.value ?? '');
+                }}
+              >
+                <MenuItem disabled value="">
+                  <em>Select workflow</em>
+                </MenuItem>
+                {workflowList.map((workflowId: string, index: number) => {
+                  return (
+                    <MenuItem key={index} value={workflowId}>
+                      {workflowId}
+                    </MenuItem>
+                  );
+                })}
+              </Select>
+            </FormControl>
+
+            <FormControl size="small" sx={{ minWidth: 240 }}>
+              <InputLabel sx={{ background: '#fff' }}>Experiment ID</InputLabel>
+              <Select
+                key={selectedExperiment || 'experiment-select'}
+                value={selectedExperiment || ''}
+                label="Experiment ID"
+                onChange={e => {
+                  e !== null && setSelectedExperiment(e.target.value ?? '');
+                }}
+              >
+                <MenuItem disabled value="">
+                  <em>Select experiment</em>
+                </MenuItem>
+                {experimentList.map((experimentId: string, index: number) => {
+                  return (
+                    <MenuItem key={index} value={experimentId}>
+                      {experimentId.match(
+                        /\d{4}-\d{2}-\d{2} \d{2}:\d{2}/
+                      )?.[0] ?? experimentId}
+                    </MenuItem>
+                  );
+                })}
+              </Select>
+            </FormControl>
+          </Stack>
+        </Paper>
+
+        <Grid2 sx={styles.moduleShell}>
+          <Tabs
+            value={activeModule}
+            onChange={(_: React.SyntheticEvent, value: WorkflowModule) =>
+              setActiveModule(value)
+            }
+            variant="scrollable"
+            scrollButtons="auto"
             sx={{
-              width: '100%',
-              p: 2,
-              m: 2,
-              border: '1px solid #ccc',
-              borderRadius: '15px'
+              px: 2,
+              borderBottom: '1px solid #e5eaf0',
+              '& .MuiTab-root': {
+                minHeight: 56,
+                textTransform: 'none',
+                fontWeight: 600
+              }
             }}
           >
-            <KPIComponent
-              rawMetrics={dataMap}
-              experimentList={experimentList}
-              workflowList={workflowList}
-              handleSubmitExport={handleSubmitExport}
-              handleRefreshExperimentList={handleRefreshWorkflowList}
-              selectedExperiment={selectedExperiment}
-              setSelectedExperiment={setSelectedExperiment}
-              selectedWorkflow={selectedWorkflow}
-              setSelectedWorkflow={setSelectedWorkflow}
+            <Tab
+              icon={<InsightsOutlinedIcon />}
+              iconPosition="start"
+              label="Telemetry & Observability"
             />
-          </Grid2>
-        </Grid2>
-        {/* <ScaphInstaller /> */}
-
-        {/* <Grid2 sx={styles.buttonGrid}>
-        <Button variant="outlined">
-          Install and run Scaphandre + Prometheus
-        </Button>
-        <Button variant="outlined" disabled>
-          Export Metrics
-        </Button>
-        <Button variant="outlined" disabled>
-          ZIP metrics
-        </Button>
-      </Grid2> */}
-        <Grid2 sx={styles.buttonGrid}>
-          {/* <Button variant="outlined" disabled onClick={handleRealTimeClick}>
-          Real-time Tracking Monitor
-        </Button> */}
-          {/* <Button variant="outlined" disabled onClick={handlePredictionClick}>
-          Resource Usage Prediction
-        </Button> */}
-          {/* <Button variant="outlined" disabled onClick={handleGrafanaClick}>
-          Grafana Dashboard
-        </Button> */}
-        </Grid2>
-
-        {metrics && (
-          <>
-            <Grid2 sx={styles.topRibbon}>
-              <FetchMetricsComponent
-                fetchMetrics={handleSetMetrics}
-                // fetchInterval={fetchIntervalS}
-                // setFetchInterval={setFetchIntervalS}
-                // setIsFetchMetrics={setIsFetchMetrics}
-                handleInstallMetrics={handleInstallMetrics}
-              />
-            </Grid2>
-
-            <GeneralDashboard
-              startDate={startDate}
-              setStartDate={setStartDate}
-              setEndDate={setEndDate}
-              endDate={endDate}
-              metrics={metrics}
-              dataMap={dataMap}
-              selectedMetric={selectedMetric}
-              setSelectedMetric={handleUpdateSelectedMetric}
-              loading={loading}
+            <Tab
+              icon={<AccountTreeOutlinedIcon />}
+              iconPosition="start"
+              label="Reproducibility"
             />
-          </>
-        )}
+            <Tab
+              icon={<HubOutlinedIcon />}
+              iconPosition="start"
+              label="Orchestration"
+            />
+          </Tabs>
+
+          {activeModule === WorkflowModule.Telemetry && (
+            <Box>
+              <Box sx={styles.moduleHeader}>
+                <Typography variant="h6">Telemetry & Observability</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Prometheus and Scaphandre metrics, KPI panels, and dashboards.
+                </Typography>
+              </Box>
+              <Box sx={styles.moduleBody}>
+                <KPIComponent rawMetrics={dataMap} />
+
+                {metrics && (
+                  <>
+                    <Grid2 sx={{ ...styles.topRibbon, mt: 3 }}>
+                      <FetchMetricsComponent
+                        fetchMetrics={handleSetMetrics}
+                        handleInstallMetrics={handleInstallMetrics}
+                      />
+                    </Grid2>
+
+                    <GeneralDashboard
+                      startDate={startDate}
+                      setStartDate={setStartDate}
+                      setEndDate={setEndDate}
+                      endDate={endDate}
+                      metrics={metrics}
+                      dataMap={dataMap}
+                      selectedMetric={selectedMetric}
+                      setSelectedMetric={handleUpdateSelectedMetric}
+                      loading={loading}
+                    />
+                  </>
+                )}
+              </Box>
+            </Box>
+          )}
+
+          {activeModule === WorkflowModule.Reproducibility && (
+            <Box>
+              <Box sx={styles.moduleHeader}>
+                <Typography variant="h6">Reproducibility</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Submit experiment metadata to RO-Crate and FDMI-compatible
+                  infrastructure.
+                </Typography>
+              </Box>
+              <Box sx={styles.moduleBody}>
+                <Paper elevation={0} sx={styles.emptyState}>
+                  <Stack
+                    direction={{ xs: 'column', md: 'row' }}
+                    gap={2}
+                    alignItems={{ xs: 'flex-start', md: 'center' }}
+                    justifyContent="space-between"
+                  >
+                    <Box>
+                      <Stack direction="row" gap={1} alignItems="center">
+                        <UploadFileOutlinedIcon color="primary" />
+                        <Typography variant="subtitle1">
+                          Experiment metadata export
+                        </Typography>
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary">
+                        Publish the selected workflow and experiment metadata to
+                        the configured API/FDMI endpoint.
+                      </Typography>
+                    </Box>
+                    <Button
+                      variant="contained"
+                      onClick={handleSubmitExport}
+                      startIcon={<UploadFileOutlinedIcon />}
+                    >
+                      Submit Experiment Metadata
+                    </Button>
+                  </Stack>
+                </Paper>
+              </Box>
+            </Box>
+          )}
+
+          {activeModule === WorkflowModule.Orchestration && (
+            <Box>
+              <Box sx={styles.moduleHeader}>
+                <Typography variant="h6">Orchestration</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  VO registration context, EGI integration, and remote workload
+                  replay/watch entry points.
+                </Typography>
+              </Box>
+              <Box sx={styles.moduleBody}>
+                <Paper elevation={0} sx={{ ...styles.emptyState, p: 0 }}>
+                  <Box sx={{ p: 2 }}>
+                    <Stack direction="row" gap={1} alignItems="center">
+                      <RouteOutlinedIcon color="primary" />
+                      <Typography variant="subtitle1">
+                        VO registration and workload map
+                      </Typography>
+                    </Stack>
+                  </Box>
+                  <MapComponent />
+                </Paper>
+              </Box>
+            </Box>
+          )}
+        </Grid2>
       </Grid2>
       <ApiSubmitForm
         open={openDialog}
