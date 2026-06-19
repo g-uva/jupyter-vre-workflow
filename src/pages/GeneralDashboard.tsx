@@ -20,16 +20,16 @@ export const styles: Record<string, SxProps> = {
     display: 'flex',
     flexDirection: 'row',
     width: '100%',
-    height: '100%',
     flexWrap: 'wrap',
     boxSizing: 'border-box',
     padding: '10px',
-    whiteSpace: 'nowrap'
+    whiteSpace: 'normal',
+    overflowX: 'auto'
   },
   grid: {
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'stretch'
   },
   chartsWrapper: {
     display: 'flex',
@@ -100,7 +100,8 @@ export default function GeneralDashboard({
           minWidth: '100%',
           minHeight: '300px',
           borderRadius: '15px',
-          border: '1px solid #ccc'
+          border: '1px solid #ccc',
+          overflow: 'visible'
         }}
         elevation={0}
       >
@@ -123,7 +124,7 @@ export default function GeneralDashboard({
             </Typography>
           </Grid2>
         ) : (
-          <Grid2 sx={{ width: '100%', height: '100%' }}>
+          <Grid2 sx={{ width: '100%' }}>
             <TabPaperDashboard>
               <DashboardChartView
                 startDate={startDate}

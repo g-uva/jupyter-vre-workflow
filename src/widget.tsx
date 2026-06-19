@@ -13,7 +13,8 @@ const styles: Record<string, React.CSSProperties> = {
     height: '100%',
     flexWrap: 'wrap',
     boxSizing: 'border-box',
-    padding: '3px'
+    padding: '3px',
+    minHeight: 0
   },
   grid: {
     display: 'flex',
@@ -24,7 +25,8 @@ const styles: Record<string, React.CSSProperties> = {
     flex: '0 1 100%',
     width: '100%',
     height: '100%',
-    overflow: 'auto',
+    minHeight: 0,
+    overflow: 'hidden',
     padding: '10px'
   }
 };

@@ -55,11 +55,13 @@ export const styles: Record<string, SxProps> = {
     display: 'flex',
     flexDirection: 'column',
     width: '100%',
+    height: '100%',
+    minHeight: 0,
     gap: 2,
     p: 2,
     background: '#f6f8fb',
-    minHeight: '100%',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    overflow: 'hidden'
   },
   title: {
     fontWeight: 700,
@@ -87,13 +89,12 @@ export const styles: Record<string, SxProps> = {
     justifyContent: 'space-between',
     alignItems: { xs: 'flex-start', md: 'center' },
     gap: 2,
-    flexDirection: { xs: 'column', md: 'row' }
+    flexDirection: { xs: 'column', md: 'row' },
+    flexShrink: 0
   },
   controlBar: {
-    position: 'sticky',
-    top: 0,
-    zIndex: 2,
     width: '100%',
+    flexShrink: 0,
     p: 2,
     border: '1px solid #d7dde6',
     borderRadius: '8px',
@@ -102,19 +103,44 @@ export const styles: Record<string, SxProps> = {
   },
   moduleShell: {
     width: '100%',
+    flex: 1,
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
     border: '1px solid #d7dde6',
     borderRadius: '8px',
     background: '#fff',
     overflow: 'hidden',
     boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)'
   },
+  moduleTabs: {
+    flexShrink: 0,
+    px: 2,
+    borderBottom: '1px solid #e5eaf0',
+    '& .MuiTab-root': {
+      minHeight: 56,
+      textTransform: 'none',
+      fontWeight: 600
+    }
+  },
+  modulePanel: {
+    display: 'flex',
+    flexDirection: 'column',
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden'
+  },
   moduleHeader: {
+    flexShrink: 0,
     px: 3,
     py: 2,
     borderBottom: '1px solid #e5eaf0',
     background: '#fbfcfe'
   },
   moduleBody: {
+    flex: 1,
+    minHeight: 0,
+    overflow: 'auto',
     p: 2
   },
   emptyState: {
@@ -409,15 +435,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
             }
             variant="scrollable"
             scrollButtons="auto"
-            sx={{
-              px: 2,
-              borderBottom: '1px solid #e5eaf0',
-              '& .MuiTab-root': {
-                minHeight: 56,
-                textTransform: 'none',
-                fontWeight: 600
-              }
-            }}
+            sx={styles.moduleTabs}
           >
             <Tab
               icon={<InsightsOutlinedIcon />}
@@ -437,7 +455,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
           </Tabs>
 
           {activeModule === WorkflowModule.Telemetry && (
-            <Box>
+            <Box sx={styles.modulePanel}>
               <Box sx={styles.moduleHeader}>
                 <Typography variant="h6">Telemetry & Observability</Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -474,7 +492,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
           )}
 
           {activeModule === WorkflowModule.Reproducibility && (
-            <Box>
+            <Box sx={styles.modulePanel}>
               <Box sx={styles.moduleHeader}>
                 <Typography variant="h6">Reproducibility</Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -516,7 +534,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
           )}
 
           {activeModule === WorkflowModule.Orchestration && (
-            <Box>
+            <Box sx={styles.modulePanel}>
               <Box sx={styles.moduleHeader}>
                 <Typography variant="h6">Orchestration</Typography>
                 <Typography variant="body2" color="text.secondary">
