@@ -3,33 +3,130 @@ import { KernelMessage } from '@jupyterlab/services';
 import { Kernel } from '@jupyterlab/services';
 import {
   generateExperimentIdAndStartTime,
-  createExperimentIdFolderSh,
-  getAndSetWorkflowId,
-  getWorkflowList,
   getEndTime,
-  getExperimentList,
-  saveStartEndTime,
   cleanExperimentMetadata,
-  saveSessionMetrics,
-  getSessionMetrics,
-  getTime,
-  saveRoCrateMetadata
+  getExperimentEnvironment,
+  getUsername
 } from './apiScripts';
 import dayjs from 'dayjs';
 import { getOffsetHours } from '../helpers/utils';
+import {
+  listDirectoryNames,
+  readJsonFile,
+  readTextFile,
+  resolveNotebookPath,
+  saveJsonFile,
+  saveTextFile
+} from './jupyterContents';
+import { saveSessionMetricsFile } from './saveSessionMetrics';
 
-export async function handleFirstCellExecution(panel: NotebookPanel) {
-  await handleNotebookSessionContents(panel, generateExperimentIdAndStartTime);
-  await handleNotebookSessionContents(panel, getAndSetWorkflowId);
-  await handleNotebookSessionContents(panel, createExperimentIdFolderSh);
+interface IExperimentEnvironment {
+  workflow_id: string | null;
+  experiment_id: string | null;
+  start_time: string | null;
+  end_time: string | null;
 }
 
-export async function handleLastCellExecution(panel: NotebookPanel) {
+interface IExperimentStart {
+  workflow_id: string;
+  experiment_id: string;
+  start_time: string;
+}
+
+export async function getAndSaveUsername(
+  panel: NotebookPanel
+): Promise<string> {
+  const username =
+    (await handleNotebookSessionContents(panel, getUsername)) ?? '';
+  await saveTextFile(
+    panel,
+    resolveNotebookPath(panel, '.lib/hostname'),
+    username
+  );
+  return username;
+}
+
+export async function getSavedUsername(panel: NotebookPanel): Promise<string> {
+  return (
+    (await readTextFile(panel, resolveNotebookPath(panel, '.lib/hostname'))) ??
+    ''
+  );
+}
+
+function getWorkflowId(panel: NotebookPanel): string {
+  const notebookName = panel.context.path.split('/').pop() ?? 'workflow';
+  return notebookName.replace(/\.[^.]+$/, '');
+}
+
+function getNotebookDirectory(panel: NotebookPanel): string {
+  const parts = panel.context.path.split('/').filter(Boolean);
+  parts.pop();
+  return parts.join('/');
+}
+
+function parseKernelJson<T>(output: string | void): T {
+  if (!output) {
+    throw new Error('Kernel did not return the expected JSON payload.');
+  }
+
+  return JSON.parse(output) as T;
+}
+
+function toUnixTimestamp(value: string): number {
+  return dayjs(value).unix() + 60 * 60 * getOffsetHours();
+}
+
+function currentUnixTimestamp(): number {
+  return dayjs().unix() + 60 * 60 * getOffsetHours();
+}
+
+export async function handleFirstCellExecution(panel: NotebookPanel) {
+  const workflowId = getWorkflowId(panel);
+  const output = await handleNotebookSessionContents(
+    panel,
+    generateExperimentIdAndStartTime(workflowId, getNotebookDirectory(panel))
+  );
+  parseKernelJson<IExperimentStart>(output);
+}
+
+export async function handleLastCellExecution(
+  panel: NotebookPanel,
+  username: string
+) {
   try {
-    await handleNotebookSessionContents(panel, getEndTime);
-    await handleNotebookSessionContents(panel, saveSessionMetrics);
-    await handleNotebookSessionContents(panel, saveRoCrateMetadata);
-    await handleNotebookSessionContents(panel, saveStartEndTime);
+    const endTime = await handleNotebookSessionContents(panel, getEndTime);
+    const environment = await getCurrentExperimentEnvironment(panel);
+
+    if (
+      !environment.workflow_id ||
+      !environment.experiment_id ||
+      !environment.start_time
+    ) {
+      throw new Error('Missing experiment metadata in kernel environment.');
+    }
+
+    const startTimeUnix = toUnixTimestamp(environment.start_time);
+    const endTimeUnix = toUnixTimestamp(environment.end_time ?? endTime ?? '');
+
+    await saveSessionMetricsFile(
+      panel,
+      username,
+      environment.workflow_id,
+      environment.experiment_id,
+      startTimeUnix,
+      endTimeUnix
+    );
+    await saveJsonFile(
+      panel,
+      resolveNotebookPath(
+        panel,
+        `.lib/experiments/${environment.workflow_id}/${environment.experiment_id}/timestamps.json`
+      ),
+      {
+        start_time: environment.start_time,
+        end_time: environment.end_time ?? endTime
+      }
+    );
     await handleNotebookSessionContents(panel, cleanExperimentMetadata);
   } catch (err) {
     console.error(err, 'Error detected');
@@ -94,23 +191,31 @@ export function captureKernelOutput(
 export async function handleLoadWorkflowList(
   panel: NotebookPanel
 ): Promise<string[]> {
-  const experimentList = await handleNotebookSessionContents(
+  const workflowList = await listDirectoryNames(
     panel,
-    getWorkflowList
+    resolveNotebookPath(panel, '.lib/experiments')
   );
-  return experimentList ? experimentList.split(' ') : [''];
+  const environment = await getCurrentExperimentEnvironmentSafe(panel);
+  return uniqueNonEmptyStrings([
+    environment?.workflow_id,
+    ...workflowList,
+    getWorkflowId(panel)
+  ]);
 }
 
 export async function handleLoadExperimentList(
-  worfklowId: string,
+  workflowId: string,
   panel: NotebookPanel
 ): Promise<string[]> {
-  const experimentList = await handleNotebookSessionContents(
+  const experimentList = await listDirectoryNames(
     panel,
-    getExperimentList(worfklowId)
+    resolveNotebookPath(panel, `.lib/experiments/${workflowId}`)
   );
-  const entries = experimentList?.match(/experiment-[^\s]+ \d{2}:\d{2}/g);
-  return entries ?? [''];
+  const environment = await getCurrentExperimentEnvironmentSafe(panel);
+  return uniqueNonEmptyStrings([
+    environment?.workflow_id === workflowId ? environment.experiment_id : null,
+    ...experimentList
+  ]);
 }
 
 export async function getHandleSessionMetrics(
@@ -118,9 +223,38 @@ export async function getHandleSessionMetrics(
   experimentId: string,
   panel: NotebookPanel
 ) {
-  return await handleNotebookSessionContents(
+  return await readTextFile(
     panel,
-    getSessionMetrics(workflowId, experimentId)
+    resolveNotebookPath(
+      panel,
+      `.lib/experiments/${workflowId}/${experimentId}/metrics.csv`
+    )
+  );
+}
+
+async function getCurrentExperimentEnvironment(
+  panel: NotebookPanel
+): Promise<IExperimentEnvironment> {
+  const output = await handleNotebookSessionContents(
+    panel,
+    getExperimentEnvironment
+  );
+  return parseKernelJson<IExperimentEnvironment>(output);
+}
+
+async function getCurrentExperimentEnvironmentSafe(
+  panel: NotebookPanel
+): Promise<IExperimentEnvironment | null> {
+  try {
+    return await getCurrentExperimentEnvironment(panel);
+  } catch (error) {
+    return null;
+  }
+}
+
+function uniqueNonEmptyStrings(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(values.filter((value): value is string => Boolean(value)))
   );
 }
 
@@ -129,24 +263,35 @@ export async function handleGetTime(
   experimentId: string,
   panel: NotebookPanel
 ) {
-  const jsonStringTime = await handleNotebookSessionContents(
-    panel,
-    getTime(workflowId, experimentId)
-  );
-  interface IJSONTime {
+  const jsonTime = await readJsonFile<{
     start_time: string;
     end_time: string | null;
-  }
-  if (typeof jsonStringTime === 'string') {
-    const jsonTime = JSON.parse(jsonStringTime) as IJSONTime;
+  }>(
+    panel,
+    resolveNotebookPath(
+      panel,
+      `.lib/experiments/${workflowId}/${experimentId}/timestamps.json`
+    )
+  );
+
+  if (jsonTime) {
     const { start_time, end_time } = jsonTime;
-    const differenceUnix = 60 * 60 * getOffsetHours();
-    const startTimeUnix = dayjs(start_time).unix() + differenceUnix;
+    const startTimeUnix = toUnixTimestamp(start_time);
     const endTimeUnix =
-      end_time !== null
-        ? dayjs(end_time).unix() + differenceUnix
-        : dayjs().unix() + differenceUnix;
+      end_time !== null ? toUnixTimestamp(end_time) : currentUnixTimestamp();
     return { startTimeUnix, endTimeUnix, start_time };
   }
+
+  const environment = await getCurrentExperimentEnvironment(panel);
+  if (environment.start_time) {
+    return {
+      startTimeUnix: toUnixTimestamp(environment.start_time),
+      endTimeUnix: environment.end_time
+        ? toUnixTimestamp(environment.end_time)
+        : currentUnixTimestamp(),
+      start_time: environment.start_time
+    };
+  }
+
   return null;
 }

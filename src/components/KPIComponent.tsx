@@ -5,8 +5,8 @@ import {
   IKPIValues,
   ISCIProps,
   METRIC_KEY_MAP,
-  RawMetrics,
-  IPrometheusMetrics
+  IPrometheusMetrics,
+  RawMetrics
 } from '../helpers/types';
 
 import {
@@ -16,28 +16,15 @@ import {
   microjoulesToKWh
 } from '../helpers/utils';
 
-import {
-  Box,
-  Button,
-  FormControl,
-  Grid2,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
-  Stack
-  // Typography
-} from '@mui/material';
+import { Grid2, Stack } from '@mui/material';
 
 import SolarPowerOutlinedIcon from '@mui/icons-material/SolarPowerOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import EnergySavingsLeafOutlinedIcon from '@mui/icons-material/EnergySavingsLeafOutlined';
-import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 
 import KpiValue from './KpiValue';
 // import getDynamicCarbonIntensity from '../api/getCarbonIntensityData';
 import { mainColour01, mainColour02, mainColour03 } from '../helpers/constants';
-import { styles } from '../pages/WelcomePage';
 
 type MetricProfile = 'Last' | 'Avg';
 
@@ -124,14 +111,6 @@ export async function calculateKPIs(
 
 interface IKPIComponentProps {
   rawMetrics: RawMetrics;
-  experimentList: string[];
-  workflowList: string[];
-  handleSubmitExport: () => void;
-  handleRefreshExperimentList: () => void;
-  selectedExperiment: string | null;
-  setSelectedExperiment: (newValue: string) => void;
-  selectedWorkflow: string | null;
-  setSelectedWorkflow: (newValue: string) => void;
 }
 
 // const START = 1748855616000;
@@ -151,18 +130,18 @@ const kpiCardsData: Array<{
     color: mainColour01,
     icon: (
       <EnergySavingsLeafOutlinedIcon
-        sx={{ fontSize: '56px', '& path': { fill: mainColour01 } }}
+        sx={{ fontSize: '34px', '& path': { fill: mainColour01 } }}
       />
     )
   },
   {
     key: 'operationalEmissions',
-    title: 'Op. Emissions',
+    title: 'Ops Emissions',
     unit: 'gCO₂',
     color: mainColour02,
     icon: (
       <BoltOutlinedIcon
-        sx={{ fontSize: '56px', '& path': { fill: mainColour02 } }}
+        sx={{ fontSize: '34px', '& path': { fill: mainColour02 } }}
       />
     )
   },
@@ -173,23 +152,13 @@ const kpiCardsData: Array<{
     color: mainColour03,
     icon: (
       <SolarPowerOutlinedIcon
-        sx={{ fontSize: '56px', '& path': { fill: mainColour03 } }}
+        sx={{ fontSize: '34px', '& path': { fill: mainColour03 } }}
       />
     )
   }
 ];
 
-export const KPIComponent = ({
-  rawMetrics,
-  experimentList,
-  workflowList,
-  handleRefreshExperimentList,
-  selectedExperiment,
-  setSelectedExperiment,
-  selectedWorkflow,
-  setSelectedWorkflow,
-  handleSubmitExport
-}: IKPIComponentProps) => {
+export const KPIComponent = ({ rawMetrics }: IKPIComponentProps) => {
   const [kpi, setKpi] = React.useState<IKPIValues | null>(null);
   console.log(kpi);
 
@@ -208,90 +177,14 @@ export const KPIComponent = ({
   return (
     <Grid2 sx={{ width: '100%' }}>
       <Stack
-        direction="row"
-        sx={{
-          px: 2,
-          pb: 2,
-          gap: 2,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end'
-        }}
+        direction={{ xs: 'column', md: 'row' }}
+        gap={2}
+        sx={{ alignItems: 'stretch' }}
       >
-        <Box gap={2} sx={styles.buttonGrid}>
-          <IconButton onClick={handleRefreshExperimentList}>
-            <RefreshRoundedIcon />
-          </IconButton>
-
-          <FormControl>
-            <InputLabel sx={{ background: 'white' }}>
-              Selected Workflow ID
-            </InputLabel>
-            <Select
-              key={selectedWorkflow || 'workflow-select'}
-              size="small"
-              value={selectedWorkflow || ''}
-              onChange={e => {
-                e !== null && setSelectedWorkflow(e.target.value ?? '');
-              }}
-              sx={{ minWidth: '150px' }}
-            >
-              <MenuItem disabled value="">
-                <em>Select Workflow</em>
-              </MenuItem>
-              {workflowList &&
-                workflowList.map((workflowId: string, index: number) => {
-                  return (
-                    <MenuItem key={index} value={workflowId}>
-                      {workflowId}
-                    </MenuItem>
-                  );
-                })}
-            </Select>
-          </FormControl>
-          <FormControl>
-            <InputLabel sx={{ background: 'white' }}>
-              Selected Experiment ID
-            </InputLabel>
-            <Select
-              key={selectedExperiment || 'experiment-select'}
-              size="small"
-              value={selectedExperiment || ''}
-              onChange={e => {
-                e !== null && setSelectedExperiment(e.target.value ?? '');
-              }}
-              sx={{ minWidth: '150px' }}
-            >
-              <MenuItem disabled value="">
-                <em>Select Experiment</em>
-              </MenuItem>
-              {experimentList &&
-                experimentList.map((experimentId: string, index: number) => {
-                  return (
-                    <MenuItem key={index} value={experimentId}>
-                      {experimentId.match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/)?.[0]}
-                    </MenuItem>
-                  );
-                })}
-            </Select>
-          </FormControl>
-          {/* <Typography variant="body2">
-            <span style={{ fontWeight: 'bold' }}>Start: </span>{' '}
-            {dayjs(START).toString()} <br />
-            <span style={{ fontWeight: 'bold' }}>End: </span>{' '}
-            {dayjs(END).toString()}
-          </Typography> */}
-        </Box>
-        <Box sx={styles.buttonGrid}>
-          <Button variant="outlined" onClick={handleSubmitExport}>
-            Submit to FDMI (SoBigData)
-          </Button>
-        </Box>
-      </Stack>
-      <Stack direction="row" gap={2}>
         {kpiCardsData.map(props => {
           return (
             <KpiValue
+              key={props.key}
               title={props.title}
               value={kpi?.[props.key] ?? 0}
               unit={props.unit}

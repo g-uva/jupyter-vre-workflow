@@ -13,25 +13,33 @@ interface IKpiValue {
 
 const styles: Record<string, SxProps> = {
   paperKpi: {
-    height: '300px',
+    minHeight: '150px',
     width: '100%',
-    border: '1px solid #ccc',
-    borderRadius: '10px',
+    border: '1px solid #d7dde6',
+    borderRadius: '8px',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center'
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 1,
+    p: 2,
+    boxSizing: 'border-box',
+    background: '#fff'
   },
   typographyTitle: {
-    fontSize: '32px',
-    textAlign: 'center'
+    fontSize: '15px',
+    fontWeight: 700,
+    textAlign: 'left',
+    lineHeight: 1.2
   },
   typographyValue: {
     fontWeight: 'bold',
-    fontSize: '46px'
+    fontSize: '34px',
+    lineHeight: 1
   },
   typographyUnit: {
-    fontSize: '22px'
+    fontSize: '14px',
+    fontWeight: 600
   }
 };
 
@@ -43,17 +51,21 @@ export default function KpiValue(props: IKpiValue) {
         elevation={0}
         sx={{
           ...styles.paperKpi,
-          border: `1px solid ${color}`
+          borderTop: `3px solid ${color}`
         }}
       >
         {Icon}
-        <Typography sx={{ ...styles.typographyTitle, color }}>
-          {title}
-        </Typography>
-        <Typography sx={{ ...styles.typographyValue, color }}>
-          {shortenNumber(value)}
-        </Typography>
-        <Typography sx={{ ...styles.typographyUnit, color }}>{unit}</Typography>
+        <Grid2>
+          <Typography sx={{ ...styles.typographyTitle, color }}>
+            {title}
+          </Typography>
+          <Typography sx={{ ...styles.typographyValue, color }}>
+            {shortenNumber(value)}
+          </Typography>
+          <Typography sx={{ ...styles.typographyUnit, color }}>
+            {unit}
+          </Typography>
+        </Grid2>
         {children}
       </Paper>
     </Grid2>

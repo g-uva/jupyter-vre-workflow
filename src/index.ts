@@ -23,10 +23,10 @@ import { MainWidget } from './widget';
 import {
   handleFirstCellExecution,
   handleLastCellExecution,
-  handleNotebookSessionContents
+  getAndSaveUsername,
+  getSavedUsername
 } from './api/handleNotebookContents';
-
-import { getUsernameSh, saveUsernameSh } from './api/apiScripts';
+import { setContentsManager } from './api/jupyterContents';
 // import JupyterDialogWarning from './components/JupyterDialogWarning';
 
 // import { monitorCellExecutions } from './api/monitorCellExecutions';
@@ -38,12 +38,16 @@ import { getUsernameSh, saveUsernameSh } from './api/apiScripts';
 
 const namespaceId = 'gdapod';
 
+async function getUsername(panel: NotebookPanel): Promise<string> {
+  return (await getSavedUsername(panel)) || (await getAndSaveUsername(panel));
+}
+
 /**
- * Initialization data for the GreenDIGIT JupyterLab extension.
+ * Initialization data for the Jupyter VRE Workflow extension.
  */
 const plugin: JupyterFrontEndPlugin<void> = {
   id: 'ecojupyter',
-  description: 'GreenDIGIT EcoJupyter App',
+  description: 'Jupyter VRE Workflow',
   autoStart: true,
   requires: [ICommandPalette, ILayoutRestorer, INotebookTracker],
   activate: async (
@@ -54,17 +58,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
   ) => {
     // const [currentPanel, setCurrentPanel] = React.useState<NotebookPanel | null>(null);
     const { shell } = app;
+    setContentsManager(app.serviceManager.contents);
 
     // Create a widget tracker
     const tracker = new WidgetTracker<MainAreaWidget<MainWidget>>({
       namespace: namespaceId
-    });
-
-    // Ensure the tracker is restored properly on refresh
-    restorer?.restore(tracker, {
-      command: `${namespaceId}:open`,
-      name: () => 'gd-ecojupyter'
-      // when: app.restored, // Ensure restorer waits for the app to be fully restored
     });
 
     // Define a widget creator function
@@ -75,12 +73,12 @@ const plugin: JupyterFrontEndPlugin<void> = {
       const content = new MainWidget(username, panel);
       const widget = new MainAreaWidget({ content });
       widget.id = 'gd-ecojupyter';
-      widget.title.label = 'GreenDIGIT EcoJupyter Dashboard';
+      widget.title.label = 'Jupyter VRE Workflow';
       widget.title.closable = true;
       return widget;
     };
 
-    // Add an application command
+    // Add an application command before any restore/notebook work can fail.
     const openCommand: string = `${namespaceId}:open`;
 
     async function addNewWidget(
@@ -89,10 +87,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
       username: string,
       panel: NotebookPanel
     ) {
-      // If the widget is not provided or is disposed, create a new one
       if (!widget || widget.isDisposed) {
         widget = await newWidget(username, panel);
-        // Add the widget to the tracker and shell
         tracker.add(widget);
         shell.add(widget, 'main');
       }
@@ -102,113 +98,93 @@ const plugin: JupyterFrontEndPlugin<void> = {
       shell.activateById(widget.id);
     }
 
+    async function openForPanel(panel: NotebookPanel): Promise<void> {
+      await panel.context.ready;
+
+      try {
+        const username = await getUsername(panel);
+        await addNewWidget(shell, tracker.currentWidget, username, panel);
+      } catch (err) {
+        console.error('Failed to open Jupyter VRE Workflow:', err);
+        await addNewWidget(shell, tracker.currentWidget, '', panel);
+      }
+    }
+
     app.commands.addCommand(openCommand, {
-      label: 'Open GreenDIGIT Dashboard',
+      label: 'Open Jupyter VRE Workflow',
       execute: async () => {
         const panel = notebookTracker.currentWidget;
         if (!panel) {
           return;
         }
 
-        await panel.context.ready;
-
-        try {
-          const username =
-            (await handleNotebookSessionContents(panel, getUsernameSh)) ?? '';
-          await addNewWidget(shell, tracker.currentWidget, username, panel);
-        } catch (err) {
-          console.error('Failed to fetch username:', err);
-        }
+        await openForPanel(panel);
       }
     });
 
-    // app.restored.then(() => {
-    //   JupyterDialogWarning({
-    //     message:
-    //       'EcoJupyter has been installed. Please reload the window to activate it.',
-    //     buttonLabel: 'Reload window',
-    //     action: () => window.location.reload()
-    //   });
-    // });
-
-    // Add the command to the palette
     palette.addItem({
       command: openCommand,
-      category: 'Sustainability metrics'
+      category: 'Jupyter VRE Workflow'
     });
 
-    // Restore the widget if available
-    if (!tracker.currentWidget) {
-      const panel = notebookTracker.currentWidget;
-      let username: string | null = null;
+    // Ensure the tracker is restored properly on refresh.
+    restorer?.restore(tracker, {
+      command: openCommand,
+      name: () => 'gd-ecojupyter'
+    });
 
-      if (panel) {
-        await panel.context.ready;
-        try {
-          username =
-            (await handleNotebookSessionContents(panel, getUsernameSh)) ?? null;
-        } catch (err) {
-          console.warn(
-            'Could not fetch username during restore, using default:',
-            err
-          );
+    const connectedPanels = new WeakSet<NotebookPanel>();
+
+    function connectPanelExecution(panel: NotebookPanel): void {
+      if (connectedPanels.has(panel)) {
+        return;
+      }
+      connectedPanels.add(panel);
+
+      NotebookActions.executed.connect(async (_, args) => {
+        const { cell, notebook, success } = args;
+        if (notebook !== panel.content || !success) {
+          return;
         }
-      }
 
-      if (username !== null && panel !== null) {
-        const widget = await newWidget(username, panel);
-        tracker.add(widget);
-        shell.add(widget, 'main');
-      }
-    }
-
-    const seenKey = 'greendigit-ecojupyter-seen';
-    const seen = window.sessionStorage.getItem(seenKey);
-
-    if (seen) {
-      const panel = notebookTracker.currentWidget;
-      if (panel) {
-        await panel.context.ready;
-        try {
-          const username = await handleNotebookSessionContents(
-            panel,
-            getUsernameSh
-          );
-          if (username) {
-            await addNewWidget(shell, tracker.currentWidget, username, panel);
+        const index = notebook.widgets.indexOf(cell);
+        const isFirst = index === 0;
+        const isLast = index === notebook.widgets.length - 1;
+        if (isFirst) {
+          try {
+            await handleFirstCellExecution(panel);
+          } catch (err) {
+            console.error('Failed to create experiment metadata:', err);
           }
-        } catch (err) {
-          console.error('Failed to fetch username on seen restore:', err);
         }
-      }
+        if (isLast) {
+          const username = await getUsername(panel);
+          await handleLastCellExecution(panel, username);
+        }
+      });
     }
+
+    notebookTracker.currentChanged.connect(async (_, panel) => {
+      if (!panel) {
+        return;
+      }
+
+      connectPanelExecution(panel);
+      await openForPanel(panel);
+    });
 
     notebookTracker.widgetAdded.connect((_: unknown, panel: NotebookPanel) => {
       panel.context.ready.then(async () => {
-        // Saving username
-        await handleNotebookSessionContents(panel, saveUsernameSh);
-        const username =
-          (await handleNotebookSessionContents(panel, getUsernameSh)) ?? '';
-
-        await addNewWidget(shell, tracker.currentWidget, username, panel);
-
-        NotebookActions.executed.connect(async (_, args) => {
-          const { cell, notebook } = args;
-          const index = notebook.widgets.indexOf(cell);
-          const isFirst = index === 0;
-          const isLast = index === notebook.widgets.length - 1;
-          if (isFirst) {
-            await handleFirstCellExecution(panel);
-          }
-          if (isLast) {
-            await handleLastCellExecution(panel);
-          }
-        });
-
-        // Monitor cell execution
-        // monitorCellExecutions(panel);
+        connectPanelExecution(panel);
+        await openForPanel(panel);
       });
     });
+
+    const currentPanel = notebookTracker.currentWidget;
+    if (currentPanel) {
+      connectPanelExecution(currentPanel);
+      await openForPanel(currentPanel);
+    }
   }
 };
 
