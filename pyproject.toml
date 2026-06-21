@@ -23,6 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
+    "jupyter_server>=2.0.0",
 ]
 dynamic = ["version", "description", "authors", "urls", "keywords"]
 
@@ -38,7 +39,7 @@ exclude = [".github", "binder"]
 
 [tool.hatch.build.targets.wheel.shared-data]
 "ecojupyter/labextension" = "share/jupyter/labextensions/ecojupyter"
-"install.json" = "share/jupyter/labextensions/ecojupyter/install.json"
+"jupyter-config/jupyter_server_config.d/ecojupyter.json" = "etc/jupyter/jupyter_server_config.d/ecojupyter.json"
 
 [tool.hatch.build.hooks.version]
 path = "ecojupyter/_version.py"

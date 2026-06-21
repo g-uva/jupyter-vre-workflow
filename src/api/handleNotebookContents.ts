@@ -195,18 +195,27 @@ export async function handleLoadWorkflowList(
     panel,
     resolveNotebookPath(panel, '.lib/experiments')
   );
-  return workflowList.length > 0 ? workflowList : [''];
+  const environment = await getCurrentExperimentEnvironmentSafe(panel);
+  return uniqueNonEmptyStrings([
+    environment?.workflow_id,
+    ...workflowList,
+    getWorkflowId(panel)
+  ]);
 }
 
 export async function handleLoadExperimentList(
-  worfklowId: string,
+  workflowId: string,
   panel: NotebookPanel
 ): Promise<string[]> {
   const experimentList = await listDirectoryNames(
     panel,
-    resolveNotebookPath(panel, `.lib/experiments/${worfklowId}`)
+    resolveNotebookPath(panel, `.lib/experiments/${workflowId}`)
   );
-  return experimentList.length > 0 ? experimentList : [''];
+  const environment = await getCurrentExperimentEnvironmentSafe(panel);
+  return uniqueNonEmptyStrings([
+    environment?.workflow_id === workflowId ? environment.experiment_id : null,
+    ...experimentList
+  ]);
 }
 
 export async function getHandleSessionMetrics(
@@ -231,6 +240,22 @@ async function getCurrentExperimentEnvironment(
     getExperimentEnvironment
   );
   return parseKernelJson<IExperimentEnvironment>(output);
+}
+
+async function getCurrentExperimentEnvironmentSafe(
+  panel: NotebookPanel
+): Promise<IExperimentEnvironment | null> {
+  try {
+    return await getCurrentExperimentEnvironment(panel);
+  } catch (error) {
+    return null;
+  }
+}
+
+function uniqueNonEmptyStrings(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(values.filter((value): value is string => Boolean(value)))
+  );
 }
 
 export async function handleGetTime(

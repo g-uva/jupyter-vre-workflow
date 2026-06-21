@@ -60,27 +60,30 @@ export default function FetchMetricsComponent({
         <Button
           variant="outlined"
           onClick={handleInstallMetrics}
-          sx={{ maxHeight: '40px' }}
+          size="small"
+          sx={{ minHeight: 32 }}
           startIcon={<DownloadOutlinedIcon />}
           disabled={installingMetrics}
         >
-          Install metrics agent
+          Install agent
         </Button>
         <Button
           variant="outlined"
           onClick={fetchMetrics}
-          sx={{ maxHeight: '40px' }}
+          size="small"
+          sx={{ minHeight: 32 }}
           startIcon={<RefreshRoundedIcon />}
         >
-          Refresh Metrics
+          Refresh
         </Button>
         <Tooltip title="Metrics settings">
           <IconButton
             onClick={event => setSettingsAnchor(event.currentTarget)}
             size="small"
             aria-label="Metrics settings"
+            sx={{ width: 32, height: 32 }}
           >
-            <SettingsOutlinedIcon />
+            <SettingsOutlinedIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Menu

@@ -82,9 +82,10 @@ export const styles: Record<string, SxProps> = {
   buttonGrid: {
     display: 'flex',
     width: '100%',
-    gap: 3,
-    justifyContent: 'center',
-    alignContent: 'center',
+    gap: 1,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
     '& .MuiButtonBase-root': {
       textTransform: 'none'
     },
@@ -101,11 +102,35 @@ export const styles: Record<string, SxProps> = {
   controlBar: {
     width: '100%',
     flexShrink: 0,
-    p: 2,
+    p: 1.5,
     border: '1px solid #d7dde6',
     borderRadius: '8px',
     background: '#fff',
-    boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)'
+    boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)',
+    boxSizing: 'border-box',
+    overflow: 'hidden'
+  },
+  controlBarStack: {
+    width: '100%',
+    minWidth: 0,
+    flexWrap: 'wrap'
+  },
+  contextActions: {
+    flexShrink: 0,
+    minWidth: 'fit-content'
+  },
+  contextChip: {
+    maxWidth: { xs: '100%', md: 320 },
+    minWidth: 0,
+    '& .MuiChip-label': {
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    }
+  },
+  contextSelect: {
+    flex: '1 1 180px',
+    minWidth: { xs: '100%', sm: 180 },
+    maxWidth: { xs: '100%', md: 280 }
   },
   moduleShell: {
     width: '100%',
@@ -204,6 +229,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
     React.useState<boolean>(false);
   const [installProgress, setInstallProgress] = React.useState<number>(0);
   const [installLabel, setInstallLabel] = React.useState<string>('');
+  const [installError, setInstallError] = React.useState<string>('');
   const [installLogs, setInstallLogs] = React.useState<string[]>([]);
   const [moduleStatus, setModuleStatus] = React.useState<InstalledModules>(
     DEFAULT_MODULE_STATUS
@@ -326,7 +352,12 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   async function handleRefreshWorkflowList() {
     const newWorkflowList = await handleLoadWorkflowList(panel);
     setWorkflowList(newWorkflowList);
-    setSelectedWorkflow(newWorkflowList[0]);
+    setSelectedWorkflow(currentWorkflow => {
+      if (currentWorkflow && newWorkflowList.includes(currentWorkflow)) {
+        return currentWorkflow;
+      }
+      return newWorkflowList[0] ?? null;
+    });
   }
 
   async function handleRefreshExperimentList() {
@@ -336,7 +367,18 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
         panel
       );
       setExperimentList(newExperimentList);
-      setSelectedExperiment(newExperimentList[0]);
+      setSelectedExperiment(currentExperiment => {
+        if (
+          currentExperiment &&
+          newExperimentList.includes(currentExperiment)
+        ) {
+          return currentExperiment;
+        }
+        return newExperimentList[0] ?? null;
+      });
+    } else {
+      setExperimentList([]);
+      setSelectedExperiment(null);
     }
   }
 
@@ -344,6 +386,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
     setInstallingMetrics(true);
     setInstallProgress(0);
     setInstallLabel('Starting metrics agent installation');
+    setInstallError('');
     setInstallLogs([]);
 
     try {
@@ -358,15 +401,12 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
       });
       setInstallProgress(100);
       setInstallLabel('Metrics agent installation complete');
-      const updatedStatus = await markModuleInstalled(
-        panel,
-        moduleStatus,
-        'telemetry'
-      );
+      const updatedStatus = markModuleInstalled(moduleStatus, 'telemetry');
       setModuleStatus(updatedStatus);
     } catch (error) {
       console.error(error);
       setInstallLabel('Metrics agent installation failed');
+      setInstallError(error instanceof Error ? error.message : String(error));
     } finally {
       setInstallingMetrics(false);
     }
@@ -378,11 +418,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
       return;
     }
 
-    const updatedStatus = await markModuleInstalled(
-      panel,
-      moduleStatus,
-      moduleKey
-    );
+    const updatedStatus = markModuleInstalled(moduleStatus, moduleKey);
     setModuleStatus(updatedStatus);
   }
 
@@ -396,18 +432,8 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   }, []);
 
   React.useEffect(() => {
-    let isMounted = true;
-
-    loadModuleStatus(panel).then(status => {
-      if (isMounted) {
-        setModuleStatus(status);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [panel]);
+    setModuleStatus(loadModuleStatus());
+  }, []);
 
   React.useEffect(() => {
     handleRefreshExperimentList();
@@ -454,16 +480,23 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
         <Paper elevation={0} sx={styles.controlBar}>
           <Stack
             direction={{ xs: 'column', md: 'row' }}
-            gap={2}
+            gap={1}
             alignItems={{ xs: 'stretch', md: 'center' }}
+            sx={styles.controlBarStack}
           >
-            <Stack direction="row" gap={1} alignItems="center">
+            <Stack
+              direction="row"
+              gap={0.75}
+              alignItems="center"
+              sx={styles.contextActions}
+            >
               <IconButton
                 onClick={handleRefreshWorkflowList}
                 size="small"
                 aria-label="Refresh workflows"
+                sx={{ width: 32, height: 32 }}
               >
-                <RefreshRoundedIcon />
+                <RefreshRoundedIcon fontSize="small" />
               </IconButton>
               <Typography variant="subtitle2" color="text.secondary">
                 Selected context
@@ -479,10 +512,10 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
               variant={
                 selectedWorkflow && selectedExperiment ? 'filled' : 'outlined'
               }
-              sx={{ maxWidth: { xs: '100%', md: 360 } }}
+              sx={styles.contextChip}
             />
 
-            <FormControl size="small" sx={{ minWidth: 220 }}>
+            <FormControl size="small" sx={styles.contextSelect}>
               <InputLabel sx={{ background: '#fff' }}>Workflow ID</InputLabel>
               <Select
                 key={selectedWorkflow || 'workflow-select'}
@@ -497,7 +530,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                 </MenuItem>
                 {workflowList.map((workflowId: string, index: number) => {
                   return (
-                    <MenuItem key={index} value={workflowId}>
+                    <MenuItem key={workflowId || index} value={workflowId}>
                       {workflowId}
                     </MenuItem>
                   );
@@ -505,7 +538,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 240 }}>
+            <FormControl size="small" sx={styles.contextSelect}>
               <InputLabel sx={{ background: '#fff' }}>Experiment ID</InputLabel>
               <Select
                 key={selectedExperiment || 'experiment-select'}
@@ -520,7 +553,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                 </MenuItem>
                 {experimentList.map((experimentId: string, index: number) => {
                   return (
-                    <MenuItem key={index} value={experimentId}>
+                    <MenuItem key={experimentId || index} value={experimentId}>
                       {experimentId.match(
                         /\d{4}-\d{2}-\d{2} \d{2}:\d{2}/
                       )?.[0] ?? experimentId}
@@ -573,6 +606,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                   installed={moduleStatus.telemetry.installed}
                   installing={installingMetrics}
                   installLabel={installLabel}
+                  installError={installError}
                   installProgress={installProgress}
                   onInstall={() => handleInstallModule('telemetry')}
                 >

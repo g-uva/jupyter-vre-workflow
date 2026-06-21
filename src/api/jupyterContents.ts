@@ -7,17 +7,21 @@ export function setContentsManager(manager: Contents.IManager): void {
   contentsManager = manager;
 }
 
-function dirname(path: string): string {
+export function dirname(path: string): string {
   const parts = path.split('/').filter(Boolean);
   parts.pop();
   return parts.join('/');
 }
 
-function joinPath(...parts: string[]): string {
+export function joinPath(...parts: string[]): string {
   return parts
     .flatMap(part => part.split('/'))
     .filter(part => part && part !== '.')
     .join('/');
+}
+
+export function toRelativeContentsPath(path: string): string {
+  return path.split('/').filter(Boolean).join('/');
 }
 
 function getNotebookDirectory(panel: NotebookPanel): string {
@@ -67,7 +71,7 @@ export async function ensureDirectory(
   path: string
 ): Promise<void> {
   const manager = getContentsManager(panel);
-  const normalizedPath = manager.normalize(path);
+  const normalizedPath = toRelativeContentsPath(manager.normalize(path));
   const parts = normalizedPath.split('/').filter(Boolean);
   let current = '';
 
@@ -85,8 +89,8 @@ export async function ensureDirectory(
         path: dirname(current),
         type: 'directory'
       });
-      createdPath = created.path;
-      await manager.rename(created.path, current);
+      createdPath = toRelativeContentsPath(created.path);
+      await manager.rename(createdPath, current);
     } catch (error) {
       if (await pathExists(panel, current)) {
         continue;

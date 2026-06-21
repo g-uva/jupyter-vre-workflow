@@ -15,6 +15,7 @@ interface IModuleInstallGateProps {
   installed: boolean;
   installing?: boolean;
   installLabel?: string;
+  installError?: string;
   installProgress?: number;
   onInstall: () => void;
   children: React.ReactNode;
@@ -61,6 +62,7 @@ export default function ModuleInstallGate({
   installed,
   installing = false,
   installLabel,
+  installError,
   installProgress = 0,
   onInstall,
   children
@@ -94,6 +96,16 @@ export default function ModuleInstallGate({
                   value={installProgress}
                 />
               </Box>
+            )}
+            {!installing && installError && (
+              <Typography
+                variant="caption"
+                color="error"
+                component="div"
+                sx={{ mb: 2 }}
+              >
+                {installError}
+              </Typography>
             )}
             <Button
               variant="contained"

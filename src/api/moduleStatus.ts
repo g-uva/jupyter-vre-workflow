@@ -1,10 +1,3 @@
-import { NotebookPanel } from '@jupyterlab/notebook';
-import {
-  readJsonFile,
-  resolveNotebookPath,
-  saveJsonFile
-} from './jupyterContents';
-
 export type WorkflowModuleKey =
   | 'telemetry'
   | 'reproducibility'
@@ -18,7 +11,7 @@ export interface IInstalledModule {
 
 export type InstalledModules = Record<WorkflowModuleKey, IInstalledModule>;
 
-const MODULE_STATUS_PATH = '.lib/modules.json';
+const MODULE_STATUS_STORAGE_KEY = 'ecojupyter.installedModules';
 
 export const DEFAULT_MODULE_STATUS: InstalledModules = {
   telemetry: { installed: false },
@@ -26,14 +19,7 @@ export const DEFAULT_MODULE_STATUS: InstalledModules = {
   orchestration: { installed: false }
 };
 
-export async function loadModuleStatus(
-  panel: NotebookPanel
-): Promise<InstalledModules> {
-  const saved = await readJsonFile<Partial<InstalledModules>>(
-    panel,
-    resolveNotebookPath(panel, MODULE_STATUS_PATH)
-  );
-
+function mergeModuleStatus(saved?: Partial<InstalledModules>): InstalledModules {
   return {
     telemetry: {
       ...DEFAULT_MODULE_STATUS.telemetry,
@@ -50,23 +36,27 @@ export async function loadModuleStatus(
   };
 }
 
-export async function saveModuleStatus(
-  panel: NotebookPanel,
-  modules: InstalledModules
-): Promise<void> {
-  await saveJsonFile(
-    panel,
-    resolveNotebookPath(panel, MODULE_STATUS_PATH),
-    modules
+export function loadModuleStatus(): InstalledModules {
+  try {
+    const saved = window.localStorage.getItem(MODULE_STATUS_STORAGE_KEY);
+    return mergeModuleStatus(saved ? JSON.parse(saved) : undefined);
+  } catch (error) {
+    return DEFAULT_MODULE_STATUS;
+  }
+}
+
+export function saveModuleStatus(modules: InstalledModules): void {
+  window.localStorage.setItem(
+    MODULE_STATUS_STORAGE_KEY,
+    JSON.stringify(modules)
   );
 }
 
-export async function markModuleInstalled(
-  panel: NotebookPanel,
+export function markModuleInstalled(
   modules: InstalledModules,
   moduleKey: WorkflowModuleKey,
   version = 'local'
-): Promise<InstalledModules> {
+): InstalledModules {
   const updated = {
     ...modules,
     [moduleKey]: {
@@ -76,6 +66,6 @@ export async function markModuleInstalled(
     }
   };
 
-  await saveModuleStatus(panel, updated);
+  saveModuleStatus(updated);
   return updated;
 }

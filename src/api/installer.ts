@@ -25,6 +25,7 @@ export async function runMetricsInstaller({
 
   return new Promise((resolve, reject) => {
     const eventSource = new EventSource(requestUrl);
+    let settled = false;
 
     eventSource.addEventListener('progress', event => {
       onProgress?.(JSON.parse((event as MessageEvent).data));
@@ -35,18 +36,28 @@ export async function runMetricsInstaller({
     });
 
     eventSource.addEventListener('done', () => {
+      settled = true;
       eventSource.close();
       resolve();
     });
 
     eventSource.addEventListener('install-error', event => {
+      settled = true;
       eventSource.close();
-      reject(new Error((event as MessageEvent).data));
+      reject(new Error(JSON.parse((event as MessageEvent).data)));
     });
 
     eventSource.onerror = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       eventSource.close();
-      reject(new Error('Metrics installer stream failed.'));
+      reject(
+        new Error(
+          'Metrics installer endpoint is unavailable. Restart JupyterLab after installing the EcoJupyter server extension.'
+        )
+      );
     };
   });
 }

@@ -14,3 +14,19 @@ def _jupyter_labextension_paths():
         "src": "labextension",
         "dest": "ecojupyter"
     }]
+
+
+def _jupyter_server_extension_points():
+    return [{"module": "ecojupyter"}]
+
+
+def _load_jupyter_server_extension(server_app):
+    from jupyter_server.utils import url_path_join
+
+    from .handlers import MetricsInstallHandler
+
+    host_pattern = ".*$"
+    base_url = server_app.web_app.settings["base_url"]
+    route = url_path_join(base_url, "api/run-install")
+    server_app.web_app.add_handlers(host_pattern, [(route, MetricsInstallHandler)])
+    server_app.log.info("Registered EcoJupyter installer endpoint at %s", route)
