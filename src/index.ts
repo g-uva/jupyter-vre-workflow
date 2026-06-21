@@ -135,15 +135,15 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     const connectedPanels = new WeakSet<NotebookPanel>();
 
-    function connectPanelExecution(panel: NotebookPanel, username: string): void {
+    function connectPanelExecution(panel: NotebookPanel): void {
       if (connectedPanels.has(panel)) {
         return;
       }
       connectedPanels.add(panel);
 
       NotebookActions.executed.connect(async (_, args) => {
-        const { cell, notebook } = args;
-        if (notebook !== panel.content) {
+        const { cell, notebook, success } = args;
+        if (notebook !== panel.content || !success) {
           return;
         }
 
@@ -151,9 +151,14 @@ const plugin: JupyterFrontEndPlugin<void> = {
         const isFirst = index === 0;
         const isLast = index === notebook.widgets.length - 1;
         if (isFirst) {
-          await handleFirstCellExecution(panel);
+          try {
+            await handleFirstCellExecution(panel);
+          } catch (err) {
+            console.error('Failed to create experiment metadata:', err);
+          }
         }
         if (isLast) {
+          const username = await getUsername(panel);
           await handleLastCellExecution(panel, username);
         }
       });
@@ -164,23 +169,20 @@ const plugin: JupyterFrontEndPlugin<void> = {
         return;
       }
 
-      const username = await getUsername(panel);
-      connectPanelExecution(panel, username);
+      connectPanelExecution(panel);
       await openForPanel(panel);
     });
 
     notebookTracker.widgetAdded.connect((_: unknown, panel: NotebookPanel) => {
       panel.context.ready.then(async () => {
-        const username = await getUsername(panel);
-        connectPanelExecution(panel, username);
+        connectPanelExecution(panel);
         await openForPanel(panel);
       });
     });
 
     const currentPanel = notebookTracker.currentWidget;
     if (currentPanel) {
-      const username = await getUsername(currentPanel);
-      connectPanelExecution(currentPanel, username);
+      connectPanelExecution(currentPanel);
       await openForPanel(currentPanel);
     }
   }

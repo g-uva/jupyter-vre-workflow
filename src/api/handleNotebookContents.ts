@@ -11,7 +11,6 @@ import {
 import dayjs from 'dayjs';
 import { getOffsetHours } from '../helpers/utils';
 import {
-  ensureDirectory,
   listDirectoryNames,
   readJsonFile,
   readTextFile,
@@ -59,6 +58,12 @@ function getWorkflowId(panel: NotebookPanel): string {
   return notebookName.replace(/\.[^.]+$/, '');
 }
 
+function getNotebookDirectory(panel: NotebookPanel): string {
+  const parts = panel.context.path.split('/').filter(Boolean);
+  parts.pop();
+  return parts.join('/');
+}
+
 function parseKernelJson<T>(output: string | void): T {
   if (!output) {
     throw new Error('Kernel did not return the expected JSON payload.');
@@ -79,17 +84,9 @@ export async function handleFirstCellExecution(panel: NotebookPanel) {
   const workflowId = getWorkflowId(panel);
   const output = await handleNotebookSessionContents(
     panel,
-    generateExperimentIdAndStartTime(workflowId)
+    generateExperimentIdAndStartTime(workflowId, getNotebookDirectory(panel))
   );
-  const experiment = parseKernelJson<IExperimentStart>(output);
-
-  await ensureDirectory(
-    panel,
-    resolveNotebookPath(
-      panel,
-      `.lib/experiments/${experiment.workflow_id}/${experiment.experiment_id}`
-    )
-  );
+  parseKernelJson<IExperimentStart>(output);
 }
 
 export async function handleLastCellExecution(

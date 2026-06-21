@@ -24,6 +24,17 @@ function getNotebookDirectory(panel: NotebookPanel): string {
   return dirname(panel.context.path);
 }
 
+async function deleteIfExists(
+  manager: Contents.IManager,
+  path: string
+): Promise<void> {
+  try {
+    await manager.delete(path);
+  } catch (error) {
+    // Best-effort cleanup only.
+  }
+}
+
 export function resolveNotebookPath(
   panel: NotebookPanel,
   path: string
@@ -67,16 +78,23 @@ export async function ensureDirectory(
       continue;
     }
 
+    let createdPath: string | null = null;
+
     try {
-      await manager.save(current, {
-        type: 'directory',
-        format: 'json',
-        content: null
+      const created = await manager.newUntitled({
+        path: dirname(current),
+        type: 'directory'
       });
+      createdPath = created.path;
+      await manager.rename(created.path, current);
     } catch (error) {
-      if (!(await pathExists(panel, current))) {
-        throw error;
+      if (await pathExists(panel, current)) {
+        continue;
       }
+      if (createdPath) {
+        await deleteIfExists(manager, createdPath);
+      }
+      throw error;
     }
   }
 }

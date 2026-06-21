@@ -16,7 +16,10 @@ hostname = os.environ.get("HOSTNAME", "")
 print(hostname[8:] if hostname.startswith("jupyter-") else hostname)
 `;
 
-export const generateExperimentIdAndStartTime = (workflowId: string) => `
+export const generateExperimentIdAndStartTime = (
+  workflowId: string,
+  notebookDirectory: string
+) => `
 import os
 import json
 from datetime import datetime, timezone
@@ -27,6 +30,15 @@ os.environ["START_TIME"] = ts
 experiment_id = f"experiment-{hashlib.sha256(ts.encode()).hexdigest()[:8]}-{ts}"
 os.environ["EXPERIMENT_ID"] = experiment_id
 os.environ["WORKFLOW_ID"] = ${JSON.stringify(workflowId)}
+experiment_dir = os.path.join(
+    os.getcwd(),
+    ${JSON.stringify(notebookDirectory)},
+    ".lib",
+    "experiments",
+    os.environ["WORKFLOW_ID"],
+    experiment_id,
+)
+os.makedirs(experiment_dir, exist_ok=True)
 print(json.dumps({
     "start_time": ts,
     "experiment_id": experiment_id,
