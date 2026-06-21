@@ -22,9 +22,25 @@ if [ -z "$COMMIT_MSG" ]; then
     exit 1
 fi
 
+# Install conda if not found
+if ! command -v conda &> /dev/null; then
+    echo "conda not found. Installing Miniconda..."
+    MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+    curl -fsSL "$MINICONDA_URL" -o /tmp/miniconda.sh
+    bash /tmp/miniconda.sh -b -u -p "$HOME/miniconda3"
+    rm /tmp/miniconda.sh
+    export PATH="$HOME/miniconda3/bin:$PATH"
+    echo "Miniconda installed."
+fi
+
 # Activate conda env
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE/etc/profile.d/conda.sh"
+if ! conda info --envs | grep -q "^ecojupyter"; then
+    echo "Conda environment 'ecojupyter' not found. Creating..."
+    conda create -y -n ecojupyter --override-channels --strict-channel-priority -c conda-forge -c nodefaults jupyterlab=4 nodejs=20 git
+    echo "Conda environment 'ecojupyter' created."
+fi
 conda activate ecojupyter
 echo "Conda environment 'ecojupyter' activated."
 
