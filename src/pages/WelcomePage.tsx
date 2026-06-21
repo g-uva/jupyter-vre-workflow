@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Box,
   Button,
+  Chip,
   FormControl,
   Grid2,
   IconButton,
@@ -27,11 +28,8 @@ import {
 import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
 import { KPIComponent } from '../components/KPIComponent';
-import {
-  exportSendJson,
-  IExportJsonProps,
-  installPrometheusScaphandre
-} from '../api/apiScripts';
+import { IExportJsonProps } from '../api/apiScripts';
+import { exportSendJson } from '../api/exportMetadata';
 import ApiSubmitForm from '../components/ApiSubmitForm';
 import { NotebookPanel } from '@jupyterlab/notebook';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
@@ -45,10 +43,10 @@ import {
   getHandleSessionMetrics,
   handleGetTime,
   handleLoadExperimentList,
-  handleLoadWorkflowList,
-  handleNotebookSessionContents
+  handleLoadWorkflowList
 } from '../api/handleNotebookContents';
 import JupyterDialogWarning from '../components/JupyterDialogWarning';
+import { IInstallerProgress, runMetricsInstaller } from '../api/installer';
 
 export const styles: Record<string, SxProps> = {
   main: {
@@ -173,9 +171,14 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   );
   const [loading, setLoading] = React.useState<boolean>(false);
 
-  // const [isFetchMetrics, setIsFetchMetrics] = React.useState<boolean>(false);
-
-  // const [fetchIntervalS, setFetchIntervalS] = React.useState<number>(30);
+  const [automaticRefresh, setAutomaticRefresh] =
+    React.useState<boolean>(false);
+  const [refreshIntervalS, setRefreshIntervalS] = React.useState<number>(30);
+  const [installingMetrics, setInstallingMetrics] =
+    React.useState<boolean>(false);
+  const [installProgress, setInstallProgress] = React.useState<number>(0);
+  const [installLabel, setInstallLabel] = React.useState<string>('');
+  const [installLogs, setInstallLogs] = React.useState<string[]>([]);
 
   const [openDialog, setOpenDialog] = React.useState<boolean>(false);
   const [activeModule, setActiveModule] = React.useState<WorkflowModule>(
@@ -251,7 +254,6 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   }
 
   function handleSetMetrics() {
-    // setIsFetchMetrics(true);
     fetchMetrics();
   }
 
@@ -273,15 +275,13 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
         panel
       );
       if (session_metrics && startEndTime) {
-        const code = exportSendJson({
+        await exportSendJson(panel, {
           ...args,
           session_metrics,
           creation_date: startEndTime.start_time,
           experiment_id: selectedExperiment,
           workflow_id: selectedWorkflow
         });
-        console.log(code);
-        handleNotebookSessionContents(panel, code);
       } else {
         JupyterDialogWarning({
           message: 'Could not get selected session metrics or creation date.'
@@ -312,27 +312,34 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   }
 
   async function handleInstallMetrics() {
-    await handleNotebookSessionContents(panel, installPrometheusScaphandre);
+    setInstallingMetrics(true);
+    setInstallProgress(0);
+    setInstallLabel('Starting metrics agent installation');
+    setInstallLogs([]);
+
+    try {
+      await runMetricsInstaller({
+        onProgress: (progress: IInstallerProgress) => {
+          setInstallProgress(progress.progress);
+          setInstallLabel(progress.label ?? 'Installing metrics agent');
+        },
+        onLog: log => {
+          setInstallLogs(currentLogs => [...currentLogs, log.text]);
+        }
+      });
+      setInstallProgress(100);
+      setInstallLabel('Metrics agent installation complete');
+    } catch (error) {
+      console.error(error);
+      setInstallLabel('Metrics agent installation failed');
+    } finally {
+      setInstallingMetrics(false);
+    }
   }
 
   function handleSubmitExport() {
     setOpenDialog(true);
   }
-
-  // React.useEffect(() => {
-  //   let intervalId: NodeJS.Timeout;
-  //   if (isFetchMetrics === true) {
-  //     intervalId = setInterval(() => {
-  //       fetchMetrics();
-  //     }, fetchIntervalS * 1000);
-  //   }
-
-  //   return () => {
-  //     if (intervalId) {
-  //       return clearInterval(intervalId);
-  //     }
-  //   }; // Clear the interval Id when umounting ;)
-  // }, [isFetchMetrics]);
 
   // Just run it once the component mounts.
   React.useEffect(() => {
@@ -342,6 +349,29 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   React.useEffect(() => {
     handleRefreshExperimentList();
   }, [workflowList, selectedWorkflow]);
+
+  React.useEffect(() => {
+    if (!automaticRefresh) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      fetchMetrics();
+    }, refreshIntervalS * 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [
+    automaticRefresh,
+    refreshIntervalS,
+    selectedWorkflow,
+    selectedExperiment,
+    username
+  ]);
+
+  const selectedContextLabel =
+    selectedWorkflow && selectedExperiment
+      ? `${selectedWorkflow} / ${selectedExperiment}`
+      : 'Real Time Metrics';
 
   return (
     <>
@@ -376,6 +406,18 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                 Selected context
               </Typography>
             </Stack>
+
+            <Chip
+              label={selectedContextLabel}
+              size="small"
+              color={
+                selectedWorkflow && selectedExperiment ? 'primary' : 'default'
+              }
+              variant={
+                selectedWorkflow && selectedExperiment ? 'filled' : 'outlined'
+              }
+              sx={{ maxWidth: { xs: '100%', md: 360 } }}
+            />
 
             <FormControl size="small" sx={{ minWidth: 220 }}>
               <InputLabel sx={{ background: '#fff' }}>Workflow ID</InputLabel>
@@ -470,7 +512,15 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                     <Grid2 sx={{ ...styles.topRibbon, mt: 3 }}>
                       <FetchMetricsComponent
                         fetchMetrics={handleSetMetrics}
+                        automaticRefresh={automaticRefresh}
+                        refreshIntervalS={refreshIntervalS}
+                        setAutomaticRefresh={setAutomaticRefresh}
+                        setRefreshIntervalS={setRefreshIntervalS}
                         handleInstallMetrics={handleInstallMetrics}
+                        installingMetrics={installingMetrics}
+                        installProgress={installProgress}
+                        installLabel={installLabel}
+                        installLogs={installLogs}
                       />
                     </Grid2>
 

@@ -27,7 +27,15 @@ source .venv/bin/activate
 Install JupyterLab and this extension in editable mode:
 
 ```sh
-xff
+python -m pip install "jupyterlab>=4.0.0,<5"
+SKIP_JUPYTER_BUILDER=1 python -m pip install -e .
+yarn install
+
+# Run everytime some ts file in src/ changes.
+yarn build:lib --skipLibCheck
+PATH=.venv/bin:$PATH jupyter labextension build --development True .
+
+PATH=.venv/bin:$PATH jupyter labextension develop . --overwrite
 ```
 
 Install the frontend dependencies and watch the extension sources:
@@ -44,8 +52,10 @@ source .venv/bin/activate
 jupyter lab
 ```
 
-Commands for a hard refresh (during development)
+Commands for a hard refresh during development:
+
 ```bash
-./node_modules/.bin/tsc --sourceMap --skipLibCheck
-PATH=.venv/bin:$PATH .venv/bin/jupyter labextension build --development True .
+yarn build:lib --skipLibCheck
+PATH=.venv/bin:$PATH jupyter labextension build --development True .
+PATH=.venv/bin:$PATH jupyter labextension develop . --overwrite
 ```
