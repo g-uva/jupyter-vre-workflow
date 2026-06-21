@@ -163,6 +163,11 @@ export const styles: Record<string, SxProps> = {
   },
   moduleHeader: {
     flexShrink: 0,
+    display: 'flex',
+    alignItems: { xs: 'flex-start', md: 'center' },
+    justifyContent: 'space-between',
+    gap: 2,
+    flexDirection: { xs: 'column', md: 'row' },
     px: 3,
     py: 2,
     borderBottom: '1px solid #e5eaf0',
@@ -595,10 +600,29 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
           {activeModule === WorkflowModule.Telemetry && (
             <Box sx={styles.modulePanel}>
               <Box sx={styles.moduleHeader}>
-                <Typography variant="h6">Telemetry & Observability</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Prometheus and Scaphandre metrics, KPI panels, and dashboards.
-                </Typography>
+                <Box>
+                  <Typography variant="h6">
+                    Telemetry & Observability
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Prometheus and Scaphandre metrics, KPI panels, and
+                    dashboards.
+                  </Typography>
+                </Box>
+                <FetchMetricsComponent
+                  fetchMetrics={handleSetMetrics}
+                  automaticRefresh={automaticRefresh}
+                  refreshIntervalS={refreshIntervalS}
+                  setAutomaticRefresh={setAutomaticRefresh}
+                  setRefreshIntervalS={setRefreshIntervalS}
+                  handleInstallMetrics={handleInstallMetrics}
+                  installingMetrics={installingMetrics}
+                  installProgress={installProgress}
+                  installLabel={installLabel}
+                  installLogs={installLogs}
+                  metricsInstalled={moduleStatus.telemetry.installed}
+                  showProgress={false}
+                />
               </Box>
               <Box sx={styles.moduleBody}>
                 <ModuleInstallGate
@@ -626,6 +650,8 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                           installProgress={installProgress}
                           installLabel={installLabel}
                           installLogs={installLogs}
+                          metricsInstalled={moduleStatus.telemetry.installed}
+                          showControls={false}
                         />
                       </Grid2>
 
