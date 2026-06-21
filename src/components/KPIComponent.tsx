@@ -130,7 +130,7 @@ const kpiCardsData: Array<{
     color: mainColour01,
     icon: (
       <EnergySavingsLeafOutlinedIcon
-        sx={{ fontSize: '56px', '& path': { fill: mainColour01 } }}
+        sx={{ fontSize: '34px', '& path': { fill: mainColour01 } }}
       />
     )
   },
@@ -141,7 +141,7 @@ const kpiCardsData: Array<{
     color: mainColour02,
     icon: (
       <BoltOutlinedIcon
-        sx={{ fontSize: '56px', '& path': { fill: mainColour02 } }}
+        sx={{ fontSize: '34px', '& path': { fill: mainColour02 } }}
       />
     )
   },
@@ -152,7 +152,7 @@ const kpiCardsData: Array<{
     color: mainColour03,
     icon: (
       <SolarPowerOutlinedIcon
-        sx={{ fontSize: '56px', '& path': { fill: mainColour03 } }}
+        sx={{ fontSize: '34px', '& path': { fill: mainColour03 } }}
       />
     )
   }

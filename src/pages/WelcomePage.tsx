@@ -28,6 +28,7 @@ import {
 import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
 import { KPIComponent } from '../components/KPIComponent';
+import ModuleInstallGate from '../components/ModuleInstallGate';
 import { IExportJsonProps } from '../api/apiScripts';
 import { exportSendJson } from '../api/exportMetadata';
 import ApiSubmitForm from '../components/ApiSubmitForm';
@@ -39,6 +40,13 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
 import MapComponent from '../components/map/MapComponent';
+import {
+  DEFAULT_MODULE_STATUS,
+  InstalledModules,
+  WorkflowModuleKey,
+  loadModuleStatus,
+  markModuleInstalled
+} from '../api/moduleStatus';
 import {
   getHandleSessionMetrics,
   handleGetTime,
@@ -160,6 +168,24 @@ enum WorkflowModule {
   Orchestration = 2
 }
 
+const MODULE_DETAILS: Record<
+  WorkflowModule,
+  { key: WorkflowModuleKey; label: string }
+> = {
+  [WorkflowModule.Telemetry]: {
+    key: 'telemetry',
+    label: 'Telemetry'
+  },
+  [WorkflowModule.Reproducibility]: {
+    key: 'reproducibility',
+    label: 'Reproducibility'
+  },
+  [WorkflowModule.Orchestration]: {
+    key: 'orchestration',
+    label: 'Orchestration'
+  }
+};
+
 export default function WelcomePage({ username, panel }: IWelcomePage) {
   const [startDate, setStartDate] = React.useState<Dayjs>(startDateJs);
   const [endDate, setEndDate] = React.useState<Dayjs>(endDateJs);
@@ -179,6 +205,9 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   const [installProgress, setInstallProgress] = React.useState<number>(0);
   const [installLabel, setInstallLabel] = React.useState<string>('');
   const [installLogs, setInstallLogs] = React.useState<string[]>([]);
+  const [moduleStatus, setModuleStatus] = React.useState<InstalledModules>(
+    DEFAULT_MODULE_STATUS
+  );
 
   const [openDialog, setOpenDialog] = React.useState<boolean>(false);
   const [activeModule, setActiveModule] = React.useState<WorkflowModule>(
@@ -329,12 +358,32 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
       });
       setInstallProgress(100);
       setInstallLabel('Metrics agent installation complete');
+      const updatedStatus = await markModuleInstalled(
+        panel,
+        moduleStatus,
+        'telemetry'
+      );
+      setModuleStatus(updatedStatus);
     } catch (error) {
       console.error(error);
       setInstallLabel('Metrics agent installation failed');
     } finally {
       setInstallingMetrics(false);
     }
+  }
+
+  async function handleInstallModule(moduleKey: WorkflowModuleKey) {
+    if (moduleKey === 'telemetry') {
+      await handleInstallMetrics();
+      return;
+    }
+
+    const updatedStatus = await markModuleInstalled(
+      panel,
+      moduleStatus,
+      moduleKey
+    );
+    setModuleStatus(updatedStatus);
   }
 
   function handleSubmitExport() {
@@ -345,6 +394,20 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   React.useEffect(() => {
     handleRefreshWorkflowList();
   }, []);
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    loadModuleStatus(panel).then(status => {
+      if (isMounted) {
+        setModuleStatus(status);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [panel]);
 
   React.useEffect(() => {
     handleRefreshExperimentList();
@@ -505,38 +568,47 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                 </Typography>
               </Box>
               <Box sx={styles.moduleBody}>
-                <KPIComponent rawMetrics={dataMap} />
+                <ModuleInstallGate
+                  moduleName={MODULE_DETAILS[WorkflowModule.Telemetry].label}
+                  installed={moduleStatus.telemetry.installed}
+                  installing={installingMetrics}
+                  installLabel={installLabel}
+                  installProgress={installProgress}
+                  onInstall={() => handleInstallModule('telemetry')}
+                >
+                  <KPIComponent rawMetrics={dataMap} />
 
-                {metrics && (
-                  <>
-                    <Grid2 sx={{ ...styles.topRibbon, mt: 3 }}>
-                      <FetchMetricsComponent
-                        fetchMetrics={handleSetMetrics}
-                        automaticRefresh={automaticRefresh}
-                        refreshIntervalS={refreshIntervalS}
-                        setAutomaticRefresh={setAutomaticRefresh}
-                        setRefreshIntervalS={setRefreshIntervalS}
-                        handleInstallMetrics={handleInstallMetrics}
-                        installingMetrics={installingMetrics}
-                        installProgress={installProgress}
-                        installLabel={installLabel}
-                        installLogs={installLogs}
+                  {metrics && (
+                    <>
+                      <Grid2 sx={{ ...styles.topRibbon, mt: 2 }}>
+                        <FetchMetricsComponent
+                          fetchMetrics={handleSetMetrics}
+                          automaticRefresh={automaticRefresh}
+                          refreshIntervalS={refreshIntervalS}
+                          setAutomaticRefresh={setAutomaticRefresh}
+                          setRefreshIntervalS={setRefreshIntervalS}
+                          handleInstallMetrics={handleInstallMetrics}
+                          installingMetrics={installingMetrics}
+                          installProgress={installProgress}
+                          installLabel={installLabel}
+                          installLogs={installLogs}
+                        />
+                      </Grid2>
+
+                      <GeneralDashboard
+                        startDate={startDate}
+                        setStartDate={setStartDate}
+                        setEndDate={setEndDate}
+                        endDate={endDate}
+                        metrics={metrics}
+                        dataMap={dataMap}
+                        selectedMetric={selectedMetric}
+                        setSelectedMetric={handleUpdateSelectedMetric}
+                        loading={loading}
                       />
-                    </Grid2>
-
-                    <GeneralDashboard
-                      startDate={startDate}
-                      setStartDate={setStartDate}
-                      setEndDate={setEndDate}
-                      endDate={endDate}
-                      metrics={metrics}
-                      dataMap={dataMap}
-                      selectedMetric={selectedMetric}
-                      setSelectedMetric={handleUpdateSelectedMetric}
-                      loading={loading}
-                    />
-                  </>
-                )}
+                    </>
+                  )}
+                </ModuleInstallGate>
               </Box>
             </Box>
           )}
@@ -551,34 +623,42 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                 </Typography>
               </Box>
               <Box sx={styles.moduleBody}>
-                <Paper elevation={0} sx={styles.emptyState}>
-                  <Stack
-                    direction={{ xs: 'column', md: 'row' }}
-                    gap={2}
-                    alignItems={{ xs: 'flex-start', md: 'center' }}
-                    justifyContent="space-between"
-                  >
-                    <Box>
-                      <Stack direction="row" gap={1} alignItems="center">
-                        <UploadFileOutlinedIcon color="primary" />
-                        <Typography variant="subtitle1">
-                          Experiment metadata export
-                        </Typography>
-                      </Stack>
-                      <Typography variant="body2" color="text.secondary">
-                        Publish the selected workflow and experiment metadata to
-                        the configured API/FDMI endpoint.
-                      </Typography>
-                    </Box>
-                    <Button
-                      variant="contained"
-                      onClick={handleSubmitExport}
-                      startIcon={<UploadFileOutlinedIcon />}
+                <ModuleInstallGate
+                  moduleName={
+                    MODULE_DETAILS[WorkflowModule.Reproducibility].label
+                  }
+                  installed={moduleStatus.reproducibility.installed}
+                  onInstall={() => handleInstallModule('reproducibility')}
+                >
+                  <Paper elevation={0} sx={styles.emptyState}>
+                    <Stack
+                      direction={{ xs: 'column', md: 'row' }}
+                      gap={2}
+                      alignItems={{ xs: 'flex-start', md: 'center' }}
+                      justifyContent="space-between"
                     >
-                      Submit Experiment Metadata
-                    </Button>
-                  </Stack>
-                </Paper>
+                      <Box>
+                        <Stack direction="row" gap={1} alignItems="center">
+                          <UploadFileOutlinedIcon color="primary" />
+                          <Typography variant="subtitle1">
+                            Experiment metadata export
+                          </Typography>
+                        </Stack>
+                        <Typography variant="body2" color="text.secondary">
+                          Publish the selected workflow and experiment metadata
+                          to the configured API/FDMI endpoint.
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="contained"
+                        onClick={handleSubmitExport}
+                        startIcon={<UploadFileOutlinedIcon />}
+                      >
+                        Submit Experiment Metadata
+                      </Button>
+                    </Stack>
+                  </Paper>
+                </ModuleInstallGate>
               </Box>
             </Box>
           )}
@@ -593,17 +673,25 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                 </Typography>
               </Box>
               <Box sx={styles.moduleBody}>
-                <Paper elevation={0} sx={{ ...styles.emptyState, p: 0 }}>
-                  <Box sx={{ p: 2 }}>
-                    <Stack direction="row" gap={1} alignItems="center">
-                      <RouteOutlinedIcon color="primary" />
-                      <Typography variant="subtitle1">
-                        VO registration and workload map
-                      </Typography>
-                    </Stack>
-                  </Box>
-                  <MapComponent />
-                </Paper>
+                <ModuleInstallGate
+                  moduleName={
+                    MODULE_DETAILS[WorkflowModule.Orchestration].label
+                  }
+                  installed={moduleStatus.orchestration.installed}
+                  onInstall={() => handleInstallModule('orchestration')}
+                >
+                  <Paper elevation={0} sx={{ ...styles.emptyState, p: 0 }}>
+                    <Box sx={{ p: 2 }}>
+                      <Stack direction="row" gap={1} alignItems="center">
+                        <RouteOutlinedIcon color="primary" />
+                        <Typography variant="subtitle1">
+                          VO registration and workload map
+                        </Typography>
+                      </Stack>
+                    </Box>
+                    <MapComponent />
+                  </Paper>
+                </ModuleInstallGate>
               </Box>
             </Box>
           )}
