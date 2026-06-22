@@ -1,6 +1,6 @@
-# 🌱🌍♻️ EcoJupyter (a [GreenDIGIT](https://greendigit-project.eu/) project)
+# 🌱🌍♻️ Jupyter VRE Workflow (a [GreenDIGIT](https://greendigit-project.eu/) project)
 
-`EcoJupyter` is an platform-agnostic sustainability assessment tool for AI infrastructures. The current version is focused on Jupyter Notebook.
+Jupyter VRE Workflow is a platform-agnostic sustainability assessment tool for AI infrastructures. The current version is focused on Jupyter Notebook.
 
 This tool was developed for the GreenDIGIT EU Project, with the main goal of providing a platform agnostic and easily-pluggable sustainability and reproducibility tool.
 
@@ -11,9 +11,9 @@ This code is open-source, so feel free to copy/paste it into your machine. Pleas
 - Energy computed KPIs such as SCI, SCI/Unit and Energy/Unit.
 - Metadata manager and exporter for Federated Data Management Infrastructures (FDMI).
 
-It works best with [JupyterK8sMonitor](https://github.com/g-uva/JupyterK8sMonitor) infrastructure configuration and scripts. _For more info please contact the main contributor._
+It works best with [L1EcoVRE](https://github.com/g-uva/L1EcoVRE) infrastructure configuration and scripts. _For more info please contact the main contributor._
 
-![EcoJupyter_main_app](assets/EcoJupyter_screenshot.png)
+![Jupyter VRE Workflow main app](assets/EcoJupyter_screenshot.png)
 
 ## Installation
 In order to install the tool as an extension in Jupyter Notebook or Lab (not in development), simply install the tool in your Python environment where Jupyter is running.
@@ -56,13 +56,13 @@ You can generate a token at [pypi.org/manage/account/token](https://pypi.org/man
 ## Project structure
 
 ### API definitions
-EcoJupyter's front-end connects with the server's back-end using the IPython kernel through the `IKernelConnection.executeRequest()` channel—used to execute Kernel request on demand, written in Python or as a shell script. In the future a full-fledge RESTful API should be implemented to properly enforce types, definitions and methods. For the POC timeline this was the most reasonable trade-off between flexibility and effectiveness.
+Jupyter VRE Workflow's front-end connects with the server's back-end using the IPython kernel through the `IKernelConnection.executeRequest()` channel—used to execute Kernel request on demand, written in Python or as a shell script. In the future a full-fledge RESTful API should be implemented to properly enforce types, definitions and methods. For the POC timeline this was the most reasonable trade-off between flexibility and effectiveness.
 
 The methods can be found in `apiScripts.ts` module file, with all the API-like methods used defined and self-described.
 
 ### Folder Structure
 ```txt
-EcoJupyter/
+Jupyter VRE Workflow/
 ├── .copier-answers.yml
 ├── .gitignore
 ├── .prettierignore

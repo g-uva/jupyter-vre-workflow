@@ -86,7 +86,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Jupyter VRE Workflow — GreenDIGIT Project, University of Amsterdam. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Jupyter VRE Workflow — GreenDIGIT Project, University of Amsterdam.`,
     },
     prism: {
       theme: prismThemes.github,

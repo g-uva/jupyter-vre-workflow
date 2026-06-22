@@ -55,7 +55,7 @@ export async function runMetricsInstaller({
       eventSource.close();
       reject(
         new Error(
-          'Metrics installer endpoint is unavailable. Restart JupyterLab after installing the EcoJupyter server extension.'
+          'Metrics installer endpoint is unavailable. Restart JupyterLab after installing the Jupyter VRE Workflow server extension.'
         )
       );
     };

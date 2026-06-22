@@ -29,4 +29,4 @@ def _load_jupyter_server_extension(server_app):
     base_url = server_app.web_app.settings["base_url"]
     route = url_path_join(base_url, "api/run-install")
     server_app.web_app.add_handlers(host_pattern, [(route, MetricsInstallHandler)])
-    server_app.log.info("Registered EcoJupyter installer endpoint at %s", route)
+    server_app.log.info("Registered Jupyter VRE Workflow installer endpoint at %s", route)

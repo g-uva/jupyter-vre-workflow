@@ -4,7 +4,7 @@ title: What is Jupyter VRE Workflow?
 sidebar_position: 1
 ---
 
-# Jupyter VRE Workflow — Jupyter VRE Workflow
+# What is Jupyter VRE Workflow?
 
 Jupyter VRE Workflow is a platform-agnostic sustainability assessment tool focused on Jupyter notebook-based workflows. It connects a user-side JupyterLab interface to telemetry, metadata export and orchestration hooks through a single extension.
 

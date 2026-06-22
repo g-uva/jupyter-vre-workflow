@@ -27,8 +27,8 @@ pip install --upgrade ecojupyter
 For live-reload development, use the repository scripts instead of the PyPI package:
 
 ```bash
-git clone https://github.com/g-uva/EcoJupyter.git
-cd EcoJupyter
+git clone https://github.com/g-uva/EcoJupyter.git jupyter-vre-workflow
+cd jupyter-vre-workflow
 source .venv/bin/activate
 pip install -ve .
 jupyter labextension develop --overwrite .
