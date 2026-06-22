@@ -67,15 +67,28 @@ export default function ModuleInstallGate({
   onInstall,
   children
 }: IModuleInstallGateProps) {
+  const [showErrorDialog, setShowErrorDialog] = React.useState(true);
+
+  React.useEffect(() => {
+    setShowErrorDialog(true);
+  }, [installError, installing]);
+
+  const showOverlay = !installed && (!installError || showErrorDialog);
+  const lockContent = !installed && showOverlay;
   const contentSx = (
-    installed ? styles.content : [styles.content, styles.lockedContent]
+    lockContent ? [styles.content, styles.lockedContent] : styles.content
   ) as SxProps;
+
+  function handleInstallClick() {
+    setShowErrorDialog(true);
+    onInstall();
+  }
 
   return (
     <Box sx={styles.root}>
       <Box sx={contentSx}>{children}</Box>
 
-      {!installed && (
+      {showOverlay && (
         <Box sx={styles.overlay}>
           <Paper elevation={0} sx={styles.dialog}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
@@ -91,10 +104,7 @@ export default function ModuleInstallGate({
                 >
                   {installLabel || `Installing ${moduleName}`}
                 </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={installProgress}
-                />
+                <LinearProgress variant="determinate" value={installProgress} />
               </Box>
             )}
             {!installing && installError && (
@@ -109,7 +119,7 @@ export default function ModuleInstallGate({
             )}
             <Button
               variant="contained"
-              onClick={onInstall}
+              onClick={handleInstallClick}
               disabled={installing}
               startIcon={
                 installing ? (
@@ -121,6 +131,16 @@ export default function ModuleInstallGate({
             >
               Install {moduleName}
             </Button>
+            {!installing && installError && (
+              <Button
+                variant="text"
+                size="small"
+                onClick={() => setShowErrorDialog(false)}
+                sx={{ mt: 1 }}
+              >
+                Show logs
+              </Button>
+            )}
           </Paper>
         </Box>
       )}

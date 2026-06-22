@@ -38,9 +38,15 @@ Python Package & Deployment
 The Python package is published on PyPI and can be built locally via:
 
 ```bash
-./scripts/build-rel-package.sh
+./scripts/build-rel-package.sh -m "Your release message"
 ```
-This script automatically packages the extension and prepares it for upload, enabling a simple and consistent release workflow.
+This script automatically bumps the version, commits, tags, builds, and uploads to PyPI.
+
+Before running it, create a `.env` file in the repo root with your PyPI token:
+```
+PYPI_TOKEN="pypi-your-token-here"
+```
+You can generate a token at [pypi.org/manage/account/token](https://pypi.org/manage/account/token/).
 
 #### Future Improvements
 - Version-based deployment: easily extendable via GitHub releases or semantic versioning.
