@@ -17,14 +17,8 @@ import {
   Typography
 } from '@mui/material';
 import GeneralDashboard from './GeneralDashboard';
-import { Dayjs } from 'dayjs';
 import getScaphData from '../api/getScaphData';
-import {
-  startDateJs,
-  endDateJs,
-  NR_CHARTS,
-  CONTAINER_ID
-} from '../helpers/constants';
+import { CONTAINER_ID } from '../helpers/constants';
 import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
 import { KPIComponent } from '../components/KPIComponent';
@@ -53,6 +47,7 @@ import {
   handleLoadExperimentList,
   handleLoadWorkflowList
 } from '../api/handleNotebookContents';
+import { MOCK_DATA_MAP, MOCK_METRICS } from '../helpers/mockData';
 import JupyterDialogWarning from '../components/JupyterDialogWarning';
 import { IInstallerProgress, runMetricsInstaller } from '../api/installer';
 
@@ -217,14 +212,8 @@ const MODULE_DETAILS: Record<
 };
 
 export default function WelcomePage({ username, panel }: IWelcomePage) {
-  const [startDate, setStartDate] = React.useState<Dayjs>(startDateJs);
-  const [endDate, setEndDate] = React.useState<Dayjs>(endDateJs);
-
-  const [metrics, setMetrics] = React.useState<string[]>([]);
-  const [dataMap, setDataMap] = React.useState<RawMetrics>(new Map());
-  const [selectedMetric, setSelectedMetric] = React.useState<string[]>(
-    new Array(NR_CHARTS).fill('')
-  );
+  const [metrics, setMetrics] = React.useState<string[]>(MOCK_METRICS);
+  const [dataMap, setDataMap] = React.useState<RawMetrics>(MOCK_DATA_MAP);
   const [loading, setLoading] = React.useState<boolean>(false);
 
   const [automaticRefresh, setAutomaticRefresh] =
@@ -253,22 +242,6 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   const [selectedExperiment, setSelectedExperiment] = React.useState<
     string | null
   >(null);
-
-  function handleUpdateSelectedMetric(index: number, newMetric: string) {
-    setSelectedMetric(prev => {
-      const updated = [...prev];
-      updated[index] = newMetric;
-      return updated;
-    });
-  }
-
-  React.useEffect(() => {
-    for (let i = 0; i < NR_CHARTS; i++) {
-      if (selectedMetric[i] === '') {
-        handleUpdateSelectedMetric(i, metrics[i] || '');
-      }
-    }
-  }, [metrics]);
 
   async function fetchMetrics() {
     const container = document.getElementById(CONTAINER_ID);
@@ -656,14 +629,8 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                       </Grid2>
 
                       <GeneralDashboard
-                        startDate={startDate}
-                        setStartDate={setStartDate}
-                        setEndDate={setEndDate}
-                        endDate={endDate}
                         metrics={metrics}
                         dataMap={dataMap}
-                        selectedMetric={selectedMetric}
-                        setSelectedMetric={handleUpdateSelectedMetric}
                         loading={loading}
                       />
                     </>

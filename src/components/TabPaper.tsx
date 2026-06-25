@@ -24,7 +24,7 @@ function CustomTabPanel(props: ITablePaneProps) {
       aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && <Box>{children}</Box>}
     </div>
   );
 }
@@ -50,41 +50,57 @@ export default function TabPaperDashboard(props: ITabPaperDashboard) {
 
   return (
     <Box sx={{ width: '100%' }}>
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+      <Box sx={{ borderBottom: '1px solid #e5eaf0', px: 2 }}>
         <Tabs
           value={value}
           onChange={handleChange}
-          aria-label="basic tabs example"
-          variant="fullWidth"
+          aria-label="dashboard tabs"
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            '& .MuiTab-root': {
+              minHeight: 52,
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: 13,
+              gap: 0.5
+            },
+            '& .MuiTab-root.Mui-selected': {
+              color: '#1e40af'
+            },
+            '& .MuiTabs-indicator': {
+              backgroundColor: '#1e40af',
+              height: 2.5,
+              borderRadius: '2px 2px 0 0'
+            }
+          }}
         >
           <Tab
-            icon={<TimelineRoundedIcon />}
+            icon={<TimelineRoundedIcon fontSize="small" />}
+            iconPosition="start"
             label="Real-time Metrics"
             {...a11yProps(0)}
-            sx={{ flex: 1 }}
           />
           <Tab
-            icon={<QueryStatsRoundedIcon />}
+            icon={<QueryStatsRoundedIcon fontSize="small" />}
+            iconPosition="start"
             label="Predictions"
             {...a11yProps(1)}
-            sx={{ flex: 1 }}
           />
           <Tab
-            icon={<HistoryRoundedIcon />}
+            icon={<HistoryRoundedIcon fontSize="small" />}
+            iconPosition="start"
             label="History"
             {...a11yProps(2)}
-            sx={{ flex: 1 }}
           />
         </Tabs>
       </Box>
       {children
-        ? children.map((element, index) => {
-            return (
-              <CustomTabPanel value={value} index={index}>
-                {element}
-              </CustomTabPanel>
-            );
-          })
+        ? children.map((element, index) => (
+            <CustomTabPanel key={index} value={value} index={index}>
+              {element}
+            </CustomTabPanel>
+          ))
         : null}
     </Box>
   );

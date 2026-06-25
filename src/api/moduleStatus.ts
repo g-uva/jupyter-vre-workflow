@@ -14,9 +14,9 @@ export type InstalledModules = Record<WorkflowModuleKey, IInstalledModule>;
 const MODULE_STATUS_STORAGE_KEY = 'ecojupyter.installedModules';
 
 export const DEFAULT_MODULE_STATUS: InstalledModules = {
-  telemetry: { installed: false },
-  reproducibility: { installed: false },
-  orchestration: { installed: false }
+  telemetry: { installed: true },
+  reproducibility: { installed: true },
+  orchestration: { installed: true }
 };
 
 function mergeModuleStatus(saved?: Partial<InstalledModules>): InstalledModules {
