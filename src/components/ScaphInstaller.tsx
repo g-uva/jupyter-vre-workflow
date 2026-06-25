@@ -53,7 +53,6 @@ export default function ScaphInstaller() {
   return (
     <Box p={4}>
       <Button
-        variant="contained"
         disabled={running}
         onClick={() => {
           setLogs([]);

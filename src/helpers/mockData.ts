@@ -137,3 +137,5 @@ export const MOCK_HISTORY: IMockHistoryEntry[] = [
     sciScore: 7.7
   }
 ];
+
+export const MOCK_DEFAULT_EXPERIMENT_ID = MOCK_HISTORY[0].experiment;

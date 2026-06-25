@@ -172,7 +172,6 @@ export default function VerticalLinearStepper() {
                 {step.hasButtons !== false && (
                   <Box sx={{ mb: 2 }}>
                     <Button
-                      variant="contained"
                       onClick={handleNext}
                       sx={{ mt: 1, mr: 1 }}
                       disabled={disableNextStepThree}

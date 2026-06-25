@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Box,
-  Button,
   Chip,
   FormControl,
   Grid2,
@@ -25,13 +24,11 @@ import { KPIComponent } from '../components/KPIComponent';
 import ModuleInstallGate from '../components/ModuleInstallGate';
 import { IExportJsonProps } from '../api/apiScripts';
 import { exportSendJson } from '../api/exportMetadata';
-import ApiSubmitForm from '../components/ApiSubmitForm';
 import { NotebookPanel } from '@jupyterlab/notebook';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
-import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
 import MapComponent from '../components/map/MapComponent';
 import {
@@ -47,9 +44,14 @@ import {
   handleLoadExperimentList,
   handleLoadWorkflowList
 } from '../api/handleNotebookContents';
-import { MOCK_DATA_MAP, MOCK_METRICS } from '../helpers/mockData';
+import {
+  MOCK_DATA_MAP,
+  MOCK_DEFAULT_EXPERIMENT_ID,
+  MOCK_METRICS
+} from '../helpers/mockData';
 import JupyterDialogWarning from '../components/JupyterDialogWarning';
 import { IInstallerProgress, runMetricsInstaller } from '../api/installer';
+import ReproducibilityPanel from '../components/ReproducibilityPanel';
 
 export const styles: Record<string, SxProps> = {
   main: {
@@ -229,7 +231,6 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
     DEFAULT_MODULE_STATUS
   );
 
-  const [openDialog, setOpenDialog] = React.useState<boolean>(false);
   const [activeModule, setActiveModule] = React.useState<WorkflowModule>(
     WorkflowModule.Telemetry
   );
@@ -340,10 +341,14 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
 
   async function handleRefreshExperimentList() {
     if (selectedWorkflow) {
-      const newExperimentList = await handleLoadExperimentList(
+      const loadedExperimentList = await handleLoadExperimentList(
         selectedWorkflow,
         panel
       );
+      const newExperimentList =
+        loadedExperimentList.length > 0
+          ? loadedExperimentList
+          : [MOCK_DEFAULT_EXPERIMENT_ID];
       setExperimentList(newExperimentList);
       setSelectedExperiment(currentExperiment => {
         if (
@@ -398,10 +403,6 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
 
     const updatedStatus = markModuleInstalled(moduleStatus, moduleKey);
     setModuleStatus(updatedStatus);
-  }
-
-  function handleSubmitExport() {
-    setOpenDialog(true);
   }
 
   // Just run it once the component mounts.
@@ -643,11 +644,13 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
           {activeModule === WorkflowModule.Reproducibility && (
             <Box sx={styles.modulePanel}>
               <Box sx={styles.moduleHeader}>
-                <Typography variant="h6">Reproducibility</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Submit experiment metadata to RO-Crate and FDMI-compatible
-                  infrastructure.
-                </Typography>
+                <Box>
+                  <Typography variant="h6">Reproducibility</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Submit RO-Crate metadata to FDMI, mint a Zenodo DOI, and
+                    register with CIM / SAREF standards.
+                  </Typography>
+                </Box>
               </Box>
               <Box sx={styles.moduleBody}>
                 <ModuleInstallGate
@@ -657,34 +660,11 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                   installed={moduleStatus.reproducibility.installed}
                   onInstall={() => handleInstallModule('reproducibility')}
                 >
-                  <Paper elevation={0} sx={styles.emptyState}>
-                    <Stack
-                      direction={{ xs: 'column', md: 'row' }}
-                      gap={2}
-                      alignItems={{ xs: 'flex-start', md: 'center' }}
-                      justifyContent="space-between"
-                    >
-                      <Box>
-                        <Stack direction="row" gap={1} alignItems="center">
-                          <UploadFileOutlinedIcon color="primary" />
-                          <Typography variant="subtitle1">
-                            Experiment metadata export
-                          </Typography>
-                        </Stack>
-                        <Typography variant="body2" color="text.secondary">
-                          Publish the selected workflow and experiment metadata
-                          to the configured API/FDMI endpoint.
-                        </Typography>
-                      </Box>
-                      <Button
-                        variant="contained"
-                        onClick={handleSubmitExport}
-                        startIcon={<UploadFileOutlinedIcon />}
-                      >
-                        Submit Experiment Metadata
-                      </Button>
-                    </Stack>
-                  </Paper>
+                  <ReproducibilityPanel
+                    selectedWorkflow={selectedWorkflow}
+                    selectedExperiment={selectedExperiment}
+                    onSubmit={handleSubmitValues}
+                  />
                 </ModuleInstallGate>
               </Box>
             </Box>
@@ -724,11 +704,6 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
           )}
         </Grid2>
       </Grid2>
-      <ApiSubmitForm
-        open={openDialog}
-        setOpen={(newValue: boolean) => setOpenDialog(newValue)}
-        submitValues={handleSubmitValues}
-      />
     </>
   );
 }

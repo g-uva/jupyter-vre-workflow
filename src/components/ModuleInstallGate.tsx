@@ -118,7 +118,6 @@ export default function ModuleInstallGate({
               </Typography>
             )}
             <Button
-              variant="contained"
               onClick={handleInstallClick}
               disabled={installing}
               startIcon={
@@ -133,7 +132,6 @@ export default function ModuleInstallGate({
             </Button>
             {!installing && installError && (
               <Button
-                variant="text"
                 size="small"
                 onClick={() => setShowErrorDialog(false)}
                 sx={{ mt: 1 }}

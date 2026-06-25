@@ -12,7 +12,6 @@ export default function AddButton({ handleClickButton }: IAddButton) {
       onClick={handleClickButton}
       size="small"
       startIcon={<AddCircleOutlineRoundedIcon />}
-      sx={{ textTransform: 'none' }}
     >
       Add chart
     </Button>

@@ -3,7 +3,7 @@ import { scaleTime, scaleLinear } from '@visx/scale';
 import { LinePath, AreaClosed } from '@visx/shape';
 import { AxisLeft, AxisBottom } from '@visx/axis';
 import { Group } from '@visx/group';
-import { useTooltip, useTooltipInPortal } from '@visx/tooltip';
+import { useTooltip } from '@visx/tooltip';
 import { localPoint } from '@visx/event';
 import { extent, min, max, bisector } from 'd3-array';
 import { downSample, parseData, shortNumber } from '../helpers/utils';
@@ -35,17 +35,35 @@ export default function TimeSeriesLineChart({
   width = DEFAULT_WIDTH,
   height = DEFAULT_HEIGHT
 }: TimeSeriesLineChartProps) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [measuredWidth, setMeasuredWidth] = React.useState(width);
   const [data, setData] = React.useState<IParsedDataPoint[]>([]);
 
   React.useEffect(() => {
     setData(downSample(parseData(rawData)));
   }, [rawData]);
 
+  React.useEffect(() => {
+    if (!containerRef.current) {
+      return;
+    }
+
+    const observer = new ResizeObserver(entries => {
+      const nextWidth = entries[0]?.contentRect.width;
+      if (nextWidth) {
+        setMeasuredWidth(nextWidth);
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   const { showTooltip, hideTooltip, tooltipData, tooltipLeft, tooltipTop } =
     useTooltip<IParsedDataPoint>();
-  const { containerRef, TooltipInPortal } = useTooltipInPortal();
 
-  const innerWidth = width - margin.left - margin.right;
+  const chartWidth = Math.max(220, Math.floor(measuredWidth || width));
+  const innerWidth = chartWidth - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
 
   const xExtent = extent(data, d => d.date);
@@ -56,7 +74,7 @@ export default function TimeSeriesLineChart({
 
   const xScale = scaleTime({
     domain: xDomain,
-    range: [margin.left, width - margin.right]
+    range: [margin.left, chartWidth - margin.right]
   });
 
   const yMin = min(data, d => d.value) ?? 0;
@@ -70,6 +88,12 @@ export default function TimeSeriesLineChart({
   });
 
   const gradientId = React.useId().replace(/:/g, '');
+  const tooltipWidth = 108;
+  const tooltipX = Math.min(
+    Math.max((tooltipLeft ?? 0) - tooltipWidth / 2, 4),
+    chartWidth - tooltipWidth - 4
+  );
+  const tooltipY = Math.max((tooltipTop ?? 0) - 52, 4);
 
   function handleTooltip(event: React.MouseEvent<SVGRectElement>) {
     const { x: xPoint } = localPoint(event) || { x: 0 };
@@ -91,45 +115,12 @@ export default function TimeSeriesLineChart({
     });
   }
 
-  const TooltipPortal = ({
-    tooltipData
-  }: {
-    tooltipData: IParsedDataPoint | undefined;
-  }) =>
-    TooltipInPortal({
-      top: tooltipTop,
-      left: tooltipLeft,
-      style: {
-        backgroundColor: '#1e293b',
-        color: '#f1f5f9',
-        border: `1px solid ${color}`,
-        padding: '5px 9px',
-        borderRadius: 6,
-        fontSize: 12,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
-        pointerEvents: 'none'
-      },
-      children: (
-        <div>
-          <div style={{ fontWeight: 700 }}>
-            {tooltipData?.value != null ? shortNumber(tooltipData.value) : 'N/A'}
-          </div>
-          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>
-            {tooltipData?.date.toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit'
-            })}
-          </div>
-        </div>
-      )
-    }) as React.ReactNode;
-
   if (data.length === 0) {
     return (
       <div
+        ref={containerRef}
         style={{
-          width,
+          width: '100%',
           height,
           display: 'flex',
           alignItems: 'center',
@@ -144,8 +135,16 @@ export default function TimeSeriesLineChart({
   }
 
   return (
-    <div ref={containerRef} style={{ position: 'relative' }}>
-      <svg width={width} height={height}>
+    <div
+      ref={containerRef}
+      style={{
+        position: 'relative',
+        width: '100%',
+        height,
+        overflow: 'hidden'
+      }}
+    >
+      <svg width={chartWidth} height={height} style={{ display: 'block' }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.2} />
@@ -268,7 +267,37 @@ export default function TimeSeriesLineChart({
           </g>
         )}
       </svg>
-      {tooltipData ? TooltipPortal({ tooltipData }) : null}
+      {tooltipData ? (
+        <div
+          style={{
+            position: 'absolute',
+            top: tooltipY,
+            left: tooltipX,
+            width: tooltipWidth,
+            boxSizing: 'border-box',
+            backgroundColor: '#1e293b',
+            color: '#f1f5f9',
+            border: `1px solid ${color}`,
+            padding: '5px 9px',
+            borderRadius: 6,
+            fontSize: 12,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+            pointerEvents: 'none',
+            zIndex: 2
+          }}
+        >
+          <div style={{ fontWeight: 700 }}>
+            {tooltipData.value != null ? shortNumber(tooltipData.value) : 'N/A'}
+          </div>
+          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>
+            {tooltipData.date.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

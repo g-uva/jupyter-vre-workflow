@@ -1,9 +1,25 @@
 import React from 'react';
 import { ReactWidget } from '@jupyterlab/apputils';
-import { Paper } from '@mui/material';
+import { createTheme, Paper, ThemeProvider } from '@mui/material';
 import WelcomePage from './pages/WelcomePage';
 import { CONTAINER_ID } from './helpers/constants';
 import { NotebookPanel } from '@jupyterlab/notebook';
+
+const theme = createTheme({
+  components: {
+    MuiButton: {
+      defaultProps: { variant: 'outlined' },
+      styleOverrides: {
+        root: { textTransform: 'none', borderRadius: '8px' }
+      }
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: { textTransform: 'none' }
+      }
+    }
+  }
+});
 
 const styles: Record<string, React.CSSProperties> = {
   main: {
@@ -43,11 +59,13 @@ interface IAppProps {
  */
 const App = ({ username, panel }: IAppProps): JSX.Element => {
   return (
-    <div style={styles.main}>
-      <Paper id={CONTAINER_ID} style={styles.grid}>
-        <WelcomePage username={username} panel={panel} />
-      </Paper>
-    </div>
+    <ThemeProvider theme={theme}>
+      <div style={styles.main}>
+        <Paper id={CONTAINER_ID} style={styles.grid}>
+          <WelcomePage username={username} panel={panel} />
+        </Paper>
+      </div>
+    </ThemeProvider>
   );
 };
 
