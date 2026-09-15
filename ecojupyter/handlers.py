@@ -1,11 +1,47 @@
 import asyncio
 import json
+import nbformat
 from pathlib import Path
 from shlex import quote
 from typing import Dict, List
 
 from jupyter_server.base.handlers import APIHandler
 from tornado import web
+
+from .experiments import ExperimentManager
+
+
+class ExperimentsHandler(APIHandler):
+    def initialize(self, manager):
+        self.manager = manager
+
+    @web.authenticated
+    async def post(self):
+        body = self.get_json_body() or {}
+        if not isinstance(body, dict):
+            raise web.HTTPError(400, reason="Expected a JSON object")
+        try:
+            record = self.manager.start(body.get("notebook_path", ""), body.get("notebook"))
+        except (ValueError, OSError, nbformat.ValidationError, AttributeError, TypeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+        self.set_status(202)
+        self.finish(record)
+
+    @web.authenticated
+    async def get(self):
+        try:
+            self.finish(self.manager.get(self.get_argument("path")))
+        except (ValueError, OSError) as error:
+            raise web.HTTPError(404, reason=str(error)) from error
+
+    @web.authenticated
+    async def delete(self):
+        try:
+            self.manager.cancel(self.get_argument("path"))
+        except ValueError as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+        self.set_status(202)
+        self.finish({"status": "cancelling"})
 
 
 INSTALL_DIR = str(Path.home() / ".bin")

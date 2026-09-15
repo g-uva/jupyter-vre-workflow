@@ -7,9 +7,13 @@ This tool was developed for the GreenDIGIT EU Project, with the main goal of pro
 This code is open-source, so feel free to copy/paste it into your machine. Please, keep in mind that this is still WIP: it works best with [L1EcoVRE](https://github.com/g-uva/L1EcoVRE) infrastructure configuration and scripts. _For more info please contact the main contributor._
 
 ## Main features
-- Read energy metrics through Prometheus and Scaphandre in real-time charts.
-- Energy computed KPIs such as SCI, SCI/Unit and Energy/Unit.
-- Metadata manager and exporter for Federated Data Management Infrastructures (FDMI).
+
+- Run an entire notebook as a tracked experiment in a fresh kernel.
+- Read real RAPL energy, current power and average power, with explicit unavailable status when hardware counters cannot be read.
+- Save input/output notebooks, labelled raw metrics and precise run metadata in one experiment directory.
+- Experimental FDMI publishing UI; external delivery is not yet verified.
+
+Use **Run notebook as experiment** in the extension or command palette. Ordinary JupyterLab **Run All** does not create a tracked run. See the [experiment workflow and artifact layout](doc/docs/modules/reproducibility.md) and [hardware telemetry requirements](doc/docs/modules/telemetry.md).
 
 It works best with [L1EcoVRE](https://github.com/g-uva/L1EcoVRE) infrastructure configuration and scripts. _For more info please contact the main contributor._
 
@@ -56,9 +60,9 @@ You can generate a token at [pypi.org/manage/account/token](https://pypi.org/man
 ## Project structure
 
 ### API definitions
-Jupyter VRE Workflow's front-end connects with the server's back-end using the IPython kernel through the `IKernelConnection.executeRequest()` channel—used to execute Kernel request on demand, written in Python or as a shell script. In the future a full-fledge RESTful API should be implemented to properly enforce types, definitions and methods. For the POC timeline this was the most reasonable trade-off between flexibility and effectiveness.
+Tracked runs use the authenticated Jupyter server REST endpoint `api/ecojupyter/experiments` to create, inspect and cancel experiments. `ecojupyter/experiments.py` owns execution and persistence; `ecojupyter/telemetry.py` reads the counters. The frontend client is `src/api/experiments.ts`. Tracking no longer injects bookkeeping code into the interactive notebook kernel.
 
-The methods can be found in `apiScripts.ts` module file, with all the API-like methods used defined and self-described.
+Run the backend tests with `python -m unittest discover -s tests -v` in an environment with the project dependencies and `ipykernel` installed.
 
 ### Folder Structure
 ```txt

@@ -25,25 +25,64 @@ import { mainColour01, mainColour02, mainColour03 } from '../helpers/constants';
 
 // ─── Grid constants (must mirror ReactGridLayout props exactly) ────────────────
 const COLS = 2;
-const ROW_HEIGHT = 300;
+const ROW_HEIGHT = 320;
+const HEADER_HEIGHT = 58;  // fixed — keeps chart area height stable
 const MARGIN: [number, number] = [16, 16];
 const PAD: [number, number] = [8, 8];
 
 // ─── Metric metadata ──────────────────────────────────────────────────────────
-const METRIC_META: Record<string, { label: string; color: string }> = {
-  scaph_host_energy_microjoules: { label: 'Host Energy', color: mainColour01 },
-  scaph_host_load_avg_fifteen: { label: 'Load Avg (15m)', color: mainColour02 },
-  scaph_host_power_microwatts: { label: 'Host Power', color: mainColour03 },
-  scaph_process_power_microwatts: { label: 'Process Power', color: '#7c3aed' }
+interface IMetricMeta {
+  label: string;
+  color: string;
+  unit: string;
+  transform?: (v: number) => number;
+}
+
+const METRIC_META: Record<string, IMetricMeta> = {
+  energy_j: { label: 'Experiment energy', unit: 'J', color: mainColour01 },
+  current_power_w: { label: 'Sampled power', unit: 'W', color: mainColour02 },
+  average_power_w: { label: 'Average power', unit: 'W', color: mainColour03 },
+  scaph_host_energy_microjoules: {
+    label: 'Host Energy',
+    unit: 'Wh',
+    color: mainColour01,
+    transform: (v: number) => v / 3.6e9   // µJ → Wh
+  },
+  scaph_host_load_avg_fifteen: {
+    label: 'Load Avg (15 min)',
+    unit: '',
+    color: mainColour02
+  },
+  scaph_host_power_microwatts: {
+    label: 'Host Power',
+    unit: 'W',
+    color: mainColour03,
+    transform: (v: number) => v / 1e6     // µW → W
+  },
+  scaph_process_power_microwatts: {
+    label: 'Process Power',
+    unit: 'W',
+    color: '#7c3aed',
+    transform: (v: number) => v / 1e6     // µW → W
+  }
 };
 
-function getMetricMeta(key: string) {
+function getMetricMeta(key: string): IMetricMeta {
   return (
     METRIC_META[key] ?? {
       label: key.replace(/^scaph_/, '').replace(/_/g, ' '),
+      unit: '',
       color: mainColour03
     }
   );
+}
+
+function applyTransform(
+  data: [number, string][],
+  transform?: (v: number) => number
+): [number, string][] {
+  if (!transform) return data;
+  return data.map(([t, v]) => [t, String(transform(Number(v)).toFixed(4))]);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -157,7 +196,7 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
     return Math.max(360, containerWidth - 2 * PAD[0] - MARGIN[0] - innerPad);
   }
 
-  const chartHeight = ROW_HEIGHT - 80;
+  const chartHeight = ROW_HEIGHT - HEADER_HEIGHT - 20; // 20px vertical padding
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
@@ -328,6 +367,10 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
               const meta = getMetricMeta(widget.metricKey);
               const layoutItem = layout.find(l => l.i === widget.id);
               const span = layoutItem?.w ?? 1;
+              const chartData = applyTransform(
+                dataMap.get(widget.metricKey) || [],
+                meta.transform
+              );
 
               return (
                 <div key={widget.id}>
@@ -349,27 +392,36 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
                       '&:hover': { boxShadow: '0 4px 18px rgba(15,23,42,0.10)' }
                     }}
                   >
-                    {/* Header */}
+                    {/* Header — fixed height so chart area never shifts */}
                     <Stack
                       direction="row"
                       alignItems="center"
                       sx={{
+                        height: HEADER_HEIGHT,
                         px: 1.5,
-                        pt: 1,
-                        pb: 0.5,
                         flexShrink: 0,
                         borderBottom: '1px solid #f1f5f9'
                       }}
                     >
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography
-                          variant="subtitle2"
-                          fontWeight={700}
-                          sx={{ color: meta.color, lineHeight: 1.2 }}
-                          noWrap
-                        >
-                          {meta.label}
-                        </Typography>
+                        <Stack direction="row" alignItems="baseline" gap={0.75}>
+                          <Typography
+                            variant="subtitle2"
+                            fontWeight={700}
+                            sx={{ color: meta.color, lineHeight: 1.2 }}
+                            noWrap
+                          >
+                            {meta.label}
+                          </Typography>
+                          {meta.unit && (
+                            <Typography
+                              variant="caption"
+                              sx={{ color: meta.color, opacity: 0.7, fontWeight: 600, fontSize: 10 }}
+                            >
+                              ({meta.unit})
+                            </Typography>
+                          )}
+                        </Stack>
                         <Typography
                           variant="caption"
                           color="text.secondary"
@@ -381,7 +433,6 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
                       </Box>
 
                       <Stack direction="row" alignItems="center">
-                        {/* Width toggle */}
                         <Tooltip
                           title={span === 1 ? 'Expand to full width' : 'Collapse to half width'}
                           placement="top"
@@ -400,7 +451,6 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
                           </IconButton>
                         </Tooltip>
 
-                        {/* Delete */}
                         <Tooltip title="Remove widget" placement="top">
                           <IconButton
                             size="small"
@@ -416,7 +466,6 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
                           </IconButton>
                         </Tooltip>
 
-                        {/* Drag handle */}
                         <Tooltip title="Drag to reorder" placement="top">
                           <Box
                             className="drag-handle"
@@ -439,19 +488,17 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
                       </Stack>
                     </Stack>
 
-                    {/* Chart */}
+                    {/* Chart — fixed explicit pixel height, never flexes */}
                     <Box
                       sx={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                        py: 0.5
+                        height: chartHeight,
+                        flexShrink: 0,
+                        px: 0.5,
+                        pt: 0.5
                       }}
                     >
                       <ScaphChart
-                        rawData={dataMap.get(widget.metricKey) || []}
+                        rawData={chartData}
                         color={meta.color}
                         width={chartWidthFor(widget.id)}
                         height={chartHeight}

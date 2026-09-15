@@ -12,20 +12,12 @@ import {
   WidgetTracker
 } from '@jupyterlab/apputils';
 
-import {
-  INotebookTracker,
-  NotebookPanel,
-  NotebookActions
-} from '@jupyterlab/notebook';
+import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 
 import { MainWidget } from './widget';
 
-import {
-  handleFirstCellExecution,
-  handleLastCellExecution,
-  getAndSaveUsername,
-  getSavedUsername
-} from './api/handleNotebookContents';
+import { getSavedUsername } from './api/handleNotebookContents';
+import { startNotebookExperiment } from './api/experiments';
 import { setContentsManager } from './api/jupyterContents';
 // import JupyterDialogWarning from './components/JupyterDialogWarning';
 
@@ -39,7 +31,7 @@ import { setContentsManager } from './api/jupyterContents';
 const namespaceId = 'gdapod';
 
 async function getUsername(panel: NotebookPanel): Promise<string> {
-  return (await getSavedUsername(panel)) || (await getAndSaveUsername(panel));
+  return await getSavedUsername(panel);
 }
 
 /**
@@ -92,6 +84,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
         tracker.add(widget);
         shell.add(widget, 'main');
       }
+      widget.content.setNotebook(username, panel);
       if (!widget.isAttached) {
         shell.add(widget, 'main');
       }
@@ -133,56 +126,37 @@ const plugin: JupyterFrontEndPlugin<void> = {
       name: () => 'gd-ecojupyter'
     });
 
-    const connectedPanels = new WeakSet<NotebookPanel>();
-
-    function connectPanelExecution(panel: NotebookPanel): void {
-      if (connectedPanels.has(panel)) {
-        return;
-      }
-      connectedPanels.add(panel);
-
-      NotebookActions.executed.connect(async (_, args) => {
-        const { cell, notebook, success } = args;
-        if (notebook !== panel.content || !success) {
+    const runCommand = `${namespaceId}:run-experiment`;
+    app.commands.addCommand(runCommand, {
+      label: 'Run notebook as experiment',
+      isEnabled: () => Boolean(notebookTracker.currentWidget),
+      execute: async () => {
+        const panel = notebookTracker.currentWidget;
+        if (!panel) {
           return;
         }
-
-        const index = notebook.widgets.indexOf(cell);
-        const isFirst = index === 0;
-        const isLast = index === notebook.widgets.length - 1;
-        if (isFirst) {
-          try {
-            await handleFirstCellExecution(panel);
-          } catch (err) {
-            console.error('Failed to create experiment metadata:', err);
-          }
-        }
-        if (isLast) {
-          const username = await getUsername(panel);
-          await handleLastCellExecution(panel, username);
-        }
-      });
-    }
+        await openForPanel(panel);
+        return startNotebookExperiment(panel);
+      }
+    });
+    palette.addItem({ command: runCommand, category: 'Jupyter VRE Workflow' });
 
     notebookTracker.currentChanged.connect(async (_, panel) => {
       if (!panel) {
         return;
       }
 
-      connectPanelExecution(panel);
       await openForPanel(panel);
     });
 
     notebookTracker.widgetAdded.connect((_: unknown, panel: NotebookPanel) => {
       panel.context.ready.then(async () => {
-        connectPanelExecution(panel);
         await openForPanel(panel);
       });
     });
 
     const currentPanel = notebookTracker.currentWidget;
     if (currentPanel) {
-      connectPanelExecution(currentPanel);
       await openForPanel(currentPanel);
     }
   }

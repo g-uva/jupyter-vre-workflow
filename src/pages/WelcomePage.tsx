@@ -16,11 +16,17 @@ import {
   Typography
 } from '@mui/material';
 import GeneralDashboard from './GeneralDashboard';
-import getScaphData from '../api/getScaphData';
-import { CONTAINER_ID } from '../helpers/constants';
 import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
-import { KPIComponent } from '../components/KPIComponent';
+import ExperimentRunPanel, {
+  ExperimentTelemetry
+} from '../components/ExperimentRunPanel';
+import {
+  IExperiment,
+  getExperiment,
+  startNotebookExperiment,
+  cancelExperiment
+} from '../api/experiments';
 import ModuleInstallGate from '../components/ModuleInstallGate';
 import { IExportJsonProps } from '../api/apiScripts';
 import { exportSendJson } from '../api/exportMetadata';
@@ -29,8 +35,6 @@ import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
-import RouteOutlinedIcon from '@mui/icons-material/RouteOutlined';
-import MapComponent from '../components/map/MapComponent';
 import {
   DEFAULT_MODULE_STATUS,
   InstalledModules,
@@ -39,19 +43,16 @@ import {
   markModuleInstalled
 } from '../api/moduleStatus';
 import {
+  experimentPath,
   getHandleSessionMetrics,
   handleGetTime,
   handleLoadExperimentList,
   handleLoadWorkflowList
 } from '../api/handleNotebookContents';
-import {
-  MOCK_DATA_MAP,
-  MOCK_DEFAULT_EXPERIMENT_ID,
-  MOCK_METRICS
-} from '../helpers/mockData';
 import JupyterDialogWarning from '../components/JupyterDialogWarning';
 import { IInstallerProgress, runMetricsInstaller } from '../api/installer';
 import ReproducibilityPanel from '../components/ReproducibilityPanel';
+import OrchestratorPanel from '../components/OrchestratorPanel';
 
 export const styles: Record<string, SxProps> = {
   main: {
@@ -213,14 +214,13 @@ const MODULE_DETAILS: Record<
   }
 };
 
-export default function WelcomePage({ username, panel }: IWelcomePage) {
-  const [metrics, setMetrics] = React.useState<string[]>(MOCK_METRICS);
-  const [dataMap, setDataMap] = React.useState<RawMetrics>(MOCK_DATA_MAP);
+export default function WelcomePage({ panel }: IWelcomePage) {
+  const [metrics, setMetrics] = React.useState<string[]>([]);
+  const [dataMap, setDataMap] = React.useState<RawMetrics>(new Map());
   const [loading, setLoading] = React.useState<boolean>(false);
 
-  const [automaticRefresh, setAutomaticRefresh] =
-    React.useState<boolean>(false);
-  const [refreshIntervalS, setRefreshIntervalS] = React.useState<number>(30);
+  const [automaticRefresh, setAutomaticRefresh] = React.useState<boolean>(true);
+  const [refreshIntervalS, setRefreshIntervalS] = React.useState<number>(1);
   const [installingMetrics, setInstallingMetrics] =
     React.useState<boolean>(false);
   const [installProgress, setInstallProgress] = React.useState<number>(0);
@@ -244,47 +244,88 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
     string | null
   >(null);
 
-  async function fetchMetrics() {
-    const container = document.getElementById(CONTAINER_ID);
-    const scrollPosition = container?.scrollTop;
+  const [run, setRun] = React.useState<IExperiment | null>(null);
+  const [runError, setRunError] = React.useState('');
+  const [startingRun, setStartingRun] = React.useState(false);
+  const requestVersion = React.useRef(0);
+  const listRequestVersion = React.useRef(0);
 
-    setLoading(true);
-
-    let startTimeUnix: number = 0;
-    let endTimeUnix: number = 0;
-
-    if (selectedWorkflow && selectedExperiment) {
-      const timeStartEnd = await handleGetTime(
-        selectedWorkflow,
-        selectedExperiment,
-        panel
-      );
-      if (timeStartEnd) {
-        startTimeUnix = timeStartEnd.startTimeUnix;
-        endTimeUnix = timeStartEnd.endTimeUnix;
+  function showRun(value: IExperiment) {
+    setRun(value);
+    const samples = value.samples ?? [];
+    const map: RawMetrics = new Map();
+    for (const key of [
+      'energy_j',
+      'current_power_w',
+      'average_power_w'
+    ] as const) {
+      const values: [number, string][] = samples
+        .filter(sample => sample[key] !== null)
+        .map(sample => [sample.timestamp, String(sample[key])]);
+      if (values.length) {
+        map.set(key, values);
       }
     }
+    setDataMap(map);
+    setMetrics(Array.from(map.keys()));
+  }
 
-    getScaphData({
-      url: `https://mc-a4.lab.uvalight.net/prometheus-${username}`,
-      startTime: startTimeUnix,
-      endTime: endTimeUnix
-    }).then(results => {
-      if (container !== null && scrollPosition !== undefined) {
-        container.scrollTop = scrollPosition;
-      }
-
-      if (results.size === 0) {
-        console.error('No metrics found');
-        setLoading(false);
+  async function fetchMetrics() {
+    const version = ++requestVersion.current;
+    if (!selectedWorkflow || !selectedExperiment) {
+      setRun(null);
+      setDataMap(new Map());
+      setMetrics([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await getExperiment(
+        experimentPath(panel, selectedWorkflow, selectedExperiment)
+      );
+      if (version !== requestVersion.current) {
         return;
       }
+      showRun(result);
+      setRunError('');
+    } catch (error) {
+      if (version !== requestVersion.current) {
+        return;
+      }
+      setRun(null);
+      setDataMap(new Map());
+      setMetrics([]);
+      setRunError(error instanceof Error ? error.message : String(error));
+    } finally {
+      if (version === requestVersion.current) {
+        setLoading(false);
+      }
+    }
+  }
 
-      setDataMap(results);
-      const keys: string[] = Array.from(results.keys());
-      setMetrics(keys);
-      setLoading(false);
-    });
+  async function handleStartRun() {
+    setStartingRun(true);
+    setRunError('');
+    try {
+      await startNotebookExperiment(panel);
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setStartingRun(false);
+    }
+  }
+
+  async function handleCancelRun() {
+    if (!run) {
+      return;
+    }
+    try {
+      await cancelExperiment(run.path);
+      await fetchMetrics();
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : String(error));
+    }
   }
 
   function handleSetMetrics() {
@@ -340,15 +381,16 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   }
 
   async function handleRefreshExperimentList() {
+    const version = ++listRequestVersion.current;
     if (selectedWorkflow) {
       const loadedExperimentList = await handleLoadExperimentList(
         selectedWorkflow,
         panel
       );
-      const newExperimentList =
-        loadedExperimentList.length > 0
-          ? loadedExperimentList
-          : [MOCK_DEFAULT_EXPERIMENT_ID];
+      if (version !== listRequestVersion.current) {
+        return;
+      }
+      const newExperimentList = loadedExperimentList;
       setExperimentList(newExperimentList);
       setSelectedExperiment(currentExperiment => {
         if (
@@ -419,27 +461,62 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   }, [workflowList, selectedWorkflow]);
 
   React.useEffect(() => {
-    if (!automaticRefresh) {
-      return;
+    function started(event: Event) {
+      const value = (event as CustomEvent<IExperiment>).detail;
+      if (value.notebook_path !== panel.context.path) {
+        return;
+      }
+      ++requestVersion.current;
+      ++listRequestVersion.current;
+      setWorkflowList(current =>
+        Array.from(new Set([value.workflow_id, ...current]))
+      );
+      setExperimentList(current => Array.from(new Set([value.id, ...current])));
+      setSelectedWorkflow(value.workflow_id);
+      setSelectedExperiment(value.id);
+      showRun(value);
+      setAutomaticRefresh(true);
     }
+    window.addEventListener('ecojupyter:experiment-started', started);
+    return () =>
+      window.removeEventListener('ecojupyter:experiment-started', started);
+  }, [panel]);
 
-    const intervalId = window.setInterval(() => {
-      fetchMetrics();
-    }, refreshIntervalS * 1000);
-
-    return () => window.clearInterval(intervalId);
+  React.useEffect(() => {
+    setRun(null);
+    setDataMap(new Map());
+    setMetrics([]);
+    let cancelled = false;
+    let timer: number | undefined;
+    async function refresh() {
+      await fetchMetrics();
+      if (!cancelled && automaticRefresh) {
+        timer = window.setTimeout(
+          refresh,
+          Math.max(1, refreshIntervalS) * 1000
+        );
+      }
+    }
+    void refresh();
+    return () => {
+      cancelled = true;
+      ++requestVersion.current;
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+      }
+    };
   }, [
     automaticRefresh,
     refreshIntervalS,
     selectedWorkflow,
     selectedExperiment,
-    username
+    panel
   ]);
 
   const selectedContextLabel =
     selectedWorkflow && selectedExperiment
       ? `${selectedWorkflow} / ${selectedExperiment}`
-      : 'Real Time Metrics';
+      : 'No experiment selected';
 
   return (
     <>
@@ -501,6 +578,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                 value={selectedWorkflow || ''}
                 label="Workflow ID"
                 onChange={e => {
+                  setSelectedExperiment(null);
                   e !== null && setSelectedWorkflow(e.target.value ?? '');
                 }}
               >
@@ -544,6 +622,14 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
           </Stack>
         </Paper>
 
+        <ExperimentRunPanel
+          run={run}
+          error={runError}
+          starting={startingRun}
+          onStart={handleStartRun}
+          onCancel={handleCancelRun}
+        />
+
         <Grid2 sx={styles.moduleShell}>
           <Tabs
             value={activeModule}
@@ -579,8 +665,8 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                     Telemetry & Observability
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Prometheus and Scaphandre metrics, KPI panels, and
-                    dashboards.
+                    Measured RAPL energy, current power and average power during
+                    notebook experiments.
                   </Typography>
                 </Box>
                 <FetchMetricsComponent
@@ -596,21 +682,22 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                   installLogs={installLogs}
                   metricsInstalled={moduleStatus.telemetry.installed}
                   showProgress={false}
+                  showInstaller={false}
                 />
               </Box>
               <Box sx={styles.moduleBody}>
                 <ModuleInstallGate
                   moduleName={MODULE_DETAILS[WorkflowModule.Telemetry].label}
-                  installed={moduleStatus.telemetry.installed}
+                  installed={true}
                   installing={installingMetrics}
                   installLabel={installLabel}
                   installError={installError}
                   installProgress={installProgress}
                   onInstall={() => handleInstallModule('telemetry')}
                 >
-                  <KPIComponent rawMetrics={dataMap} />
+                  <ExperimentTelemetry run={run} />
 
-                  {metrics && (
+                  {metrics.length > 0 && (
                     <>
                       <Grid2 sx={{ ...styles.topRibbon, mt: 2 }}>
                         <FetchMetricsComponent
@@ -632,7 +719,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                       <GeneralDashboard
                         metrics={metrics}
                         dataMap={dataMap}
-                        loading={loading}
+                        loading={loading && dataMap.size === 0}
                       />
                     </>
                   )}
@@ -673,11 +760,13 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
           {activeModule === WorkflowModule.Orchestration && (
             <Box sx={styles.modulePanel}>
               <Box sx={styles.moduleHeader}>
-                <Typography variant="h6">Orchestration</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  VO registration context, EGI integration, and remote workload
-                  replay/watch entry points.
-                </Typography>
+                <Box>
+                  <Typography variant="h6">Orchestration</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    EGI site selection, energy/carbon estimation, and workload
+                    brokering via T6.2 ML and T6.3 services.
+                  </Typography>
+                </Box>
               </Box>
               <Box sx={styles.moduleBody}>
                 <ModuleInstallGate
@@ -687,17 +776,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                   installed={moduleStatus.orchestration.installed}
                   onInstall={() => handleInstallModule('orchestration')}
                 >
-                  <Paper elevation={0} sx={{ ...styles.emptyState, p: 0 }}>
-                    <Box sx={{ p: 2 }}>
-                      <Stack direction="row" gap={1} alignItems="center">
-                        <RouteOutlinedIcon color="primary" />
-                        <Typography variant="subtitle1">
-                          VO registration and workload map
-                        </Typography>
-                      </Stack>
-                    </Box>
-                    <MapComponent />
-                  </Paper>
+                  <OrchestratorPanel />
                 </ModuleInstallGate>
               </Box>
             </Box>

@@ -32,6 +32,7 @@ interface IFetchMetricsComponent {
   metricsInstalled: boolean;
   showControls?: boolean;
   showProgress?: boolean;
+  showInstaller?: boolean;
 }
 
 export default function FetchMetricsComponent({
@@ -47,7 +48,8 @@ export default function FetchMetricsComponent({
   installLogs,
   metricsInstalled,
   showControls = true,
-  showProgress = true
+  showProgress = true,
+  showInstaller = true
 }: IFetchMetricsComponent) {
   const [settingsAnchor, setSettingsAnchor] =
     React.useState<HTMLElement | null>(null);
@@ -73,7 +75,7 @@ export default function FetchMetricsComponent({
           justifyContent="flex-end"
           sx={{ ...styles.buttonGrid, mb: 0 }}
         >
-          {metricsInstalled && (
+          {showInstaller && metricsInstalled && (
             <Typography
               variant="caption"
               color="success.main"
@@ -108,25 +110,27 @@ export default function FetchMetricsComponent({
             onClose={() => setSettingsAnchor(null)}
           >
             <Box sx={{ px: 2, py: 1.5, width: 280 }}>
-              <Button
-                variant="outlined"
-                onClick={handleInstallMetrics}
-                size="small"
-                fullWidth
-                sx={{ mb: 1.5, justifyContent: 'flex-start' }}
-                startIcon={
-                  metricsInstalled ? (
-                    <SystemUpdateAltOutlinedIcon />
-                  ) : (
-                    <DownloadOutlinedIcon />
-                  )
-                }
-                disabled={installingMetrics}
-              >
-                {metricsInstalled
-                  ? 'Update telemetry module'
-                  : 'Install telemetry module'}
-              </Button>
+              {showInstaller && (
+                <Button
+                  variant="outlined"
+                  onClick={handleInstallMetrics}
+                  size="small"
+                  fullWidth
+                  sx={{ mb: 1.5, justifyContent: 'flex-start' }}
+                  startIcon={
+                    metricsInstalled ? (
+                      <SystemUpdateAltOutlinedIcon />
+                    ) : (
+                      <DownloadOutlinedIcon />
+                    )
+                  }
+                  disabled={installingMetrics}
+                >
+                  {metricsInstalled
+                    ? 'Update telemetry module'
+                    : 'Install telemetry module'}
+                </Button>
+              )}
               <FormControlLabel
                 control={
                   <Checkbox

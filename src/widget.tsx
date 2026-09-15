@@ -83,7 +83,22 @@ export class MainWidget extends ReactWidget {
     this._panel = panel;
   }
 
+  setNotebook(username: string, panel: NotebookPanel): void {
+    if (this._panel === panel && this._username === username) {
+      return;
+    }
+    this._username = username;
+    this._panel = panel;
+    this.update();
+  }
+
   render(): JSX.Element {
-    return <App username={this._username} panel={this._panel} />;
+    return (
+      <App
+        key={this._panel.context.path}
+        username={this._username}
+        panel={this._panel}
+      />
+    );
   }
 }

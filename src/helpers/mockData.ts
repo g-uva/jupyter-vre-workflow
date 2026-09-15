@@ -22,11 +22,29 @@ function generateSeries(
   });
 }
 
+// Energy is a Prometheus counter — monotonically increasing (cumulative µJ).
+// A small experiment on a workstation at ~65W avg for 1 hour ≈ 2.34e11 µJ.
+function generateEnergy(rateW = 65, points = 60): [number, string][] {
+  const step = HOUR / points;
+  return Array.from({ length: points }, (_, i) => {
+    const t = now - HOUR + Math.round(i * step);
+    const elapsed = i * step;
+    // small ±3% fluctuation in instantaneous rate, integrated as cumulative
+    const noise = 0.03 * rateW * Math.sin(i * 0.61);
+    const energy = (rateW + noise) * elapsed * 1e6; // µJ
+    return [t, String(Math.max(0, energy).toFixed(0))];
+  });
+}
+
 export const MOCK_DATA_MAP: Map<string, [number, string][]> = new Map([
-  [METRIC_KEY_MAP.energyConsumed, generateSeries(1.2e12, 1.92e12, 60, 0.004)],
-  [METRIC_KEY_MAP.functionalUnit, generateSeries(1.1, 1.85, 60, 0.1)],
-  ['scaph_host_power_microwatts', generateSeries(150e6, 210e6, 60, 0.07)],
-  ['scaph_process_power_microwatts', generateSeries(42e6, 78e6, 60, 0.1)]
+  // ~65W host → 65 Wh over the hour (displayed as Wh after ÷3.6e9)
+  [METRIC_KEY_MAP.energyConsumed, generateEnergy(65)],
+  // load average 0.2–0.9 for a small workstation job
+  [METRIC_KEY_MAP.functionalUnit, generateSeries(0.22, 0.84, 60, 0.14)],
+  // host power 55–80 W (displayed as W after ÷1e6)
+  ['scaph_host_power_microwatts', generateSeries(55e6, 80e6, 60, 0.08)],
+  // process power 6–22 W (displayed as W after ÷1e6)
+  ['scaph_process_power_microwatts', generateSeries(6e6, 22e6, 60, 0.13)]
 ]);
 
 export const MOCK_METRICS: string[] = Array.from(MOCK_DATA_MAP.keys());
