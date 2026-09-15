@@ -22,7 +22,7 @@ It works best with [L1EcoVRE](https://github.com/g-uva/L1EcoVRE) infrastructure 
 ## Installation
 In order to install the tool as an extension in Jupyter Notebook or Lab (not in development), simply install the tool in your Python environment where Jupyter is running.
 ```sh
-pip install --upgrade ecojupyter
+pip install --upgrade jupyter-vre-workflow
 ```
 
 ## Development & Extension Framework
@@ -36,7 +36,7 @@ To launch the development environment (as per the tutorial), run:
 ./scripts/start-jupyterlab-dev.sh
 ```
 
-This will start JupyterLab in development mode, ideal for iterating on the UI and debugging extension logic interactively.
+This uses the local `.venv` (creating it if needed), installs dependencies, builds and links this checkout, and starts JupyterLab with frontend watchers. Node.js 20+ and npm must be installed; Conda is not required. Refresh the browser after frontend changes; restart the script after Python backend changes. Press Ctrl+C to stop the server and watchers.
 
 Python Package & Deployment
 The Python package is published on PyPI and can be built locally via:
@@ -128,45 +128,22 @@ Jupyter VRE Workflow/
 
 ## Development setup
 
-Create and activate a local Python environment:
-
-```sh
-python -m venv .venv
-source .venv/bin/activate
-```
-
-Install JupyterLab and this extension in editable mode:
-
-```sh
-python -m pip install "jupyterlab>=4.0.0,<5"
-SKIP_JUPYTER_BUILDER=1 python -m pip install -e .
-yarn install
-
-# Run everytime some ts file in src/ changes.
-yarn build:lib --skipLibCheck
-PATH=.venv/bin:$PATH jupyter labextension build --development True .
-
-PATH=.venv/bin:$PATH jupyter labextension develop . --overwrite
-```
-
-Install the frontend dependencies and watch the extension sources:
-
-```sh
-yarn install
-yarn watch
-```
-
-In another terminal, activate the same environment and start JupyterLab:
-
-```sh
-source .venv/bin/activate
-jupyter lab
-```
-
-Commands for a hard refresh during development:
+With Python 3 (including `venv` support), Node.js 20+ and npm installed, run:
 
 ```bash
-yarn build:lib --skipLibCheck
-PATH=.venv/bin:$PATH jupyter labextension build --development True .
-PATH=.venv/bin:$PATH jupyter labextension develop . --overwrite
+./scripts/start-jupyterlab-dev.sh
+```
+
+The script uses this repository's `.venv`; no manual activation or Conda is needed. It builds the existing extension rather than creating a new project.
+
+To prepare the environment without starting the server or watchers:
+
+```bash
+./scripts/start-jupyterlab-dev.sh --setup-only
+```
+
+Additional arguments are passed to JupyterLab, for example:
+
+```bash
+./scripts/start-jupyterlab-dev.sh --no-browser --port=8889
 ```
