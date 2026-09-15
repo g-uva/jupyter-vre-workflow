@@ -137,4 +137,5 @@ data/**
 experiments/
 .bin/
 .venv/
+build-env/
 yarn.lock

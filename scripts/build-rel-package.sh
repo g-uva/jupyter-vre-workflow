@@ -75,8 +75,19 @@ rm -rf dist/ build/ *.egg-info
 
 # Build the package
 echo "Building the package..."
-python3 -m venv build-env
-source build-env/bin/activate
+BUILD_ENV=$(mktemp -d "${TMPDIR:-/tmp}/jupyter-vre-workflow-build.XXXXXX")
+cleanup_build_env() {
+    if command -v deactivate &> /dev/null; then
+        deactivate
+    fi
+    if [[ -n "${BUILD_ENV:-}" && -d "$BUILD_ENV" ]]; then
+        rm -rf -- "$BUILD_ENV"
+    fi
+}
+trap cleanup_build_env EXIT
+
+python3 -m venv "$BUILD_ENV"
+source "$BUILD_ENV/bin/activate"
 python -m pip install build twine
 python -m build
 python -m twine check dist/*
@@ -96,8 +107,8 @@ python -m twine upload dist/*
 
 echo "Package uploaded successfully."
 echo "Cleaning up build environment..."
-deactivate
-rm -rf build-env
+cleanup_build_env
+trap - EXIT
 echo "Build environment cleaned up."
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "DONE :)"
