@@ -80,7 +80,8 @@
     "maplibre-gl": "^5.5.0",
     "path": "^0.12.7",
     "react-grid-layout": "^2.2.3",
-    "react-map-gl": "^8.0.4"
+    "react-map-gl": "^8.0.4",
+    "yarn": "^1.22.22"
   },
   "devDependencies": {
     "@jupyterlab/builder": "^4.0.0",
