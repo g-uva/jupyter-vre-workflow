@@ -20,10 +20,10 @@ Scaphandre relies on the Linux `powercap` interface. ARM and some virtualised ho
 
 ## Network ports
 
-| Port | Service |
-|------|---------|
-| 8888 | JupyterLab |
-| 9090 | Prometheus |
+| Port | Service             |
+| ---- | ------------------- |
+| 8888 | JupyterLab          |
+| 9090 | Prometheus          |
 | 8080 | Scaphandre exporter |
 
 Make sure these ports are not already in use and are reachable if you need external access.
@@ -32,7 +32,7 @@ Make sure these ports are not already in use and are reachable if you need exter
 
 - `curl` and `git` (auto-installed by `build-rel-package.sh` if missing via conda)
 - `conda` — auto-installed by the release script if not present
-- PyPI access — for `pip install ecojupyter`
+- PyPI access — for `pip install jupyter-vre-workflow`
 - Access credentials for FDMI, EIMPS/CIM, EIMPS/KPI endpoints (Modules 2 & 3 only)
 
 ## What is already assumed

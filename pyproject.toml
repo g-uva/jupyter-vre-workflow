@@ -36,27 +36,28 @@ source = "nodejs"
 fields = ["description", "authors", "urls", "keywords"]
 
 [tool.hatch.build.targets.sdist]
-artifacts = ["ecojupyter/labextension"]
-exclude = [".github", "binder"]
+artifacts = ["jupyter_vre_workflow/labextension"]
+exclude = [".claude", ".github", "binder", "doc/.docusaurus"]
 
 [tool.hatch.build.targets.wheel.shared-data]
-"ecojupyter/labextension" = "share/jupyter/labextensions/ecojupyter"
-"jupyter-config/jupyter_server_config.d/ecojupyter.json" = "etc/jupyter/jupyter_server_config.d/ecojupyter.json"
+"jupyter_vre_workflow/labextension" = "share/jupyter/labextensions/jupyter-vre-workflow"
+"install.json" = "share/jupyter/labextensions/jupyter-vre-workflow/install.json"
+"jupyter-config/jupyter_server_config.d/jupyter_vre_workflow.json" = "etc/jupyter/jupyter_server_config.d/jupyter_vre_workflow.json"
 
 [tool.hatch.build.targets.wheel]
-packages = ["ecojupyter"]
+packages = ["jupyter_vre_workflow"]
 
 [tool.hatch.build.hooks.version]
-path = "ecojupyter/_version.py"
+path = "jupyter_vre_workflow/_version.py"
 
 [tool.hatch.build.hooks.jupyter-builder]
 dependencies = ["hatch-jupyter-builder>=0.5"]
 build-function = "hatch_jupyter_builder.npm_builder"
 ensured-targets = [
-    "ecojupyter/labextension/static/style.js",
-    "ecojupyter/labextension/package.json",
+    "jupyter_vre_workflow/labextension/static/style.js",
+    "jupyter_vre_workflow/labextension/package.json",
 ]
-skip-if-exists = ["ecojupyter/labextension/static/style.js"]
+skip-if-exists = ["jupyter_vre_workflow/labextension/static/style.js"]
 
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
 build_cmd = "build:prod"
@@ -66,7 +67,7 @@ npm = ["jlpm"]
 build_cmd = "install:extension"
 npm = ["jlpm"]
 source_dir = "src"
-build_dir = "ecojupyter/labextension"
+build_dir = "jupyter_vre_workflow/labextension"
 
 [tool.jupyter-releaser.options]
 version_cmd = "hatch version"

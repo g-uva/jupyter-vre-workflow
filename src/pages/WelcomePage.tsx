@@ -477,9 +477,12 @@ export default function WelcomePage({ panel }: IWelcomePage) {
       showRun(value);
       setAutomaticRefresh(true);
     }
-    window.addEventListener('ecojupyter:experiment-started', started);
+    window.addEventListener('jupyter-vre-workflow:experiment-started', started);
     return () =>
-      window.removeEventListener('ecojupyter:experiment-started', started);
+      window.removeEventListener(
+        'jupyter-vre-workflow:experiment-started',
+        started
+      );
   }, [panel]);
 
   React.useEffect(() => {

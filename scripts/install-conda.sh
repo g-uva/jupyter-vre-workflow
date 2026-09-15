@@ -1,6 +1,6 @@
 #!/bin/bash
 
-conda activate ecojupyter
-pip install -ve .
+conda activate jupyter-vre-workflow
+python -m pip install -ve .
 jupyter labextension develop --overwrite .
-sudo jupyter lab --allow-root
+python -m jupyterlab

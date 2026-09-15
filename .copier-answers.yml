@@ -6,9 +6,8 @@ author_name: Gonçalo Ferreira
 has_binder: false
 has_settings: false
 kind: frontend
-labextension_name: ecojupyter
+labextension_name: jupyter-vre-workflow
 project_short_description: A JupyterLab extension for sustainability metrics.
-python_name: ecojupyter
-repository: https://github.com/g-uva/EcoJupyter
+python_name: jupyter_vre_workflow
+repository: https://github.com/g-uva/jupyter-vre-workflow
 test: false
-

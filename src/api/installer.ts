@@ -21,7 +21,7 @@ export async function runMetricsInstaller({
   onLog
 }: IRunMetricsInstallerOptions = {}): Promise<void> {
   const settings = ServerConnection.makeSettings();
-  const requestUrl = `${settings.baseUrl.replace(/\/?$/, '/')}api/run-install`;
+  const requestUrl = `${settings.baseUrl.replace(/\/?$/, '/')}api/jupyter-vre-workflow/run-install`;
 
   return new Promise((resolve, reject) => {
     const eventSource = new EventSource(requestUrl);

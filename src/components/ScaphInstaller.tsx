@@ -1,5 +1,6 @@
 // src/Installer.tsx
 import React from 'react';
+import { ServerConnection } from '@jupyterlab/services';
 import {
   Box,
   Button,
@@ -29,7 +30,9 @@ export default function ScaphInstaller() {
       return;
     }
 
-    const es = new EventSource('/api/run-install');
+    const settings = ServerConnection.makeSettings();
+    const url = `${settings.baseUrl.replace(/\/?$/, '/')}api/jupyter-vre-workflow/run-install`;
+    const es = new EventSource(url);
 
     es.addEventListener('progress', (e: MessageEvent) => {
       const { step, progress: pct } = JSON.parse(e.data);

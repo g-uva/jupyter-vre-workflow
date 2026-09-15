@@ -36,4 +36,4 @@ All subsequent installation steps assume the same `.venv` environment is active.
 
 ## Next step
 
-Once JupyterLab opens successfully, proceed to [Install Jupyter VRE Workflow](./ecojupyter).
+Once JupyterLab opens successfully, proceed to [Install Jupyter VRE Workflow](./jupyter-vre-workflow).

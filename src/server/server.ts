@@ -1,4 +1,4 @@
-// Dev-only Express mirror. JupyterLab uses ecojupyter.handlers for /api/run-install.
+// Dev-only Express mirror of the Jupyter Server installer endpoint.
 import express, { Request, Response } from 'express';
 import { spawn } from 'child_process';
 import { homedir } from 'os';
@@ -33,10 +33,7 @@ const STEPS: { label: string; cmd: string }[] = [
   },
   {
     label: 'Install Rust toolchain 1.65.0',
-    cmd: [
-      'source $HOME/.cargo/env',
-      'rustup install 1.65.0',
-    ].join(' && ')
+    cmd: ['source $HOME/.cargo/env', 'rustup install 1.65.0'].join(' && ')
   },
   {
     label: 'Clone Scaphandre',
@@ -66,9 +63,7 @@ const STEPS: { label: string; cmd: string }[] = [
   },
   {
     label: 'Stop existing Scaphandre exporter',
-    cmd: [
-      'pkill -f "[s]caphandre prometheus" || true'
-    ].join(' && ')
+    cmd: ['pkill -f "[s]caphandre prometheus" || true'].join(' && ')
   },
   {
     label: 'Start Scaphandre exporter',
@@ -108,9 +103,9 @@ const STEPS: { label: string; cmd: string }[] = [
   },
   {
     label: 'Stop existing Prometheus',
-    cmd: ['pkill -f "[p]rometheus.*--config.file=.*prometheus.yml" || true'].join(
-      '\n'
-    )
+    cmd: [
+      'pkill -f "[p]rometheus.*--config.file=.*prometheus.yml" || true'
+    ].join('\n')
   },
   {
     label: 'Start Prometheus',
@@ -120,61 +115,64 @@ const STEPS: { label: string; cmd: string }[] = [
   }
 ];
 
-app.get('/api/run-install', (_req: Request, res: Response) => {
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive'
-  });
-
-  let stepIndex = 0;
-
-  const runNext = () => {
-    if (stepIndex >= STEPS.length) {
-      res.write('event: done\ndata: {}\n\n');
-      return res.end();
-    }
-
-    const { label, cmd } = STEPS[stepIndex];
-    const startedProgress = Math.round((stepIndex / STEPS.length) * 100);
-    res.write(
-      `event: progress\ndata: ${JSON.stringify({ step: stepIndex, label, progress: startedProgress })}\n\n`
-    );
-
-    const child = spawn(cmd, { shell: true, env: process.env });
-
-    // Stream stdout
-    child.stdout.on('data', data => {
-      res.write(
-        `event: log\ndata: ${JSON.stringify({ step: stepIndex, text: data.toString() })}\n\n`
-      );
-    });
-    // Stream stderr
-    child.stderr.on('data', data => {
-      res.write(
-        `event: log\ndata: ${JSON.stringify({ step: stepIndex, text: data.toString() })}\n\n`
-      );
+app.get(
+  '/api/jupyter-vre-workflow/run-install',
+  (_req: Request, res: Response) => {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive'
     });
 
-    child.on('exit', code => {
-      if (code !== 0) {
-        res.write(
-          `event: install-error\ndata: ${JSON.stringify(`Step "${label}" failed with exit code ${code}.`)}\n\n`
-        );
+    let stepIndex = 0;
+
+    const runNext = () => {
+      if (stepIndex >= STEPS.length) {
+        res.write('event: done\ndata: {}\n\n');
         return res.end();
       }
 
-      const progress = Math.round(((stepIndex + 1) / STEPS.length) * 100);
+      const { label, cmd } = STEPS[stepIndex];
+      const startedProgress = Math.round((stepIndex / STEPS.length) * 100);
       res.write(
-        `event: progress\ndata: ${JSON.stringify({ step: stepIndex, label, progress })}\n\n`
+        `event: progress\ndata: ${JSON.stringify({ step: stepIndex, label, progress: startedProgress })}\n\n`
       );
-      stepIndex += 1;
-      runNext();
-    });
-  };
 
-  runNext();
-});
+      const child = spawn(cmd, { shell: true, env: process.env });
+
+      // Stream stdout
+      child.stdout.on('data', data => {
+        res.write(
+          `event: log\ndata: ${JSON.stringify({ step: stepIndex, text: data.toString() })}\n\n`
+        );
+      });
+      // Stream stderr
+      child.stderr.on('data', data => {
+        res.write(
+          `event: log\ndata: ${JSON.stringify({ step: stepIndex, text: data.toString() })}\n\n`
+        );
+      });
+
+      child.on('exit', code => {
+        if (code !== 0) {
+          res.write(
+            `event: install-error\ndata: ${JSON.stringify(`Step "${label}" failed with exit code ${code}.`)}\n\n`
+          );
+          return res.end();
+        }
+
+        const progress = Math.round(((stepIndex + 1) / STEPS.length) * 100);
+        res.write(
+          `event: progress\ndata: ${JSON.stringify({ step: stepIndex, label, progress })}\n\n`
+        );
+        stepIndex += 1;
+        runNext();
+      });
+    };
+
+    runNext();
+  }
+);
 
 app.listen(PORT, () => {
   console.log(`Installer API running on http://localhost:${PORT}`);

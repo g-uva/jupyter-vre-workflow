@@ -16,9 +16,9 @@ Run through this list after completing the installation to confirm all modules a
 - [ ] Prometheus target for Scaphandre is **UP** (`http://localhost:9090/targets`)
 - [ ] Running a notebook cell changes at least one KPI value or updates a time-series chart
 - [ ] Reproducibility export creates metadata artefacts in the expected output folder
-- [ ] *(Optional)* Catalogue entry appears in the FDMI catalogue after export
-- [ ] *(Optional)* MetricsDB record is created after a session completes
-- [ ] *(Optional)* Orchestration status shows a successful placement prediction
+- [ ] _(Optional)_ Catalogue entry appears in the FDMI catalogue after export
+- [ ] _(Optional)_ MetricsDB record is created after a session completes
+- [ ] _(Optional)_ Orchestration status shows a successful placement prediction
 
 > **Screenshot placeholder** — full Jupyter VRE Workflow session: metrics live + catalogue entry confirmed
 
@@ -30,7 +30,7 @@ Confirm the package was installed in the **same Python environment** as JupyterL
 
 ```bash
 source .venv/bin/activate
-pip show ecojupyter
+pip show jupyter-vre-workflow
 jupyter labextension list
 ```
 
@@ -64,7 +64,7 @@ Scaphandre relies on the `powercap` Linux interface, which is not available on A
 
 ## References
 
-- [Jupyter VRE Workflow GitHub repository](https://github.com/g-uva/EcoJupyter)
+- [Jupyter VRE Workflow GitHub repository](https://github.com/g-uva/jupyter-vre-workflow)
 - [JupyterLab Extension Tutorial](https://jupyterlab.readthedocs.io/en/stable/extension/extension_tutorial.html)
 - [Scaphandre documentation](https://hubblo-org.github.io/scaphandre-documentation/)
 - [Prometheus documentation](https://prometheus.io/docs/)

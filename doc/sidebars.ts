@@ -1,25 +1,25 @@
-import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 
 const sidebars: SidebarsConfig = {
   mainSidebar: [
     {
       type: 'doc',
       id: 'intro',
-      label: 'Introduction',
+      label: 'Introduction'
     },
     {
       type: 'doc',
       id: 'prerequisites',
-      label: 'Prerequisites',
+      label: 'Prerequisites'
     },
     {
       type: 'category',
       label: 'Installation',
       items: [
         'installation/jupyterlab',
-        'installation/ecojupyter',
-        'installation/modules',
-      ],
+        'installation/jupyter-vre-workflow',
+        'installation/modules'
+      ]
     },
     {
       type: 'category',
@@ -27,15 +27,15 @@ const sidebars: SidebarsConfig = {
       items: [
         'modules/telemetry',
         'modules/reproducibility',
-        'modules/orchestration',
-      ],
+        'modules/orchestration'
+      ]
     },
     {
       type: 'doc',
       id: 'validation',
-      label: 'Validation & Troubleshooting',
-    },
-  ],
+      label: 'Validation & Troubleshooting'
+    }
+  ]
 };
 
 export default sidebars;

@@ -37,7 +37,7 @@ async function request(
   body?: unknown
 ): Promise<IExperiment> {
   const settings = ServerConnection.makeSettings();
-  const url = `${settings.baseUrl.replace(/\/?$/, '/')}api/ecojupyter/experiments${
+  const url = `${settings.baseUrl.replace(/\/?$/, '/')}api/jupyter-vre-workflow/experiments${
     path ? `?path=${encodeURIComponent(path)}` : ''
   }`;
   const response = await ServerConnection.makeRequest(
@@ -71,7 +71,9 @@ export async function startNotebookExperiment(
     notebook
   });
   window.dispatchEvent(
-    new CustomEvent('ecojupyter:experiment-started', { detail: result })
+    new CustomEvent('jupyter-vre-workflow:experiment-started', {
+      detail: result
+    })
   );
   return result;
 }

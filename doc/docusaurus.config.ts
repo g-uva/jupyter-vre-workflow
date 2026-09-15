@@ -1,5 +1,5 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import { themes as prismThemes } from 'prism-react-renderer';
+import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
@@ -8,10 +8,10 @@ const config: Config = {
   favicon: 'img/favicon.ico',
 
   future: {
-    v4: true,
+    v4: true
   },
 
-  url: 'https://greendigit-ecojupyter.sztaki.hu',
+  url: 'https://greendigit-jupyter-vre-workflow.sztaki.hu',
   baseUrl: '/docs/',
 
   organizationName: 'g-uva',
@@ -21,7 +21,7 @@ const config: Config = {
 
   i18n: {
     defaultLocale: 'en',
-    locales: ['en'],
+    locales: ['en']
   },
 
   presets: [
@@ -31,40 +31,41 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           routeBasePath: '/',
-          editUrl: 'https://github.com/g-uva/EcoJupyter/tree/master/doc/',
+          editUrl:
+            'https://github.com/g-uva/jupyter-vre-workflow/tree/master/doc/'
         },
         blog: false,
         theme: {
-          customCss: './src/css/custom.css',
-        },
-      } satisfies Preset.Options,
-    ],
+          customCss: './src/css/custom.css'
+        }
+      } satisfies Preset.Options
+    ]
   ],
 
   themeConfig: {
     image: 'img/docusaurus-social-card.jpg',
     colorMode: {
-      respectPrefersColorScheme: true,
+      respectPrefersColorScheme: true
     },
     navbar: {
       title: 'Jupyter VRE Workflow',
       logo: {
         alt: 'Jupyter VRE Workflow Logo',
-        src: 'img/logo.svg',
+        src: 'img/logo.svg'
       },
       items: [
         {
           type: 'docSidebar',
           sidebarId: 'mainSidebar',
           position: 'left',
-          label: 'Documentation',
+          label: 'Documentation'
         },
         {
-          href: 'https://github.com/g-uva/EcoJupyter',
+          href: 'https://github.com/g-uva/jupyter-vre-workflow',
           label: 'GitHub',
-          position: 'right',
-        },
-      ],
+          position: 'right'
+        }
+      ]
     },
     footer: {
       style: 'dark',
@@ -72,28 +73,34 @@ const config: Config = {
         {
           title: 'Docs',
           items: [
-            {label: 'Introduction', to: '/'},
-            {label: 'Installation', to: '/installation/jupyterlab'},
-            {label: 'Modules', to: '/modules/telemetry'},
-          ],
+            { label: 'Introduction', to: '/' },
+            { label: 'Installation', to: '/installation/jupyterlab' },
+            { label: 'Modules', to: '/modules/telemetry' }
+          ]
         },
         {
           title: 'Project',
           items: [
-            {label: 'GitHub', href: 'https://github.com/g-uva/EcoJupyter'},
-            {label: 'GreenDIGIT', href: 'https://greendigit-project.eu/'},
-            {label: 'PyPI', href: 'https://pypi.org/project/ecojupyter/'},
-          ],
-        },
+            {
+              label: 'GitHub',
+              href: 'https://github.com/g-uva/jupyter-vre-workflow'
+            },
+            { label: 'GreenDIGIT', href: 'https://greendigit-project.eu/' },
+            {
+              label: 'PyPI',
+              href: 'https://pypi.org/project/jupyter-vre-workflow/'
+            }
+          ]
+        }
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Jupyter VRE Workflow — GreenDIGIT Project, University of Amsterdam.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Jupyter VRE Workflow — GreenDIGIT Project, University of Amsterdam.`
     },
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
-      additionalLanguages: ['bash', 'yaml'],
-    },
-  } satisfies Preset.ThemeConfig,
+      additionalLanguages: ['bash', 'yaml']
+    }
+  } satisfies Preset.ThemeConfig
 };
 
 export default config;

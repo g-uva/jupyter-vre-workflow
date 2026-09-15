@@ -38,7 +38,7 @@ async function getUsername(panel: NotebookPanel): Promise<string> {
  * Initialization data for the Jupyter VRE Workflow extension.
  */
 const plugin: JupyterFrontEndPlugin<void> = {
-  id: 'ecojupyter',
+  id: 'jupyter-vre-workflow',
   description: 'Jupyter VRE Workflow',
   autoStart: true,
   requires: [ICommandPalette, ILayoutRestorer, INotebookTracker],
@@ -64,7 +64,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     ): Promise<MainAreaWidget<MainWidget>> => {
       const content = new MainWidget(username, panel);
       const widget = new MainAreaWidget({ content });
-      widget.id = 'gd-ecojupyter';
+      widget.id = 'jupyter-vre-workflow';
       widget.title.label = 'Jupyter VRE Workflow';
       widget.title.closable = true;
       return widget;
@@ -123,7 +123,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     // Ensure the tracker is restored properly on refresh.
     restorer?.restore(tracker, {
       command: openCommand,
-      name: () => 'gd-ecojupyter'
+      name: () => 'jupyter-vre-workflow'
     });
 
     const runCommand = `${namespaceId}:run-experiment`;

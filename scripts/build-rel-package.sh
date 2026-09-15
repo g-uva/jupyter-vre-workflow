@@ -41,13 +41,13 @@ fi
 # Activate conda env
 CONDA_BASE=$(conda info --base)
 source "$CONDA_BASE/etc/profile.d/conda.sh"
-if ! conda info --envs | grep -q "^ecojupyter"; then
-    echo "Conda environment 'ecojupyter' not found. Creating..."
-    conda create -y -n ecojupyter --override-channels --strict-channel-priority -c conda-forge -c nodefaults jupyterlab=4 nodejs=20 git
-    echo "Conda environment 'ecojupyter' created."
+if ! conda info --envs | grep -q "^jupyter-vre-workflow"; then
+    echo "Conda environment 'jupyter-vre-workflow' not found. Creating..."
+    conda create -y -n jupyter-vre-workflow --override-channels --strict-channel-priority -c conda-forge -c nodefaults jupyterlab=4 nodejs=20 git
+    echo "Conda environment 'jupyter-vre-workflow' created."
 fi
-conda activate ecojupyter
-echo "Conda environment 'ecojupyter' activated."
+conda activate jupyter-vre-workflow
+echo "Conda environment 'jupyter-vre-workflow' activated."
 
 # Auto-increment version in package.json
 echo "Bumping package.json version..."
@@ -69,23 +69,6 @@ fi
 version=$(grep '"version":' package.json | head -1 | sed -E 's/.*"version": *"([^"]+)".*/\1/')
 echo "Pushing current version $version"
 
-git commit -am "Bump version to $version - $COMMIT_MSG"
-
-# Create a new tag
-git tag "v$version"
-# Push the new tag to the remote repository
-git push origin "v$version"
-# Check if the tag push was successful
-if [ $? -eq 0 ]; then
-    echo "Successfully pushed tag v$version"
-else
-    echo "Failed to push tag v$version"
-    exit 1
-fi
-
-# Load the PYPI_TOKEN from .env (assumes "PYPI_TOKEN=\"tokenvalue\"" format)
-export PYPI_TOKEN=$(grep '^PYPI_TOKEN=' .env | cut -d '=' -f2- | tr -d '"')
-
 # Clean old builds
 echo "Cleaning previous builds..."
 rm -rf dist/ build/ *.egg-info
@@ -94,15 +77,22 @@ rm -rf dist/ build/ *.egg-info
 echo "Building the package..."
 python3 -m venv build-env
 source build-env/bin/activate
-pip install build
-python3 -m build -s
+python -m pip install build twine
+python -m build
+python -m twine check dist/*
+
+# Only create release state after both distributions validate.
+git commit -am "Bump version to $version - $COMMIT_MSG"
+git tag "v$version"
+git push origin "v$version"
+
+# Load credentials only immediately before upload; never print the token.
+export TWINE_PASSWORD=$(grep '^PYPI_TOKEN=' .env | cut -d '=' -f2- | tr -d '"')
 
 # Upload to PyPI
 echo "Uploading the package to PyPI..."
-python3 -m pip install --upgrade twine
 export TWINE_USERNAME="__token__"
-export TWINE_PASSWORD=$PYPI_TOKEN
-python3 -m twine upload dist/*
+python -m twine upload dist/*
 
 echo "Package uploaded successfully."
 echo "Cleaning up build environment..."

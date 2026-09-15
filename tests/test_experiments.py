@@ -11,8 +11,8 @@ from unittest.mock import patch
 import nbformat
 from jupyter_client.kernelspec import KernelSpecManager
 
-from ecojupyter.experiments import ExperimentManager
-from ecojupyter.telemetry import RaplReader
+from jupyter_vre_workflow.experiments import ExperimentManager
+from jupyter_vre_workflow.telemetry import RaplReader
 
 
 def zone(root, path, name, energy, maximum=100000000):
@@ -32,7 +32,7 @@ class RaplTests(unittest.TestCase):
             second = zone(root, 'intel-rapl:1', 'package-1', 10000000)
             zone(root, 'intel-rapl:0/intel-rapl:0:0', 'core', 500)
             reader = RaplReader(root)
-            with patch('ecojupyter.telemetry.time.monotonic', side_effect=[1, 3]):
+            with patch('jupyter_vre_workflow.telemetry.time.monotonic', side_effect=[1, 3]):
                 baseline = reader.sample()
                 first.write_text('10000000')
                 second.write_text('30000000')
@@ -64,7 +64,7 @@ class ExperimentTests(unittest.IsolatedAsyncioTestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         # A real kernel, isolated from user kernelspecs and stale executable paths.
-        kernel = self.root / 'kernels' / 'ecojupyter-test'
+        kernel = self.root / 'kernels' / 'jupyter-vre-workflow-test'
         kernel.mkdir(parents=True)
         (kernel / 'kernel.json').write_text(json.dumps({
             'argv': [sys.executable, '-m', 'ipykernel_launcher', '-f', '{connection_file}'],
@@ -86,7 +86,7 @@ class ExperimentTests(unittest.IsolatedAsyncioTestCase):
         notebook = nbformat.v4.new_notebook(cells=[nbformat.v4.new_markdown_cell('Start')]
             + [nbformat.v4.new_code_cell(source) for source in code]
             + [nbformat.v4.new_markdown_cell('End'), nbformat.v4.new_code_cell('')],
-            metadata={'kernelspec': {'name': 'ecojupyter-test', 'display_name': 'Test Python', 'language': 'python'}})
+            metadata={'kernelspec': {'name': 'jupyter-vre-workflow-test', 'display_name': 'Test Python', 'language': 'python'}})
         path = self.root / name
         path.parent.mkdir(parents=True, exist_ok=True)
         nbformat.write(notebook, path)
@@ -135,7 +135,7 @@ class ExperimentTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_unique_ids_same_timestamp_and_immediate_cancel(self):
         name, _ = self.notebook(['print(1)'])
-        with patch('ecojupyter.experiments.utc_now', return_value='2026-09-14T12:00:00.123456Z'):
+        with patch('jupyter_vre_workflow.experiments.utc_now', return_value='2026-09-14T12:00:00.123456Z'):
             first = self.manager.start(name)
             with self.assertRaisesRegex(ValueError, 'already has'):
                 self.manager.start(name)

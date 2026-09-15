@@ -1,7 +1,7 @@
 {
   "ServerApp": {
     "jpserver_extensions": {
-      "ecojupyter": true
+      "jupyter_vre_workflow": true
     }
   }
 }

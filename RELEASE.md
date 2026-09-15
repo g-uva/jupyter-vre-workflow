@@ -1,4 +1,4 @@
-# Making a new release of ecojupyter
+# Making a new release of jupyter-vre-workflow
 
 The extension can be published to `PyPI` and `npm` manually or using the [Jupyter Releaser](https://github.com/jupyter-server/jupyter_releaser).
 
@@ -37,6 +37,7 @@ To create a Python source package (`.tar.gz`) and the binary package (`.whl`) in
 
 ```bash
 python -m build
+python -m twine check dist/*
 ```
 
 > `python setup.py sdist bdist_wheel` is deprecated and will not work for this package.

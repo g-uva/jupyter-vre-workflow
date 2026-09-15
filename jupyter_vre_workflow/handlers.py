@@ -6,6 +6,7 @@ from shlex import quote
 from typing import Dict, List
 
 from jupyter_server.base.handlers import APIHandler
+from jupyter_server.utils import url_path_join
 from tornado import web
 
 from .experiments import ExperimentManager
@@ -252,3 +253,22 @@ class MetricsInstallHandler(APIHandler):
         self.write(f"event: {event}\n")
         self.write(f"data: {json.dumps(data)}\n\n")
         await self.flush()
+
+
+def setup_handlers(web_app):
+    """Register authenticated API handlers below Jupyter's configured base URL."""
+    base_url = web_app.settings.get("base_url", "/")
+    root_dir = web_app.settings["contents_manager"].root_dir
+    manager = ExperimentManager(root_dir)
+    namespace = url_path_join(base_url, "api", "jupyter-vre-workflow")
+    web_app.add_handlers(
+        ".*$",
+        [
+            (
+                url_path_join(namespace, "experiments"),
+                ExperimentsHandler,
+                {"manager": manager},
+            ),
+            (url_path_join(namespace, "run-install"), MetricsInstallHandler),
+        ],
+    )

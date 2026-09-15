@@ -39,7 +39,7 @@ node "$BUILDER" --development --core-path "$CORE_PATH" .
 import pathlib
 import sys
 
-link = pathlib.Path(sys.prefix) / 'share/jupyter/labextensions/ecojupyter'
+link = pathlib.Path(sys.prefix) / 'share/jupyter/labextensions/jupyter-vre-workflow'
 if link.is_symlink() and not link.exists():
     link.unlink()
 PY
@@ -52,7 +52,7 @@ try:
 except ImportError:
     from jupyterlab.federated_labextensions import develop_labextension
 
-develop_labextension('ecojupyter/labextension', destination='ecojupyter',
+develop_labextension('jupyter_vre_workflow/labextension', destination='jupyter-vre-workflow',
                      sys_prefix=True, overwrite=True)
 PY
 

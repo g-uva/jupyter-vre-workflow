@@ -11,7 +11,7 @@ export interface IInstalledModule {
 
 export type InstalledModules = Record<WorkflowModuleKey, IInstalledModule>;
 
-const MODULE_STATUS_STORAGE_KEY = 'ecojupyter.installedModules';
+const MODULE_STATUS_STORAGE_KEY = 'jupyter-vre-workflow.installedModules';
 
 export const DEFAULT_MODULE_STATUS: InstalledModules = {
   telemetry: { installed: true },
@@ -19,7 +19,9 @@ export const DEFAULT_MODULE_STATUS: InstalledModules = {
   orchestration: { installed: true }
 };
 
-function mergeModuleStatus(saved?: Partial<InstalledModules>): InstalledModules {
+function mergeModuleStatus(
+  saved?: Partial<InstalledModules>
+): InstalledModules {
   return {
     telemetry: {
       ...DEFAULT_MODULE_STATUS.telemetry,

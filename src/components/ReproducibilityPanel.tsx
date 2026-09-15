@@ -86,7 +86,7 @@ function makeSubmitSteps(cim: ICimStandard): ILogStep[] {
 }
 
 // ─── User config (persisted) ──────────────────────────────────────────────────
-const CONFIG_STORAGE_KEY = 'ecojupyter.userConfig';
+const CONFIG_STORAGE_KEY = 'jupyter-vre-workflow.userConfig';
 
 interface IUserConfig {
   creator: string;
@@ -169,7 +169,12 @@ function ConnectionCard({
       {rows && (
         <Stack gap={0.4}>
           {rows.map(row => (
-            <Stack key={row.label} direction="row" gap={1} alignItems="baseline">
+            <Stack
+              key={row.label}
+              direction="row"
+              gap={1}
+              alignItems="baseline"
+            >
               <Typography
                 variant="caption"
                 color="text.secondary"
@@ -200,7 +205,9 @@ function LogLine({ text, done }: { text: string; done: boolean }) {
   return (
     <Stack direction="row" alignItems="center" gap={1}>
       {done ? (
-        <CheckCircleOutlinedIcon sx={{ fontSize: 14, color: '#22c55e', flexShrink: 0 }} />
+        <CheckCircleOutlinedIcon
+          sx={{ fontSize: 14, color: '#22c55e', flexShrink: 0 }}
+        />
       ) : (
         <AutorenewIcon
           sx={{
@@ -227,7 +234,10 @@ interface IReproducibilityPanelProps {
   selectedWorkflow: string | null;
   selectedExperiment: string | null;
   onSubmit: (
-    args: Pick<IExportJsonProps, 'title' | 'creator' | 'email' | 'orcid' | 'token'>
+    args: Pick<
+      IExportJsonProps,
+      'title' | 'creator' | 'email' | 'orcid' | 'token'
+    >
   ) => void;
 }
 
@@ -296,9 +306,19 @@ export default function ReproducibilityPanel({
       {/* ── User config strip ── */}
       <Paper
         elevation={0}
-        sx={{ border: '1px solid #e2e8f0', borderRadius: '10px', p: 2, background: '#fff' }}
+        sx={{
+          border: '1px solid #e2e8f0',
+          borderRadius: '10px',
+          p: 2,
+          background: '#fff'
+        }}
       >
-        <Stack direction="row" alignItems="center" gap={1} mb={editing ? 1.5 : 0}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          gap={1}
+          mb={editing ? 1.5 : 0}
+        >
           <PersonOutlinedIcon sx={{ fontSize: 16, color: '#64748b' }} />
           <Typography
             variant="caption"
@@ -311,7 +331,11 @@ export default function ReproducibilityPanel({
           <Box sx={{ ml: 'auto' }}>
             {editing ? (
               <Tooltip title="Save config">
-                <IconButton size="small" onClick={handleSaveConfig} sx={{ color: '#1e40af' }}>
+                <IconButton
+                  size="small"
+                  onClick={handleSaveConfig}
+                  sx={{ color: '#1e40af' }}
+                >
                   <SaveOutlinedIcon sx={{ fontSize: 15 }} />
                 </IconButton>
               </Tooltip>
@@ -319,7 +343,10 @@ export default function ReproducibilityPanel({
               <Tooltip title="Edit config">
                 <IconButton
                   size="small"
-                  onClick={() => { setDraft(config); setEditing(true); }}
+                  onClick={() => {
+                    setDraft(config);
+                    setEditing(true);
+                  }}
                   sx={{ color: '#94a3b8' }}
                 >
                   <EditOutlinedIcon sx={{ fontSize: 15 }} />
@@ -330,7 +357,11 @@ export default function ReproducibilityPanel({
         </Stack>
 
         {editing ? (
-          <Stack direction={{ xs: 'column', md: 'row' }} gap={1.5} flexWrap="wrap">
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            gap={1.5}
+            flexWrap="wrap"
+          >
             <TextField
               label="Creator name"
               size="small"
@@ -365,13 +396,19 @@ export default function ReproducibilityPanel({
                 input: {
                   endAdornment: (
                     <InputAdornment position="end">
-                      <VpnKeyOutlinedIcon sx={{ fontSize: 14, color: '#94a3b8' }} />
+                      <VpnKeyOutlinedIcon
+                        sx={{ fontSize: 14, color: '#94a3b8' }}
+                      />
                     </InputAdornment>
                   )
                 }
               }}
             />
-            <Button size="small" onClick={handleSaveConfig} sx={{ alignSelf: 'flex-end' }}>
+            <Button
+              size="small"
+              onClick={handleSaveConfig}
+              sx={{ alignSelf: 'flex-end' }}
+            >
               Save
             </Button>
           </Stack>
@@ -387,22 +424,35 @@ export default function ReproducibilityPanel({
                 </Typography>
                 {config.orcid && (
                   <>
-                    <Typography variant="caption" color="text.disabled">·</Typography>
-                    <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
+                    <Typography variant="caption" color="text.disabled">
+                      ·
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{ fontFamily: 'monospace' }}
+                    >
                       {config.orcid}
                     </Typography>
                   </>
                 )}
                 {config.email && (
                   <>
-                    <Typography variant="caption" color="text.disabled">·</Typography>
+                    <Typography variant="caption" color="text.disabled">
+                      ·
+                    </Typography>
                     <Typography variant="caption">{config.email}</Typography>
                   </>
                 )}
                 {config.token && (
                   <>
-                    <Typography variant="caption" color="text.disabled">·</Typography>
-                    <Typography variant="caption" color="success.main" fontWeight={600}>
+                    <Typography variant="caption" color="text.disabled">
+                      ·
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="success.main"
+                      fontWeight={600}
+                    >
                       Token configured
                     </Typography>
                   </>
@@ -410,7 +460,8 @@ export default function ReproducibilityPanel({
               </>
             ) : (
               <Typography variant="caption" color="text.disabled">
-                No submitter configured — click edit to set your name, ORCID, email and token.
+                No submitter configured — click edit to set your name, ORCID,
+                email and token.
               </Typography>
             )}
           </Stack>
@@ -423,7 +474,12 @@ export default function ReproducibilityPanel({
           variant="caption"
           fontWeight={700}
           color="text.secondary"
-          sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', mb: 1 }}
+          sx={{
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+            display: 'block',
+            mb: 1
+          }}
         >
           Connections
         </Typography>
@@ -510,7 +566,12 @@ export default function ReproducibilityPanel({
       {/* ── Submit card ── */}
       <Paper
         elevation={0}
-        sx={{ border: '1px solid #e2e8f0', borderRadius: '10px', p: 2.5, background: '#fff' }}
+        sx={{
+          border: '1px solid #e2e8f0',
+          borderRadius: '10px',
+          p: 2.5,
+          background: '#fff'
+        }}
       >
         <Stack
           direction={{ xs: 'column', md: 'row' }}
@@ -533,12 +594,19 @@ export default function ReproducibilityPanel({
               <Chip
                 label={contextLabel}
                 size="small"
-                color={selectedWorkflow && selectedExperiment ? 'primary' : 'default'}
-                variant={selectedWorkflow && selectedExperiment ? 'filled' : 'outlined'}
+                color={
+                  selectedWorkflow && selectedExperiment ? 'primary' : 'default'
+                }
+                variant={
+                  selectedWorkflow && selectedExperiment ? 'filled' : 'outlined'
+                }
                 sx={{
                   fontSize: 11,
                   maxWidth: 320,
-                  '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' }
+                  '& .MuiChip-label': {
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }
                 }}
               />
               {submitted && (
@@ -561,7 +629,9 @@ export default function ReproducibilityPanel({
                 <AutorenewIcon
                   sx={{
                     animation: 'spin 1s linear infinite',
-                    '@keyframes spin': { '100%': { transform: 'rotate(360deg)' } }
+                    '@keyframes spin': {
+                      '100%': { transform: 'rotate(360deg)' }
+                    }
                   }}
                 />
               ) : (
@@ -579,20 +649,34 @@ export default function ReproducibilityPanel({
       {(log.length > 0 || submitting) && (
         <Paper
           elevation={0}
-          sx={{ border: '1px solid #e2e8f0', borderRadius: '10px', p: 2, background: '#f8fafc' }}
+          sx={{
+            border: '1px solid #e2e8f0',
+            borderRadius: '10px',
+            p: 2,
+            background: '#f8fafc'
+          }}
         >
           <Typography
             variant="caption"
             fontWeight={700}
             color="text.secondary"
-            sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', mb: 1 }}
+            sx={{
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              display: 'block',
+              mb: 1
+            }}
           >
             Submission log
           </Typography>
           <Divider sx={{ mb: 1.5 }} />
           <Stack gap={0.75}>
             {log.map((line, i) => (
-              <LogLine key={i} text={line} done={i < log.length - 1 || !submitting} />
+              <LogLine
+                key={i}
+                text={line}
+                done={i < log.length - 1 || !submitting}
+              />
             ))}
             {submitting && log.length < makeSubmitSteps(selectedCim).length && (
               <LogLine text="…" done={false} />

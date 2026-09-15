@@ -42,7 +42,7 @@ The old `.lib/experiments` files are left untouched. The new history selector re
 
 ## API and command line
 
-The authenticated Jupyter server endpoint is `api/ecojupyter/experiments` under the server's base URL:
+The authenticated Jupyter server endpoint is `api/jupyter-vre-workflow/experiments` under the server's base URL:
 
 - `POST` with `notebook_path` and optional notebook JSON: save and start; returns HTTP 202 and a run record.
 - `GET ?path=<run-folder>`: read run status and the latest chart samples.
@@ -53,7 +53,7 @@ Filesystem paths are constrained to the Jupyter ContentsManager's root. A filesy
 The same execution and saving code can be used without a browser:
 
 ```bash
-python -m ecojupyter.experiments /path/to/notebook.ipynb
+python -m jupyter_vre_workflow.experiments /path/to/notebook.ipynb
 ```
 
 Use an environment where the notebook's kernelspec and dependencies are available. Exit status is nonzero if notebook execution fails; inspect `telemetry.status` independently before using its measurements.

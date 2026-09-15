@@ -1,5 +1,5 @@
 ---
-id: ecojupyter
+id: jupyter-vre-workflow
 title: 2. Install Jupyter VRE Workflow
 sidebar_position: 2
 ---
@@ -11,7 +11,7 @@ Install the Python package inside the same environment where JupyterLab runs.
 ## From PyPI (recommended)
 
 ```bash
-pip install --upgrade ecojupyter
+pip install --upgrade jupyter-vre-workflow
 ```
 
 ## Restart and verify
@@ -27,7 +27,7 @@ pip install --upgrade ecojupyter
 For live-reload development, use the repository scripts instead of the PyPI package:
 
 ```bash
-git clone https://github.com/g-uva/EcoJupyter.git jupyter-vre-workflow
+git clone https://github.com/g-uva/jupyter-vre-workflow.git jupyter-vre-workflow
 cd jupyter-vre-workflow
 source .venv/bin/activate
 pip install -ve .
@@ -37,7 +37,7 @@ jupyter labextension develop --overwrite .
 yarn install && yarn watch
 ```
 
-See the [README](https://github.com/g-uva/EcoJupyter#development--extension-framework) for the full development workflow.
+See the [README](https://github.com/g-uva/jupyter-vre-workflow#development--extension-framework) for the full development workflow.
 
 ## Next step
 

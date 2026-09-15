@@ -17,10 +17,12 @@ Use **Run notebook as experiment** in the extension or command palette. Ordinary
 
 It works best with [L1EcoVRE](https://github.com/g-uva/L1EcoVRE) infrastructure configuration and scripts. _For more info please contact the main contributor._
 
-![Jupyter VRE Workflow main app](assets/EcoJupyter_screenshot.png)
+![Jupyter VRE Workflow main app](assets/jupyter-vre-workflow-screenshot.png)
 
 ## Installation
+
 In order to install the tool as an extension in Jupyter Notebook or Lab (not in development), simply install the tool in your Python environment where Jupyter is running.
+
 ```sh
 pip install --upgrade jupyter-vre-workflow
 ```
@@ -44,15 +46,19 @@ The Python package is published on PyPI and can be built locally via:
 ```bash
 ./scripts/build-rel-package.sh -m "Your release message"
 ```
+
 This script automatically bumps the version, commits, tags, builds, and uploads to PyPI.
 
 Before running it, create a `.env` file in the repo root with your PyPI token:
+
 ```
 PYPI_TOKEN="pypi-your-token-here"
 ```
+
 You can generate a token at [pypi.org/manage/account/token](https://pypi.org/manage/account/token/).
 
 #### Future Improvements
+
 - Version-based deployment: easily extendable via GitHub releases or semantic versioning.
 - CI/CD integration: GitHub Actions workflows are already present and can be extended for linting, testing, and publishing.
 - Custom builds: additional scripts like `install-conda.sh` and `uninstall-conda.sh` support environment setup and teardown, aiding reproducibility.
@@ -60,11 +66,13 @@ You can generate a token at [pypi.org/manage/account/token](https://pypi.org/man
 ## Project structure
 
 ### API definitions
-Tracked runs use the authenticated Jupyter server REST endpoint `api/ecojupyter/experiments` to create, inspect and cancel experiments. `ecojupyter/experiments.py` owns execution and persistence; `ecojupyter/telemetry.py` reads the counters. The frontend client is `src/api/experiments.ts`. Tracking no longer injects bookkeeping code into the interactive notebook kernel.
+
+Tracked runs use the authenticated Jupyter server REST endpoint `api/jupyter-vre-workflow/experiments` to create, inspect and cancel experiments. `jupyter_vre_workflow/experiments.py` owns execution and persistence; `jupyter_vre_workflow/telemetry.py` reads the counters. The frontend client is `src/api/experiments.ts`. Tracking no longer injects bookkeeping code into the interactive notebook kernel.
 
 Run the backend tests with `python -m unittest discover -s tests -v` in an environment with the project dependencies and `ipykernel` installed.
 
 ### Folder Structure
+
 ```txt
 Jupyter VRE Workflow/
 ├── .copier-answers.yml
@@ -92,8 +100,8 @@ Jupyter VRE Workflow/
 │       ├── publish-release.yml
 │       └── update-integration-tests.yml
 ├── assets
-│   └── EcoJupyter_screenshot.png
-├── ecojupyter
+│   └── jupyter-vre-workflow-screenshot.png
+├── jupyter_vre_workflow
 │   └── __init__.py
 └── scripts
 │   ├── add-catalogue-entry.sh
