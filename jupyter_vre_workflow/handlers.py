@@ -1,6 +1,8 @@
 import asyncio
 import json
 import nbformat
+import os
+import shutil
 from pathlib import Path
 from shlex import quote
 from typing import Dict, List
@@ -61,6 +63,7 @@ SCAPHANDRE_SRC_DIR = str(Path(INSTALL_DIR) / "scaphandre-src")
 Q_SCAPHANDRE_SRC_DIR = quote(SCAPHANDRE_SRC_DIR)
 PROMETHEUS_DIR = str(Path(INSTALL_DIR) / "prometheus-unzipped")
 Q_PROMETHEUS_DIR = quote(PROMETHEUS_DIR)
+PROMETHEUS_BIN = str(Path(PROMETHEUS_DIR) / "prometheus")
 PROMETHEUS_CONFIG = str(Path(INSTALL_DIR) / "prometheus.yml")
 Q_PROMETHEUS_CONFIG = quote(PROMETHEUS_CONFIG)
 SCAPHANDRE_LOG = str(Path(INSTALL_DIR) / "scaphandre.log")
@@ -200,6 +203,39 @@ STEPS: List[Dict[str, str]] = [
 ]
 
 
+def _installed_executable(configured_path: str, command: str):
+    """Return installation details for a configured or PATH executable."""
+    resolved_path = (
+        configured_path
+        if os.access(configured_path, os.X_OK)
+        else shutil.which(command)
+    )
+    return {
+        "installed": resolved_path is not None,
+        "path": resolved_path,
+    }
+
+
+def get_module_status():
+    scaphandre = _installed_executable(SCAPHANDRE_BIN, "scaphandre")
+    prometheus = _installed_executable(PROMETHEUS_BIN, "prometheus")
+    return {
+        "telemetry": {
+            "installed": scaphandre["installed"] and prometheus["installed"],
+            "components": {
+                "prometheus": prometheus,
+                "scaphandre": scaphandre,
+            },
+        }
+    }
+
+
+class ModuleStatusHandler(APIHandler):
+    @web.authenticated
+    async def get(self):
+        self.finish(get_module_status())
+
+
 class MetricsInstallHandler(APIHandler):
     @web.authenticated
     async def get(self):
@@ -276,6 +312,7 @@ def setup_handlers(web_app):
                 ExperimentsHandler,
                 {"manager": manager},
             ),
+            (url_path_join(namespace, "module-status"), ModuleStatusHandler),
             (url_path_join(namespace, "run-install"), MetricsInstallHandler),
         ],
     )

@@ -40,7 +40,9 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import {
   DEFAULT_MODULE_STATUS,
   InstalledModules,
+  ITelemetryStatus,
   WorkflowModuleKey,
+  getTelemetryStatus,
   loadModuleStatus,
   markModuleInstalled
 } from '../api/moduleStatus';
@@ -234,6 +236,10 @@ export default function WelcomePage({ panel }: IWelcomePage) {
   const [installLabel, setInstallLabel] = React.useState<string>('');
   const [installError, setInstallError] = React.useState<string>('');
   const [installLogs, setInstallLogs] = React.useState<string[]>([]);
+  const [telemetryStatus, setTelemetryStatus] =
+    React.useState<ITelemetryStatus | null>(null);
+  const [checkingTelemetry, setCheckingTelemetry] = React.useState(true);
+  const [telemetryStatusError, setTelemetryStatusError] = React.useState('');
   const [moduleStatus, setModuleStatus] = React.useState<InstalledModules>(
     DEFAULT_MODULE_STATUS
   );
@@ -464,16 +470,45 @@ export default function WelcomePage({ panel }: IWelcomePage) {
           setInstallLogs(currentLogs => [...currentLogs, log.text]);
         }
       });
+      const detectedStatus = await refreshTelemetryStatus();
+      if (!detectedStatus?.installed) {
+        throw new Error(
+          'Installation finished, but Prometheus and Scaphandre could not both be detected.'
+        );
+      }
       setInstallProgress(100);
       setInstallLabel('Metrics agent installation complete');
-      const updatedStatus = markModuleInstalled(moduleStatus, 'telemetry');
-      setModuleStatus(updatedStatus);
     } catch (error) {
       console.error(error);
       setInstallLabel('Metrics agent installation failed');
       setInstallError(error instanceof Error ? error.message : String(error));
     } finally {
       setInstallingMetrics(false);
+    }
+  }
+
+  async function refreshTelemetryStatus(): Promise<ITelemetryStatus | null> {
+    setCheckingTelemetry(true);
+    setTelemetryStatusError('');
+    try {
+      const status = await getTelemetryStatus();
+      setTelemetryStatus(status);
+      setModuleStatus(current => ({
+        ...current,
+        telemetry: { installed: status.installed }
+      }));
+      return status;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setTelemetryStatus(null);
+      setTelemetryStatusError(message);
+      setModuleStatus(current => ({
+        ...current,
+        telemetry: { installed: false }
+      }));
+      return null;
+    } finally {
+      setCheckingTelemetry(false);
     }
   }
 
@@ -494,6 +529,7 @@ export default function WelcomePage({ panel }: IWelcomePage) {
 
   React.useEffect(() => {
     setModuleStatus(loadModuleStatus());
+    void refreshTelemetryStatus();
   }, []);
 
   React.useEffect(() => {
@@ -560,6 +596,36 @@ export default function WelcomePage({ panel }: IWelcomePage) {
     selectedWorkflow && selectedExperiment
       ? `${selectedWorkflow} / ${selectedExperiment}`
       : 'No experiment selected';
+
+  const telemetryStatusDetails = (
+    <Stack direction="row" gap={1} justifyContent="center" flexWrap="wrap">
+      <Chip
+        size="small"
+        label={`Prometheus: ${checkingTelemetry ? 'checking' : telemetryStatus?.components.prometheus.installed ? 'installed' : 'missing'}`}
+        color={
+          telemetryStatus?.components.prometheus.installed
+            ? 'success'
+            : 'default'
+        }
+        variant="outlined"
+      />
+      <Chip
+        size="small"
+        label={`Scaphandre: ${checkingTelemetry ? 'checking' : telemetryStatus?.components.scaphandre.installed ? 'installed' : 'missing'}`}
+        color={
+          telemetryStatus?.components.scaphandre.installed
+            ? 'success'
+            : 'default'
+        }
+        variant="outlined"
+      />
+      {telemetryStatusError && (
+        <Typography variant="caption" color="error">
+          {telemetryStatusError}
+        </Typography>
+      )}
+    </Stack>
+  );
 
   return (
     <>
@@ -726,6 +792,9 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                   installLabel={installLabel}
                   installLogs={installLogs}
                   metricsInstalled={moduleStatus.telemetry.installed}
+                  telemetryStatus={telemetryStatus}
+                  checkingTelemetry={checkingTelemetry}
+                  telemetryStatusError={telemetryStatusError}
                   showProgress={false}
                 />
               </Box>
@@ -737,6 +806,8 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                   installLabel={installLabel}
                   installError={installError}
                   installProgress={installProgress}
+                  installLogs={installLogs}
+                  statusDetails={telemetryStatusDetails}
                   onInstall={() => handleInstallModule('telemetry')}
                 >
                   <KPIComponent rawMetrics={dataMap} />
@@ -756,6 +827,9 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                           installLabel={installLabel}
                           installLogs={installLogs}
                           metricsInstalled={moduleStatus.telemetry.installed}
+                          telemetryStatus={telemetryStatus}
+                          checkingTelemetry={checkingTelemetry}
+                          telemetryStatusError={telemetryStatusError}
                           showControls={false}
                         />
                       </Grid2>

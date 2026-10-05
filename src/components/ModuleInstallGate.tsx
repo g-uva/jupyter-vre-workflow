@@ -17,6 +17,8 @@ interface IModuleInstallGateProps {
   installLabel?: string;
   installError?: string;
   installProgress?: number;
+  installLogs?: string[];
+  statusDetails?: React.ReactNode;
   onInstall: () => void;
   children: React.ReactNode;
 }
@@ -64,6 +66,8 @@ export default function ModuleInstallGate({
   installLabel,
   installError,
   installProgress = 0,
+  installLogs = [],
+  statusDetails,
   onInstall,
   children
 }: IModuleInstallGateProps) {
@@ -94,6 +98,7 @@ export default function ModuleInstallGate({
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
               This module is not installed.
             </Typography>
+            {statusDetails && <Box sx={{ mb: 2 }}>{statusDetails}</Box>}
             {installing && (
               <Box sx={{ mb: 2 }}>
                 <Typography
@@ -105,6 +110,31 @@ export default function ModuleInstallGate({
                   {installLabel || `Installing ${moduleName}`}
                 </Typography>
                 <LinearProgress variant="determinate" value={installProgress} />
+                {installLogs.length > 0 && (
+                  <Box
+                    sx={{
+                      mt: 1,
+                      maxHeight: 96,
+                      overflow: 'auto',
+                      textAlign: 'left',
+                      border: '1px solid #e5eaf0',
+                      borderRadius: '8px',
+                      p: 1,
+                      background: '#fbfcfe'
+                    }}
+                  >
+                    {installLogs.slice(-6).map((log, index) => (
+                      <Typography
+                        key={`${index}-${log}`}
+                        variant="caption"
+                        component="div"
+                        sx={{ whiteSpace: 'pre-wrap' }}
+                      >
+                        {log}
+                      </Typography>
+                    ))}
+                  </Box>
+                )}
               </Box>
             )}
             {!installing && installError && (

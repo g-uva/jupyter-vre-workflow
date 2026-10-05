@@ -2,12 +2,14 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import jupyter_vre_workflow
 from jupyter_vre_workflow.handlers import (
     ExperimentsHandler,
     MetricsInstallHandler,
+    ModuleStatusHandler,
+    get_module_status,
     setup_handlers,
 )
 
@@ -37,14 +39,16 @@ class ServerExtensionTests(unittest.TestCase):
             [route for route, *_ in handlers],
             [
                 "/services/notebooks/api/jupyter-vre-workflow/experiments",
+                "/services/notebooks/api/jupyter-vre-workflow/module-status",
                 "/services/notebooks/api/jupyter-vre-workflow/run-install",
             ],
         )
         self.assertIs(handlers[0][1], ExperimentsHandler)
         self.assertEqual(Path(handlers[0][2]["manager"].root), Path(root_dir))
-        self.assertIs(handlers[1][1], MetricsInstallHandler)
+        self.assertIs(handlers[1][1], ModuleStatusHandler)
+        self.assertIs(handlers[2][1], MetricsInstallHandler)
 
-    def test_loader_registers_both_handlers(self):
+    def test_loader_registers_all_handlers(self):
         with TemporaryDirectory() as root_dir:
             web_app = SimpleNamespace(
                 settings={
@@ -55,7 +59,25 @@ class ServerExtensionTests(unittest.TestCase):
             )
             server_app = SimpleNamespace(web_app=web_app, log=Mock())
             jupyter_vre_workflow._load_jupyter_server_extension(server_app)
-        self.assertEqual(len(web_app.add_handlers.call_args.args[1]), 2)
+        self.assertEqual(len(web_app.add_handlers.call_args.args[1]), 3)
+
+    def test_module_status_requires_both_telemetry_executables(self):
+        with patch(
+            "jupyter_vre_workflow.handlers._installed_executable"
+        ) as installed_executable:
+            installed_executable.side_effect = [
+                {"installed": True, "path": "/bin/scaphandre"},
+                {"installed": False, "path": None},
+            ]
+            status = get_module_status()
+
+        self.assertFalse(status["telemetry"]["installed"])
+        self.assertTrue(
+            status["telemetry"]["components"]["scaphandre"]["installed"]
+        )
+        self.assertFalse(
+            status["telemetry"]["components"]["prometheus"]["installed"]
+        )
 
     def test_frontend_uses_canonical_experiments_url(self):
         source = Path("src/api/experiments.ts").read_text()

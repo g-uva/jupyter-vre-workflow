@@ -1,6 +1,7 @@
 // Dev-only Express mirror of the Jupyter Server installer endpoint.
 import express, { Request, Response } from 'express';
 import { spawn } from 'child_process';
+import { accessSync, constants } from 'fs';
 import { homedir } from 'os';
 
 const app = express();
@@ -10,7 +11,17 @@ const SCAPHANDRE_VERSION = 'v1.0.0';
 const SCAPHANDRE_BIN = `${INSTALL_DIR}/scaphandre`;
 const SCAPHANDRE_SRC_DIR = `${INSTALL_DIR}/scaphandre-src`;
 const PROMETHEUS_DIR = `${INSTALL_DIR}/prometheus-unzipped`;
+const PROMETHEUS_BIN = `${PROMETHEUS_DIR}/prometheus`;
 const PROMETHEUS_CONFIG = `${INSTALL_DIR}/prometheus.yml`;
+
+function isExecutable(path: string): boolean {
+  try {
+    accessSync(path, constants.X_OK);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
 
 // Define your ordered steps:
 const STEPS: { label: string; cmd: string }[] = [
@@ -114,6 +125,26 @@ const STEPS: { label: string; cmd: string }[] = [
     ].join('\n')
   }
 ];
+
+app.get('/api/jupyter-vre-workflow/module-status', (_req, res) => {
+  const prometheusInstalled = isExecutable(PROMETHEUS_BIN);
+  const scaphandreInstalled = isExecutable(SCAPHANDRE_BIN);
+  res.json({
+    telemetry: {
+      installed: prometheusInstalled && scaphandreInstalled,
+      components: {
+        prometheus: {
+          installed: prometheusInstalled,
+          path: prometheusInstalled ? PROMETHEUS_BIN : null
+        },
+        scaphandre: {
+          installed: scaphandreInstalled,
+          path: scaphandreInstalled ? SCAPHANDRE_BIN : null
+        }
+      }
+    }
+  });
+});
 
 app.get(
   '/api/jupyter-vre-workflow/run-install',

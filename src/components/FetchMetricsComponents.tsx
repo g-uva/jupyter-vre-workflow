@@ -3,6 +3,8 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
+  CircularProgress,
   FormControlLabel,
   IconButton,
   LinearProgress,
@@ -17,6 +19,7 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import SystemUpdateAltOutlinedIcon from '@mui/icons-material/SystemUpdateAltOutlined';
+import { ITelemetryStatus } from '../api/moduleStatus';
 
 interface IFetchMetricsComponent {
   fetchMetrics: () => void;
@@ -30,6 +33,9 @@ interface IFetchMetricsComponent {
   installLabel: string;
   installLogs: string[];
   metricsInstalled: boolean;
+  telemetryStatus: ITelemetryStatus | null;
+  checkingTelemetry: boolean;
+  telemetryStatusError: string;
   showControls?: boolean;
   showProgress?: boolean;
   showInstaller?: boolean;
@@ -47,6 +53,9 @@ export default function FetchMetricsComponent({
   installLabel,
   installLogs,
   metricsInstalled,
+  telemetryStatus,
+  checkingTelemetry,
+  telemetryStatusError,
   showControls = true,
   showProgress = true,
   showInstaller = true
@@ -75,14 +84,38 @@ export default function FetchMetricsComponent({
           justifyContent="flex-end"
           sx={{ ...styles.buttonGrid, mb: 0 }}
         >
-          {showInstaller && metricsInstalled && (
-            <Typography
-              variant="caption"
-              color="success.main"
-              sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}
-            >
-              Telemetry module installed
-            </Typography>
+          {showInstaller && (
+            <Stack direction="row" gap={0.75} alignItems="center">
+              {checkingTelemetry ? (
+                <>
+                  <CircularProgress size={14} />
+                  <Typography variant="caption">Checking telemetry</Typography>
+                </>
+              ) : (
+                <>
+                  <Chip
+                    size="small"
+                    label={`Prometheus: ${telemetryStatus?.components.prometheus.installed ? 'installed' : 'missing'}`}
+                    color={
+                      telemetryStatus?.components.prometheus.installed
+                        ? 'success'
+                        : 'default'
+                    }
+                    variant="outlined"
+                  />
+                  <Chip
+                    size="small"
+                    label={`Scaphandre: ${telemetryStatus?.components.scaphandre.installed ? 'installed' : 'missing'}`}
+                    color={
+                      telemetryStatus?.components.scaphandre.installed
+                        ? 'success'
+                        : 'default'
+                    }
+                    variant="outlined"
+                  />
+                </>
+              )}
+            </Stack>
           )}
           <Tooltip title="Refresh metrics">
             <IconButton
@@ -111,25 +144,86 @@ export default function FetchMetricsComponent({
           >
             <Box sx={{ px: 2, py: 1.5, width: 280 }}>
               {showInstaller && (
-                <Button
-                  variant="outlined"
-                  onClick={handleInstallMetrics}
-                  size="small"
-                  fullWidth
-                  sx={{ mb: 1.5, justifyContent: 'flex-start' }}
-                  startIcon={
-                    metricsInstalled ? (
-                      <SystemUpdateAltOutlinedIcon />
-                    ) : (
-                      <DownloadOutlinedIcon />
-                    )
-                  }
-                  disabled={installingMetrics}
-                >
-                  {metricsInstalled
-                    ? 'Update telemetry module'
-                    : 'Install telemetry module'}
-                </Button>
+                <>
+                  <Button
+                    variant="outlined"
+                    onClick={handleInstallMetrics}
+                    size="small"
+                    fullWidth
+                    sx={{ mb: 1.5, justifyContent: 'flex-start' }}
+                    startIcon={
+                      installingMetrics ? (
+                        <CircularProgress color="inherit" size={16} />
+                      ) : metricsInstalled ? (
+                        <SystemUpdateAltOutlinedIcon />
+                      ) : (
+                        <DownloadOutlinedIcon />
+                      )
+                    }
+                    disabled={installingMetrics || checkingTelemetry}
+                  >
+                    {installingMetrics
+                      ? installLabel || 'Installing telemetry module'
+                      : metricsInstalled
+                        ? 'Update telemetry module'
+                        : 'Install telemetry module'}
+                  </Button>
+                  {(installingMetrics || installProgress > 0) && (
+                    <Box sx={{ mb: 1.5 }}>
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        gap={2}
+                      >
+                        <Typography variant="caption" color="text.secondary">
+                          {installLabel || 'Installing metrics agent'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {installProgress}%
+                        </Typography>
+                      </Stack>
+                      <LinearProgress
+                        variant="determinate"
+                        value={installProgress}
+                        sx={{ mt: 0.5 }}
+                      />
+                      {installLogs.length > 0 && (
+                        <Box
+                          sx={{
+                            mt: 1,
+                            maxHeight: 96,
+                            overflow: 'auto',
+                            border: '1px solid #e5eaf0',
+                            borderRadius: '8px',
+                            p: 1,
+                            background: '#fbfcfe'
+                          }}
+                        >
+                          {installLogs.slice(-6).map((log, index) => (
+                            <Typography
+                              key={`${index}-${log}`}
+                              variant="caption"
+                              component="div"
+                              sx={{ whiteSpace: 'pre-wrap' }}
+                            >
+                              {log}
+                            </Typography>
+                          ))}
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+                  {telemetryStatusError && (
+                    <Typography
+                      variant="caption"
+                      color="error"
+                      component="div"
+                      sx={{ mb: 1.5 }}
+                    >
+                      {telemetryStatusError}
+                    </Typography>
+                  )}
+                </>
               )}
               <FormControlLabel
                 control={

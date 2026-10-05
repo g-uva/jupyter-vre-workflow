@@ -1,3 +1,5 @@
+import { ServerConnection } from '@jupyterlab/services';
+
 export type WorkflowModuleKey =
   | 'telemetry'
   | 'reproducibility'
@@ -9,14 +11,27 @@ export interface IInstalledModule {
   installedAt?: string;
 }
 
+export interface ITelemetryComponentStatus {
+  installed: boolean;
+  path: string | null;
+}
+
+export interface ITelemetryStatus {
+  installed: boolean;
+  components: {
+    prometheus: ITelemetryComponentStatus;
+    scaphandre: ITelemetryComponentStatus;
+  };
+}
+
 export type InstalledModules = Record<WorkflowModuleKey, IInstalledModule>;
 
 const MODULE_STATUS_STORAGE_KEY = 'jupyter-vre-workflow.installedModules';
 
 export const DEFAULT_MODULE_STATUS: InstalledModules = {
-  telemetry: { installed: true },
-  reproducibility: { installed: true },
-  orchestration: { installed: true }
+  telemetry: { installed: false },
+  reproducibility: { installed: false },
+  orchestration: { installed: false }
 };
 
 function mergeModuleStatus(
@@ -24,8 +39,7 @@ function mergeModuleStatus(
 ): InstalledModules {
   return {
     telemetry: {
-      ...DEFAULT_MODULE_STATUS.telemetry,
-      ...saved?.telemetry
+      ...DEFAULT_MODULE_STATUS.telemetry
     },
     reproducibility: {
       ...DEFAULT_MODULE_STATUS.reproducibility,
@@ -36,6 +50,23 @@ function mergeModuleStatus(
       ...saved?.orchestration
     }
   };
+}
+
+export async function getTelemetryStatus(): Promise<ITelemetryStatus> {
+  const settings = ServerConnection.makeSettings();
+  const requestUrl = `${settings.baseUrl.replace(/\/?$/, '/')}api/jupyter-vre-workflow/module-status`;
+  const response = await ServerConnection.makeRequest(
+    requestUrl,
+    { method: 'GET' },
+    settings
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Telemetry status check failed (${response.status}): ${await response.text()}`
+    );
+  }
+  const result = (await response.json()) as { telemetry: ITelemetryStatus };
+  return result.telemetry;
 }
 
 export function loadModuleStatus(): InstalledModules {
