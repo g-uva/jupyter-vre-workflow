@@ -30,7 +30,8 @@ const styles: Record<string, React.CSSProperties> = {
     flexWrap: 'wrap',
     boxSizing: 'border-box',
     padding: '3px',
-    minHeight: 0
+    minHeight: 0,
+    overflow: 'hidden'
   },
   grid: {
     display: 'flex',
@@ -42,7 +43,9 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
     height: '100%',
     minHeight: 0,
-    overflow: 'hidden',
+    overflowX: 'hidden',
+    overflowY: 'auto',
+    scrollbarGutter: 'stable',
     padding: '10px'
   }
 };

@@ -64,12 +64,14 @@ export const styles: Record<string, SxProps> = {
     flexDirection: 'column',
     width: '100%',
     height: '100%',
-    minHeight: 0,
+    minHeight: '100%',
     gap: 2,
     p: 2,
     background: '#f6f8fb',
     boxSizing: 'border-box',
-    overflow: 'hidden'
+    overflowX: 'hidden',
+    overflowY: 'auto',
+    scrollbarGutter: 'stable'
   },
   title: {
     fontWeight: 700,
@@ -136,8 +138,8 @@ export const styles: Record<string, SxProps> = {
   },
   moduleShell: {
     width: '100%',
-    flex: 1,
-    minHeight: 0,
+    flex: '1 0 420px',
+    minHeight: 420,
     display: 'flex',
     flexDirection: 'column',
     border: '1px solid #d7dde6',
@@ -177,8 +179,11 @@ export const styles: Record<string, SxProps> = {
   },
   moduleBody: {
     flex: 1,
-    minHeight: 0,
-    overflow: 'auto',
+    minHeight: 280,
+    overflowX: 'auto',
+    overflowY: 'auto',
+    scrollbarGutter: 'stable',
+    overscrollBehavior: 'contain',
     p: 2
   },
   emptyState: {

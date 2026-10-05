@@ -29,7 +29,7 @@ interface IModuleInstallGateProps {
 const styles: Record<string, SxProps> = {
   root: {
     position: 'relative',
-    minHeight: 260
+    minHeight: 320
   },
   content: {
     transition: 'filter 160ms ease, opacity 160ms ease'
@@ -49,11 +49,16 @@ const styles: Record<string, SxProps> = {
     justifyContent: 'center',
     px: 2,
     pt: { xs: 4, md: 6 },
+    overflowY: 'auto',
+    scrollbarGutter: 'stable',
     background: 'rgba(248, 250, 252, 0.48)',
     backdropFilter: 'blur(2px)'
   },
   dialog: {
     width: 'min(420px, 100%)',
+    minHeight: 180,
+    maxHeight: 'calc(100% - 32px)',
+    overflowY: 'auto',
     p: 3,
     border: '1px solid #d7dde6',
     borderRadius: '8px',

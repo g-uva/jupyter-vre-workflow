@@ -34,7 +34,16 @@ export default function ExperimentRunPanel({
   const running = run?.status === 'running';
   const baseUrl = ServerConnection.makeSettings().baseUrl.replace(/\/?$/, '/');
   return (
-    <Paper variant="outlined" sx={{ p: 2, flexShrink: 0 }}>
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2,
+        flexShrink: 0,
+        minHeight: 120,
+        boxSizing: 'border-box',
+        overflowX: 'auto'
+      }}
+    >
       <Stack direction="row" gap={2} alignItems="center" flexWrap="wrap">
         <Button
           onClick={onStart}
@@ -105,13 +114,16 @@ export default function ExperimentRunPanel({
           severity="error"
           sx={{
             mt: 1,
-            height: 220,
+            minHeight: 160,
+            height: 'clamp(160px, 24vh, 240px)',
             boxSizing: 'border-box',
             alignItems: 'flex-start',
             '& .MuiAlert-message': {
               width: '100%',
               height: '100%',
-              overflow: 'auto',
+              overflowX: 'auto',
+              overflowY: 'auto',
+              scrollbarGutter: 'stable',
               whiteSpace: 'pre-wrap'
             }
           }}
