@@ -202,19 +202,25 @@ enum WorkflowModule {
 
 const MODULE_DETAILS: Record<
   WorkflowModule,
-  { key: WorkflowModuleKey; label: string }
+  { key: WorkflowModuleKey; label: string; prerequisiteText: string }
 > = {
   [WorkflowModule.Telemetry]: {
     key: 'telemetry',
-    label: 'Telemetry'
+    label: 'Telemetry',
+    prerequisiteText:
+      'Requires Scaphandre and Prometheus. RAPL availability is checked for each notebook experiment.'
   },
   [WorkflowModule.Reproducibility]: {
     key: 'reproducibility',
-    label: 'Reproducibility'
+    label: 'Reproducibility',
+    prerequisiteText:
+      'Requires the metadata schema and an FDMI connection to be configured.'
   },
   [WorkflowModule.Orchestration]: {
     key: 'orchestration',
-    label: 'Orchestration'
+    label: 'Orchestration',
+    prerequisiteText:
+      'Requires an active connection to a Virtual Organisation (VO).'
   }
 };
 
@@ -801,6 +807,9 @@ export default function WelcomePage({ panel }: IWelcomePage) {
               <Box sx={styles.moduleBody}>
                 <ModuleInstallGate
                   moduleName={MODULE_DETAILS[WorkflowModule.Telemetry].label}
+                  prerequisiteText={
+                    MODULE_DETAILS[WorkflowModule.Telemetry].prerequisiteText
+                  }
                   installed={moduleStatus.telemetry.installed}
                   installing={installingMetrics}
                   installLabel={installLabel}
@@ -862,6 +871,10 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                   moduleName={
                     MODULE_DETAILS[WorkflowModule.Reproducibility].label
                   }
+                  prerequisiteText={
+                    MODULE_DETAILS[WorkflowModule.Reproducibility]
+                      .prerequisiteText
+                  }
                   installed={moduleStatus.reproducibility.installed}
                   onInstall={() => handleInstallModule('reproducibility')}
                 >
@@ -890,6 +903,10 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                 <ModuleInstallGate
                   moduleName={
                     MODULE_DETAILS[WorkflowModule.Orchestration].label
+                  }
+                  prerequisiteText={
+                    MODULE_DETAILS[WorkflowModule.Orchestration]
+                      .prerequisiteText
                   }
                   installed={moduleStatus.orchestration.installed}
                   onInstall={() => handleInstallModule('orchestration')}

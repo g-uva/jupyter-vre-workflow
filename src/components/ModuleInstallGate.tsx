@@ -12,6 +12,7 @@ import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 
 interface IModuleInstallGateProps {
   moduleName: string;
+  prerequisiteText?: string;
   installed: boolean;
   installing?: boolean;
   installLabel?: string;
@@ -61,6 +62,7 @@ const styles: Record<string, SxProps> = {
 
 export default function ModuleInstallGate({
   moduleName,
+  prerequisiteText,
   installed,
   installing = false,
   installLabel,
@@ -71,22 +73,11 @@ export default function ModuleInstallGate({
   onInstall,
   children
 }: IModuleInstallGateProps) {
-  const [showErrorDialog, setShowErrorDialog] = React.useState(true);
-
-  React.useEffect(() => {
-    setShowErrorDialog(true);
-  }, [installError, installing]);
-
-  const showOverlay = !installed && (!installError || showErrorDialog);
-  const lockContent = !installed && showOverlay;
+  const showOverlay = !installed;
+  const lockContent = !installed;
   const contentSx = (
     lockContent ? [styles.content, styles.lockedContent] : styles.content
   ) as SxProps;
-
-  function handleInstallClick() {
-    setShowErrorDialog(true);
-    onInstall();
-  }
 
   return (
     <Box sx={styles.root}>
@@ -98,6 +89,11 @@ export default function ModuleInstallGate({
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
               This module is not installed.
             </Typography>
+            {prerequisiteText && (
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {prerequisiteText}
+              </Typography>
+            )}
             {statusDetails && <Box sx={{ mb: 2 }}>{statusDetails}</Box>}
             {installing && (
               <Box sx={{ mb: 2 }}>
@@ -110,31 +106,6 @@ export default function ModuleInstallGate({
                   {installLabel || `Installing ${moduleName}`}
                 </Typography>
                 <LinearProgress variant="determinate" value={installProgress} />
-                {installLogs.length > 0 && (
-                  <Box
-                    sx={{
-                      mt: 1,
-                      maxHeight: 96,
-                      overflow: 'auto',
-                      textAlign: 'left',
-                      border: '1px solid #e5eaf0',
-                      borderRadius: '8px',
-                      p: 1,
-                      background: '#fbfcfe'
-                    }}
-                  >
-                    {installLogs.slice(-6).map((log, index) => (
-                      <Typography
-                        key={`${index}-${log}`}
-                        variant="caption"
-                        component="div"
-                        sx={{ whiteSpace: 'pre-wrap' }}
-                      >
-                        {log}
-                      </Typography>
-                    ))}
-                  </Box>
-                )}
               </Box>
             )}
             {!installing && installError && (
@@ -147,8 +118,33 @@ export default function ModuleInstallGate({
                 {installError}
               </Typography>
             )}
+            {installLogs.length > 0 && (
+              <Box
+                sx={{
+                  mb: 2,
+                  maxHeight: 96,
+                  overflow: 'auto',
+                  textAlign: 'left',
+                  border: '1px solid #e5eaf0',
+                  borderRadius: '8px',
+                  p: 1,
+                  background: '#fbfcfe'
+                }}
+              >
+                {installLogs.slice(-6).map((log, index) => (
+                  <Typography
+                    key={`${index}-${log}`}
+                    variant="caption"
+                    component="div"
+                    sx={{ whiteSpace: 'pre-wrap' }}
+                  >
+                    {log}
+                  </Typography>
+                ))}
+              </Box>
+            )}
             <Button
-              onClick={handleInstallClick}
+              onClick={onInstall}
               disabled={installing}
               startIcon={
                 installing ? (
@@ -160,15 +156,6 @@ export default function ModuleInstallGate({
             >
               Install {moduleName}
             </Button>
-            {!installing && installError && (
-              <Button
-                size="small"
-                onClick={() => setShowErrorDialog(false)}
-                sx={{ mt: 1 }}
-              >
-                Show logs
-              </Button>
-            )}
           </Paper>
         </Box>
       )}
