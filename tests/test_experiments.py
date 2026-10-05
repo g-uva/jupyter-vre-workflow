@@ -133,6 +133,28 @@ class ExperimentTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(executed.cells[2].execution_count)
         self.assertEqual(result['completed_code_cells'], 0)
 
+    async def test_delete_completed_experiment_and_empty_parents(self):
+        name, _ = self.notebook(['print("done")'])
+        result = await self.finish(self.manager.start(name))
+        folder = self.root / result['path']
+        workflow_folder = folder.parent
+        experiments_folder = workflow_folder.parent
+
+        self.manager.delete(result['path'])
+
+        self.assertFalse(folder.exists())
+        self.assertFalse(workflow_folder.exists())
+        self.assertFalse(experiments_folder.exists())
+        with self.assertRaisesRegex(ValueError, 'does not exist'):
+            self.manager.delete(result['path'])
+
+    async def test_running_experiment_must_be_cancelled_before_delete(self):
+        name, _ = self.notebook(['import time\ntime.sleep(60)'])
+        record = self.manager.start(name)
+        with self.assertRaisesRegex(ValueError, 'Cancel the running'):
+            self.manager.delete(record['path'])
+        self.assertTrue((self.root / record['path']).is_dir())
+
     async def test_unique_ids_same_timestamp_and_immediate_cancel(self):
         name, _ = self.notebook(['print(1)'])
         with patch('jupyter_vre_workflow.experiments.utc_now', return_value='2026-09-14T12:00:00.123456Z'):

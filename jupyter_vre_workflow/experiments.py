@@ -6,6 +6,7 @@ import csv
 import hashlib
 import json
 import os
+import shutil
 import uuid
 from pathlib import Path
 
@@ -130,6 +131,33 @@ class ExperimentManager:
         record["cancel_requested"] = True
         if record.get("execution_started"):
             task.cancel()
+
+    def delete(self, path):
+        folder = self.resolve(path)
+        task = self.tasks.get(path)
+        if task is not None and not task.done():
+            raise ValueError("Cancel the running experiment before deleting it")
+        record_file = folder / "run.json"
+        if not record_file.is_file():
+            raise ValueError("Experiment does not exist")
+        record = json.loads(record_file.read_text())
+        relative = str(folder.relative_to(self.root))
+        if record.get("path") != relative:
+            raise ValueError("Experiment record does not match its directory")
+
+        shutil.rmtree(folder)
+        self.tasks.pop(path, None)
+        self.records.pop(path, None)
+        self.samples.pop(path, None)
+
+        # Do not leave empty workflow/experiments directories in the selectors.
+        for parent in (folder.parent, folder.parent.parent):
+            if parent == self.root:
+                break
+            try:
+                parent.rmdir()
+            except OSError:
+                break
 
     async def _run(self, record, notebook, cwd, folder):
         stop = asyncio.Event()

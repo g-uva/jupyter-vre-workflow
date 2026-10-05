@@ -18,6 +18,7 @@ interface IProps {
   starting: boolean;
   onStart: () => void;
   onCancel: () => void;
+  onDelete: () => void;
 }
 
 export default function ExperimentRunPanel({
@@ -25,7 +26,8 @@ export default function ExperimentRunPanel({
   error,
   starting,
   onStart,
-  onCancel
+  onCancel,
+  onDelete
 }: IProps) {
   const running = run?.status === 'running';
   const baseUrl = ServerConnection.makeSettings().baseUrl.replace(/\/?$/, '/');
@@ -33,11 +35,20 @@ export default function ExperimentRunPanel({
     <Paper variant="outlined" sx={{ p: 2, flexShrink: 0 }}>
       <Stack direction="row" gap={2} alignItems="center" flexWrap="wrap">
         <Button onClick={onStart} disabled={starting || running}>
-          {starting ? 'Starting…' : 'Run notebook as experiment'}
+          {starting
+            ? 'Starting…'
+            : run
+              ? 'Restart experiment'
+              : 'Run notebook as experiment'}
         </Button>
         {running && (
           <Button onClick={onCancel} color="warning">
             Cancel run
+          </Button>
+        )}
+        {run && !running && (
+          <Button onClick={onDelete} color="error" disabled={starting}>
+            Delete experiment
           </Button>
         )}
         {run && (
@@ -83,7 +94,21 @@ export default function ExperimentRunPanel({
         </Box>
       )}
       {(error || run?.error) && (
-        <Alert severity="error" sx={{ mt: 1, whiteSpace: 'pre-wrap' }}>
+        <Alert
+          severity="error"
+          sx={{
+            mt: 1,
+            height: 220,
+            boxSizing: 'border-box',
+            alignItems: 'flex-start',
+            '& .MuiAlert-message': {
+              width: '100%',
+              height: '100%',
+              overflow: 'auto',
+              whiteSpace: 'pre-wrap'
+            }
+          }}
+        >
           {error || run?.error}
         </Alert>
       )}

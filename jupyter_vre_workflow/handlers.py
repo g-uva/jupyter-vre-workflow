@@ -37,12 +37,19 @@ class ExperimentsHandler(APIHandler):
 
     @web.authenticated
     async def delete(self):
+        path = self.get_argument("path")
         try:
-            self.manager.cancel(self.get_argument("path"))
+            task = self.manager.tasks.get(path)
+            if task is not None and not task.done():
+                self.manager.cancel(path)
+                status = "cancelling"
+            else:
+                self.manager.delete(path)
+                status = "deleted"
         except ValueError as error:
             raise web.HTTPError(400, reason=str(error)) from error
-        self.set_status(202)
-        self.finish({"status": "cancelling"})
+        self.set_status(202 if status == "cancelling" else 200)
+        self.finish({"status": status})
 
 
 INSTALL_DIR = str(Path.home() / ".bin")

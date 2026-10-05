@@ -16,21 +16,23 @@ import {
   Typography
 } from '@mui/material';
 import GeneralDashboard from './GeneralDashboard';
+import getScaphData from '../api/getScaphData';
 import { RawMetrics } from '../helpers/types';
 import FetchMetricsComponent from '../components/FetchMetricsComponents';
-import ExperimentRunPanel, {
-  ExperimentTelemetry
-} from '../components/ExperimentRunPanel';
+import ExperimentRunPanel from '../components/ExperimentRunPanel';
+import { KPIComponent } from '../components/KPIComponent';
 import {
   IExperiment,
   getExperiment,
   startNotebookExperiment,
-  cancelExperiment
+  cancelExperiment,
+  deleteExperiment
 } from '../api/experiments';
 import ModuleInstallGate from '../components/ModuleInstallGate';
 import { IExportJsonProps } from '../api/apiScripts';
 import { exportSendJson } from '../api/exportMetadata';
 import { NotebookPanel } from '@jupyterlab/notebook';
+import { ServerConnection } from '@jupyterlab/services';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
@@ -219,8 +221,9 @@ export default function WelcomePage({ panel }: IWelcomePage) {
   const [dataMap, setDataMap] = React.useState<RawMetrics>(new Map());
   const [loading, setLoading] = React.useState<boolean>(false);
 
-  const [automaticRefresh, setAutomaticRefresh] = React.useState<boolean>(true);
-  const [refreshIntervalS, setRefreshIntervalS] = React.useState<number>(1);
+  const [automaticRefresh, setAutomaticRefresh] =
+    React.useState<boolean>(false);
+  const [refreshIntervalS, setRefreshIntervalS] = React.useState<number>(30);
   const [installingMetrics, setInstallingMetrics] =
     React.useState<boolean>(false);
   const [installProgress, setInstallProgress] = React.useState<number>(0);
@@ -252,22 +255,6 @@ export default function WelcomePage({ panel }: IWelcomePage) {
 
   function showRun(value: IExperiment) {
     setRun(value);
-    const samples = value.samples ?? [];
-    const map: RawMetrics = new Map();
-    for (const key of [
-      'energy_j',
-      'current_power_w',
-      'average_power_w'
-    ] as const) {
-      const values: [number, string][] = samples
-        .filter(sample => sample[key] !== null)
-        .map(sample => [sample.timestamp, String(sample[key])]);
-      if (values.length) {
-        map.set(key, values);
-      }
-    }
-    setDataMap(map);
-    setMetrics(Array.from(map.keys()));
   }
 
   async function fetchMetrics() {
@@ -288,6 +275,27 @@ export default function WelcomePage({ panel }: IWelcomePage) {
         return;
       }
       showRun(result);
+
+      const baseUrl = ServerConnection.makeSettings().baseUrl.replace(
+        /\/?$/,
+        '/'
+      );
+      const prometheusUrl = new URL(
+        `${baseUrl}proxy/9090`,
+        window.location.origin
+      ).toString();
+      const prometheusMetrics = await getScaphData({
+        url: prometheusUrl.replace(/\/$/, ''),
+        startTime: Date.parse(result.start_time) / 1000,
+        endTime: result.end_time
+          ? Date.parse(result.end_time) / 1000
+          : Date.now() / 1000
+      });
+      if (version !== requestVersion.current) {
+        return;
+      }
+      setDataMap(prometheusMetrics);
+      setMetrics(Array.from(prometheusMetrics.keys()));
       setRunError('');
     } catch (error) {
       if (version !== requestVersion.current) {
@@ -323,6 +331,26 @@ export default function WelcomePage({ panel }: IWelcomePage) {
     try {
       await cancelExperiment(run.path);
       await fetchMetrics();
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function handleDeleteRun() {
+    if (!run || run.status === 'running') {
+      return;
+    }
+    if (!window.confirm('Delete this experiment and all of its artifacts?')) {
+      return;
+    }
+    try {
+      await deleteExperiment(run.path);
+      ++requestVersion.current;
+      ++listRequestVersion.current;
+      setRun(null);
+      setRunError('');
+      setSelectedExperiment(null);
+      await handleRefreshWorkflowList();
     } catch (error) {
       setRunError(error instanceof Error ? error.message : String(error));
     }
@@ -631,6 +659,7 @@ export default function WelcomePage({ panel }: IWelcomePage) {
           starting={startingRun}
           onStart={handleStartRun}
           onCancel={handleCancelRun}
+          onDelete={handleDeleteRun}
         />
 
         <Grid2 sx={styles.moduleShell}>
@@ -668,8 +697,8 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                     Telemetry & Observability
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Measured RAPL energy, current power and average power during
-                    notebook experiments.
+                    Prometheus and Scaphandre metrics, KPI panels, and
+                    dashboards.
                   </Typography>
                 </Box>
                 <FetchMetricsComponent
@@ -685,20 +714,19 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                   installLogs={installLogs}
                   metricsInstalled={moduleStatus.telemetry.installed}
                   showProgress={false}
-                  showInstaller={false}
                 />
               </Box>
               <Box sx={styles.moduleBody}>
                 <ModuleInstallGate
                   moduleName={MODULE_DETAILS[WorkflowModule.Telemetry].label}
-                  installed={true}
+                  installed={moduleStatus.telemetry.installed}
                   installing={installingMetrics}
                   installLabel={installLabel}
                   installError={installError}
                   installProgress={installProgress}
                   onInstall={() => handleInstallModule('telemetry')}
                 >
-                  <ExperimentTelemetry run={run} />
+                  <KPIComponent rawMetrics={dataMap} />
 
                   {metrics.length > 0 && (
                     <>

@@ -80,3 +80,4 @@ export async function startNotebookExperiment(
 
 export const getExperiment = (path: string) => request('GET', path);
 export const cancelExperiment = (path: string) => request('DELETE', path);
+export const deleteExperiment = (path: string) => request('DELETE', path);
