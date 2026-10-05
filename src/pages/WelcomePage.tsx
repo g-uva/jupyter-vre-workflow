@@ -499,6 +499,7 @@ export default function WelcomePage({ panel }: IWelcomePage) {
     try {
       const status = await getTelemetryStatus();
       setTelemetryStatus(status);
+      setInstallError('');
       setModuleStatus(current => ({
         ...current,
         telemetry: { installed: status.installed }
@@ -603,7 +604,11 @@ export default function WelcomePage({ panel }: IWelcomePage) {
       ? `${selectedWorkflow} / ${selectedExperiment}`
       : 'No experiment selected';
 
-  const telemetryStatusDetails = (
+  const telemetryStatusDetails = telemetryStatusError ? (
+    <Typography variant="body2" color="warning.dark">
+      {telemetryStatusError}
+    </Typography>
+  ) : (
     <Stack direction="row" gap={1} justifyContent="center" flexWrap="wrap">
       <Chip
         size="small"
@@ -625,11 +630,6 @@ export default function WelcomePage({ panel }: IWelcomePage) {
         }
         variant="outlined"
       />
-      {telemetryStatusError && (
-        <Typography variant="caption" color="error">
-          {telemetryStatusError}
-        </Typography>
-      )}
     </Stack>
   );
 
@@ -816,6 +816,7 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                   installError={installError}
                   installProgress={installProgress}
                   installLogs={installLogs}
+                  installDisabled={Boolean(telemetryStatusError)}
                   statusDetails={telemetryStatusDetails}
                   onInstall={() => handleInstallModule('telemetry')}
                 >

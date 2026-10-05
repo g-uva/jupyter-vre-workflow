@@ -91,6 +91,13 @@ export default function FetchMetricsComponent({
                   <CircularProgress size={14} />
                   <Typography variant="caption">Checking telemetry</Typography>
                 </>
+              ) : telemetryStatusError ? (
+                <Chip
+                  size="small"
+                  label="Telemetry status unavailable"
+                  color="warning"
+                  variant="outlined"
+                />
               ) : (
                 <>
                   <Chip
@@ -160,7 +167,11 @@ export default function FetchMetricsComponent({
                         <DownloadOutlinedIcon />
                       )
                     }
-                    disabled={installingMetrics || checkingTelemetry}
+                    disabled={
+                      installingMetrics ||
+                      checkingTelemetry ||
+                      Boolean(telemetryStatusError)
+                    }
                   >
                     {installingMetrics
                       ? installLabel || 'Installing telemetry module'
@@ -216,7 +227,7 @@ export default function FetchMetricsComponent({
                   {telemetryStatusError && (
                     <Typography
                       variant="caption"
-                      color="error"
+                      color="warning.dark"
                       component="div"
                       sx={{ mb: 1.5 }}
                     >

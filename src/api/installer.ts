@@ -26,6 +26,11 @@ export async function runMetricsInstaller({
   return new Promise((resolve, reject) => {
     const eventSource = new EventSource(requestUrl);
     let settled = false;
+    let opened = false;
+
+    eventSource.onopen = () => {
+      opened = true;
+    };
 
     eventSource.addEventListener('progress', event => {
       onProgress?.(JSON.parse((event as MessageEvent).data));
@@ -33,6 +38,10 @@ export async function runMetricsInstaller({
 
     eventSource.addEventListener('log', event => {
       onLog?.(JSON.parse((event as MessageEvent).data));
+    });
+
+    eventSource.addEventListener('heartbeat', () => {
+      // Keeps long-running, quiet installer steps alive through proxies.
     });
 
     eventSource.addEventListener('done', () => {
@@ -55,7 +64,9 @@ export async function runMetricsInstaller({
       eventSource.close();
       reject(
         new Error(
-          'Metrics installer endpoint is unavailable. Restart JupyterLab after installing the Jupyter VRE Workflow server extension.'
+          opened
+            ? 'The installer connection closed before completion. Check the Jupyter server logs and retry; the installer may still be running.'
+            : 'Metrics installer endpoint is unavailable. Restart JupyterLab after installing the Jupyter VRE Workflow server extension.'
         )
       );
     };

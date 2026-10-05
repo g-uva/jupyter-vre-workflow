@@ -61,9 +61,12 @@ export async function getTelemetryStatus(): Promise<ITelemetryStatus> {
     settings
   );
   if (!response.ok) {
-    throw new Error(
-      `Telemetry status check failed (${response.status}): ${await response.text()}`
-    );
+    if (response.status === 404) {
+      throw new Error(
+        'Telemetry services are not available in this Jupyter session. Restart JupyterLab to load the Jupyter VRE Workflow server extension.'
+      );
+    }
+    throw new Error(`Unable to check telemetry services (${response.status}).`);
   }
   const result = (await response.json()) as { telemetry: ITelemetryStatus };
   return result.telemetry;

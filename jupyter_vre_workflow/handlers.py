@@ -242,6 +242,7 @@ class MetricsInstallHandler(APIHandler):
         self.set_header("Content-Type", "text/event-stream")
         self.set_header("Cache-Control", "no-cache")
         self.set_header("Connection", "keep-alive")
+        self.set_header("X-Accel-Buffering", "no")
 
         for step_index, step in enumerate(STEPS):
             label = step["label"]
@@ -258,12 +259,26 @@ class MetricsInstallHandler(APIHandler):
                 stderr=asyncio.subprocess.PIPE,
             )
 
-            await asyncio.gather(
-                self._stream_output(step_index, process.stdout),
-                self._stream_output(step_index, process.stderr),
-            )
+            output_tasks = [
+                asyncio.create_task(
+                    self._stream_output(step_index, process.stdout)
+                ),
+                asyncio.create_task(
+                    self._stream_output(step_index, process.stderr)
+                ),
+            ]
+            wait_task = asyncio.create_task(process.wait())
+            while not wait_task.done():
+                try:
+                    await asyncio.wait_for(asyncio.shield(wait_task), timeout=15)
+                except asyncio.TimeoutError:
+                    await self._write_event(
+                        "heartbeat",
+                        {"step": step_index, "label": label},
+                    )
 
-            code = await process.wait()
+            await asyncio.gather(*output_tasks)
+            code = await wait_task
             if code != 0:
                 await self._write_event(
                     "install-error",

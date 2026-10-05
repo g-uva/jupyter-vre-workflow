@@ -152,7 +152,8 @@ app.get(
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      Connection: 'keep-alive'
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no'
     });
 
     let stepIndex = 0;
@@ -170,6 +171,11 @@ app.get(
       );
 
       const child = spawn(cmd, { shell: true, env: process.env });
+      const heartbeat = setInterval(() => {
+        res.write(
+          `event: heartbeat\ndata: ${JSON.stringify({ step: stepIndex, label })}\n\n`
+        );
+      }, 15000);
 
       // Stream stdout
       child.stdout.on('data', data => {
@@ -185,6 +191,7 @@ app.get(
       });
 
       child.on('exit', code => {
+        clearInterval(heartbeat);
         if (code !== 0) {
           res.write(
             `event: install-error\ndata: ${JSON.stringify(`Step "${label}" failed with exit code ${code}.`)}\n\n`

@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Alert,
   Box,
   Button,
   CircularProgress,
@@ -19,6 +20,7 @@ interface IModuleInstallGateProps {
   installError?: string;
   installProgress?: number;
   installLogs?: string[];
+  installDisabled?: boolean;
   statusDetails?: React.ReactNode;
   onInstall: () => void;
   children: React.ReactNode;
@@ -69,6 +71,7 @@ export default function ModuleInstallGate({
   installError,
   installProgress = 0,
   installLogs = [],
+  installDisabled = false,
   statusDetails,
   onInstall,
   children
@@ -109,14 +112,9 @@ export default function ModuleInstallGate({
               </Box>
             )}
             {!installing && installError && (
-              <Typography
-                variant="caption"
-                color="error"
-                component="div"
-                sx={{ mb: 2 }}
-              >
+              <Alert severity="warning" sx={{ mb: 2, textAlign: 'left' }}>
                 {installError}
-              </Typography>
+              </Alert>
             )}
             {installLogs.length > 0 && (
               <Box
@@ -145,7 +143,7 @@ export default function ModuleInstallGate({
             )}
             <Button
               onClick={onInstall}
-              disabled={installing}
+              disabled={installing || installDisabled}
               startIcon={
                 installing ? (
                   <CircularProgress color="inherit" size={16} />
