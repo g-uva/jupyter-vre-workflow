@@ -189,7 +189,7 @@ export const styles: Record<string, SxProps> = {
 
 interface IWelcomePage {
   username: string;
-  panel: NotebookPanel;
+  panel: NotebookPanel | null;
 }
 
 enum WorkflowModule {
@@ -217,6 +217,10 @@ const MODULE_DETAILS: Record<
 };
 
 export default function WelcomePage({ panel }: IWelcomePage) {
+  const notebookName =
+    panel && !panel.isDisposed && panel.content.model
+      ? panel.context.path.split('/').pop() || panel.title.label || null
+      : null;
   const [metrics, setMetrics] = React.useState<string[]>([]);
   const [dataMap, setDataMap] = React.useState<RawMetrics>(new Map());
   const [loading, setLoading] = React.useState<boolean>(false);
@@ -259,7 +263,7 @@ export default function WelcomePage({ panel }: IWelcomePage) {
 
   async function fetchMetrics() {
     const version = ++requestVersion.current;
-    if (!selectedWorkflow || !selectedExperiment) {
+    if (!panel || !selectedWorkflow || !selectedExperiment) {
       setRun(null);
       setDataMap(new Map());
       setMetrics([]);
@@ -313,6 +317,9 @@ export default function WelcomePage({ panel }: IWelcomePage) {
   }
 
   async function handleStartRun() {
+    if (!panel || !notebookName) {
+      return;
+    }
     setStartingRun(true);
     setRunError('');
     try {
@@ -366,7 +373,7 @@ export default function WelcomePage({ panel }: IWelcomePage) {
       'title' | 'creator' | 'email' | 'orcid' | 'token'
     >
   ) {
-    if (selectedWorkflow && selectedExperiment) {
+    if (panel && selectedWorkflow && selectedExperiment) {
       const session_metrics = await getHandleSessionMetrics(
         selectedWorkflow,
         selectedExperiment,
@@ -398,6 +405,11 @@ export default function WelcomePage({ panel }: IWelcomePage) {
   }
 
   async function handleRefreshWorkflowList() {
+    if (!panel) {
+      setWorkflowList([]);
+      setSelectedWorkflow(null);
+      return;
+    }
     const newWorkflowList = await handleLoadWorkflowList(panel);
     setWorkflowList(newWorkflowList);
     setSelectedWorkflow(currentWorkflow => {
@@ -410,7 +422,7 @@ export default function WelcomePage({ panel }: IWelcomePage) {
 
   async function handleRefreshExperimentList() {
     const version = ++listRequestVersion.current;
-    if (selectedWorkflow) {
+    if (panel && selectedWorkflow) {
       const loadedExperimentList = await handleLoadExperimentList(
         selectedWorkflow,
         panel
@@ -491,7 +503,7 @@ export default function WelcomePage({ panel }: IWelcomePage) {
   React.useEffect(() => {
     function started(event: Event) {
       const value = (event as CustomEvent<IExperiment>).detail;
-      if (value.notebook_path !== panel.context.path) {
+      if (!panel || value.notebook_path !== panel.context.path) {
         return;
       }
       ++requestVersion.current;
@@ -654,6 +666,7 @@ export default function WelcomePage({ panel }: IWelcomePage) {
         </Paper>
 
         <ExperimentRunPanel
+          notebookName={notebookName}
           run={run}
           error={runError}
           starting={startingRun}

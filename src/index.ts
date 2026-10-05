@@ -60,7 +60,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     // Define a widget creator function
     const newWidget = async (
       username: string,
-      panel: NotebookPanel
+      panel: NotebookPanel | null
     ): Promise<MainAreaWidget<MainWidget>> => {
       const content = new MainWidget(username, panel);
       const widget = new MainAreaWidget({ content });
@@ -77,7 +77,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       shell: JupyterFrontEnd.IShell,
       widget: MainAreaWidget<MainWidget> | null,
       username: string,
-      panel: NotebookPanel
+      panel: NotebookPanel | null
     ) {
       if (!widget || widget.isDisposed) {
         widget = await newWidget(username, panel);
@@ -108,6 +108,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       execute: async () => {
         const panel = notebookTracker.currentWidget;
         if (!panel) {
+          await addNewWidget(shell, tracker.currentWidget, '', null);
           return;
         }
 

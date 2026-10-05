@@ -13,6 +13,7 @@ import { ServerConnection } from '@jupyterlab/services';
 import { IExperiment } from '../api/experiments';
 
 interface IProps {
+  notebookName: string | null;
   run: IExperiment | null;
   error: string;
   starting: boolean;
@@ -22,6 +23,7 @@ interface IProps {
 }
 
 export default function ExperimentRunPanel({
+  notebookName,
   run,
   error,
   starting,
@@ -34,12 +36,17 @@ export default function ExperimentRunPanel({
   return (
     <Paper variant="outlined" sx={{ p: 2, flexShrink: 0 }}>
       <Stack direction="row" gap={2} alignItems="center" flexWrap="wrap">
-        <Button onClick={onStart} disabled={starting || running}>
+        <Button
+          onClick={onStart}
+          disabled={!notebookName || starting || running}
+        >
           {starting
             ? 'Starting…'
             : run
               ? 'Restart experiment'
-              : 'Run notebook as experiment'}
+              : notebookName
+                ? `Run ${notebookName} as an experiment`
+                : 'Run notebook as an experiment'}
         </Button>
         {running && (
           <Button onClick={onCancel} color="warning">

@@ -49,7 +49,7 @@ const styles: Record<string, React.CSSProperties> = {
 
 interface IAppProps {
   username: string;
-  panel: NotebookPanel;
+  panel: NotebookPanel | null;
 }
 
 /**
@@ -74,28 +74,47 @@ const App = ({ username, panel }: IAppProps): JSX.Element => {
  */
 export class MainWidget extends ReactWidget {
   private _username: string;
-  private _panel: NotebookPanel;
+  private _panel: NotebookPanel | null;
 
-  constructor(username: string, panel: NotebookPanel) {
+  constructor(username: string, panel: NotebookPanel | null) {
     super();
     this.addClass('jp-ReactWidget');
     this._username = username;
-    this._panel = panel;
+    this._panel = null;
+    this.setNotebook(username, panel);
   }
 
-  setNotebook(username: string, panel: NotebookPanel): void {
+  setNotebook(username: string, panel: NotebookPanel | null): void {
     if (this._panel === panel && this._username === username) {
       return;
     }
+    this._panel?.disposed.disconnect(this._onPanelDisposed, this);
+    this._panel?.context.pathChanged.disconnect(this._onPathChanged, this);
     this._username = username;
     this._panel = panel;
+    this._panel?.disposed.connect(this._onPanelDisposed, this);
+    this._panel?.context.pathChanged.connect(this._onPathChanged, this);
+    this.update();
+  }
+
+  dispose(): void {
+    this._panel?.disposed.disconnect(this._onPanelDisposed, this);
+    this._panel?.context.pathChanged.disconnect(this._onPathChanged, this);
+    super.dispose();
+  }
+
+  private _onPanelDisposed(): void {
+    this.setNotebook('', null);
+  }
+
+  private _onPathChanged(): void {
     this.update();
   }
 
   render(): JSX.Element {
     return (
       <App
-        key={this._panel.context.path}
+        key={this._panel?.context.path ?? 'no-notebook'}
         username={this._username}
         panel={this._panel}
       />
