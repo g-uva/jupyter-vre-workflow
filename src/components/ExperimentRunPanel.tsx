@@ -109,6 +109,11 @@ export default function ExperimentRunPanel({
           </Stack>
         </Box>
       )}
+      {running && (
+        <Box sx={{ mt: 2 }}>
+          <ExperimentTelemetry run={run} powerOnly />
+        </Box>
+      )}
       {(error || run?.error) && (
         <Alert
           severity="error"
@@ -135,7 +140,13 @@ export default function ExperimentRunPanel({
   );
 }
 
-export function ExperimentTelemetry({ run }: { run: IExperiment | null }) {
+export function ExperimentTelemetry({
+  run,
+  powerOnly = false
+}: {
+  run: IExperiment | null;
+  powerOnly?: boolean;
+}) {
   const telemetry = run?.telemetry;
   const sample = telemetry?.summary;
   const available = telemetry?.status === 'available';
@@ -160,15 +171,23 @@ export function ExperimentTelemetry({ run }: { run: IExperiment | null }) {
         {sample && ` Last sample: ${sample.timestamp_utc}.`}
       </Typography>
       <Stack direction={{ xs: 'column', md: 'row' }} gap={2}>
-        {[
-          ['Energy used so far', sample?.energy_j, 'J'],
-          [
-            run?.status === 'running' ? 'Current power' : 'Final sampled power',
-            sample?.current_power_w,
-            'W'
-          ],
-          ['Average power over run', sample?.average_power_w, 'W']
-        ].map(([title, value, unit]) => (
+        {(powerOnly
+          ? [
+              ['Instant power', sample?.current_power_w, 'W'],
+              ['Average power', sample?.average_power_w, 'W']
+            ]
+          : [
+              ['Energy used so far', sample?.energy_j, 'J'],
+              [
+                run?.status === 'running'
+                  ? 'Current power'
+                  : 'Final sampled power',
+                sample?.current_power_w,
+                'W'
+              ],
+              ['Average power over run', sample?.average_power_w, 'W']
+            ]
+        ).map(([title, value, unit]) => (
           <Paper key={String(title)} variant="outlined" sx={{ p: 2, flex: 1 }}>
             <Typography variant="subtitle2">{title}</Typography>
             <Typography variant="h5">
@@ -178,9 +197,8 @@ export function ExperimentTelemetry({ run }: { run: IExperiment | null }) {
         ))}
       </Stack>
       <Typography variant="caption" color="text.secondary">
-        Current power is the counter difference over the latest sampling
-        interval. Average power is measured energy divided by sampled elapsed
-        time.
+        Instant power is measured over the latest sampling interval. Average
+        power is measured energy divided by sampled elapsed time.
       </Typography>
     </Stack>
   );

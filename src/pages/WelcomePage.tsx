@@ -13,6 +13,7 @@ import {
   SxProps,
   Tab,
   Tabs,
+  Tooltip,
   Typography
 } from '@mui/material';
 import GeneralDashboard from './GeneralDashboard';
@@ -228,6 +229,20 @@ const MODULE_DETAILS: Record<
       'Requires an active connection to a Virtual Organisation (VO).'
   }
 };
+
+function shortExperimentId(experimentId: string): string {
+  const compactIso = experimentId.match(
+    /^(\d{4}-\d{2}-\d{2})T(\d{2})(\d{2})(\d{2})/
+  );
+  if (compactIso) {
+    return `${compactIso[1]}T${compactIso[2]}:${compactIso[3]}:${compactIso[4]}`;
+  }
+
+  return (
+    experimentId.match(/\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/)?.[0] ??
+    experimentId
+  );
+}
 
 export default function WelcomePage({ panel }: IWelcomePage) {
   const notebookName =
@@ -604,10 +619,66 @@ export default function WelcomePage({ panel }: IWelcomePage) {
     panel
   ]);
 
-  const selectedContextLabel =
+  React.useEffect(() => {
+    if (!run || run.status !== 'running') {
+      return;
+    }
+
+    let cancelled = false;
+    let timer: number | undefined;
+    const path = run.path;
+
+    async function refreshRunningExperiment() {
+      try {
+        const result = await getExperiment(path);
+        if (cancelled) {
+          return;
+        }
+        showRun(result);
+        if (result.status === 'running') {
+          timer = window.setTimeout(refreshRunningExperiment, 1000);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRunError(error instanceof Error ? error.message : String(error));
+        }
+      }
+    }
+
+    timer = window.setTimeout(refreshRunningExperiment, 1000);
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [run?.path, run?.status]);
+
+  const selectedContextFullLabel =
     selectedWorkflow && selectedExperiment
       ? `${selectedWorkflow} / ${selectedExperiment}`
       : 'No experiment selected';
+  const selectedContextLabel =
+    selectedWorkflow && selectedExperiment
+      ? `${selectedWorkflow} / ${shortExperimentId(selectedExperiment)}`
+      : selectedContextFullLabel;
+  const experimentStatus: IExperiment['status'] | 'starting' | undefined =
+    startingRun ? 'starting' : run?.status;
+  const experimentStatusColor = experimentStatus
+    ? (
+        {
+          starting: 'info',
+          running: 'info',
+          succeeded: 'success',
+          failed: 'error',
+          cancelled: 'warning',
+          interrupted: 'warning'
+        } satisfies Record<
+          IExperiment['status'] | 'starting',
+          React.ComponentProps<typeof Chip>['color']
+        >
+      )[experimentStatus]
+    : undefined;
 
   const telemetryStatusDetails = telemetryStatusError ? (
     <Typography variant="body2" color="warning.dark">
@@ -679,17 +750,19 @@ export default function WelcomePage({ panel }: IWelcomePage) {
               </Typography>
             </Stack>
 
-            <Chip
-              label={selectedContextLabel}
-              size="small"
-              color={
-                selectedWorkflow && selectedExperiment ? 'primary' : 'default'
-              }
-              variant={
-                selectedWorkflow && selectedExperiment ? 'filled' : 'outlined'
-              }
-              sx={styles.contextChip}
-            />
+            <Tooltip title={selectedContextFullLabel} arrow>
+              <Chip
+                label={selectedContextLabel}
+                size="small"
+                color={
+                  selectedWorkflow && selectedExperiment ? 'primary' : 'default'
+                }
+                variant={
+                  selectedWorkflow && selectedExperiment ? 'filled' : 'outlined'
+                }
+                sx={styles.contextChip}
+              />
+            </Tooltip>
 
             <FormControl size="small" sx={styles.contextSelect}>
               <InputLabel sx={{ background: '#fff' }}>Workflow ID</InputLabel>
@@ -721,6 +794,7 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                 key={selectedExperiment || 'experiment-select'}
                 value={selectedExperiment || ''}
                 label="Experiment ID"
+                renderValue={value => shortExperimentId(String(value))}
                 onChange={e => {
                   e !== null && setSelectedExperiment(e.target.value ?? '');
                 }}
@@ -730,15 +804,27 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                 </MenuItem>
                 {experimentList.map((experimentId: string, index: number) => {
                   return (
-                    <MenuItem key={experimentId || index} value={experimentId}>
-                      {experimentId.match(
-                        /\d{4}-\d{2}-\d{2} \d{2}:\d{2}/
-                      )?.[0] ?? experimentId}
+                    <MenuItem
+                      key={experimentId || index}
+                      value={experimentId}
+                      title={experimentId}
+                    >
+                      {shortExperimentId(experimentId)}
                     </MenuItem>
                   );
                 })}
               </Select>
             </FormControl>
+
+            {experimentStatus && (
+              <Chip
+                label={`Status: ${experimentStatus}`}
+                size="small"
+                color={experimentStatusColor}
+                variant="filled"
+                sx={{ textTransform: 'capitalize', flexShrink: 0 }}
+              />
+            )}
           </Stack>
         </Paper>
 
