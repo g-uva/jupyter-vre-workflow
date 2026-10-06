@@ -64,15 +64,14 @@ export const styles: Record<string, SxProps> = {
     display: 'flex',
     flexDirection: 'column',
     width: '100%',
-    height: '100%',
+    height: 'auto',
     minHeight: '100%',
     gap: 2,
     p: 2,
     background: '#f6f8fb',
     boxSizing: 'border-box',
     overflowX: 'hidden',
-    overflowY: 'auto',
-    scrollbarGutter: 'stable'
+    overflowY: 'visible'
   },
   title: {
     fontWeight: 700,
@@ -139,14 +138,14 @@ export const styles: Record<string, SxProps> = {
   },
   moduleShell: {
     width: '100%',
-    flex: '1 0 420px',
-    minHeight: 420,
+    flex: '0 0 auto',
+    minHeight: 900,
     display: 'flex',
     flexDirection: 'column',
     border: '1px solid #d7dde6',
     borderRadius: '8px',
     background: '#fff',
-    overflow: 'hidden',
+    overflow: 'visible',
     boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)'
   },
   moduleTabs: {
@@ -163,8 +162,7 @@ export const styles: Record<string, SxProps> = {
     display: 'flex',
     flexDirection: 'column',
     flex: 1,
-    minHeight: 0,
-    overflow: 'hidden'
+    overflow: 'visible'
   },
   moduleHeader: {
     flexShrink: 0,
@@ -181,10 +179,7 @@ export const styles: Record<string, SxProps> = {
   moduleBody: {
     flex: 1,
     minHeight: 280,
-    overflowX: 'auto',
-    overflowY: 'auto',
-    scrollbarGutter: 'stable',
-    overscrollBehavior: 'contain',
+    overflow: 'visible',
     p: 2
   },
   emptyState: {
@@ -205,6 +200,8 @@ enum WorkflowModule {
   Reproducibility = 1,
   Orchestration = 2
 }
+
+export const DEFAULT_EXPERIMENT_POLL_INTERVAL_SECONDS = 5;
 
 const MODULE_DETAILS: Record<
   WorkflowModule,
@@ -255,7 +252,9 @@ export default function WelcomePage({ panel }: IWelcomePage) {
 
   const [automaticRefresh, setAutomaticRefresh] =
     React.useState<boolean>(false);
-  const [refreshIntervalS, setRefreshIntervalS] = React.useState<number>(30);
+  const [refreshIntervalS, setRefreshIntervalS] = React.useState<number>(
+    DEFAULT_EXPERIMENT_POLL_INTERVAL_SECONDS
+  );
   const [installingMetrics, setInstallingMetrics] =
     React.useState<boolean>(false);
   const [installProgress, setInstallProgress] = React.useState<number>(0);
@@ -636,7 +635,10 @@ export default function WelcomePage({ panel }: IWelcomePage) {
         }
         showRun(result);
         if (result.status === 'running') {
-          timer = window.setTimeout(refreshRunningExperiment, 1000);
+          timer = window.setTimeout(
+            refreshRunningExperiment,
+            DEFAULT_EXPERIMENT_POLL_INTERVAL_SECONDS * 1000
+          );
         }
       } catch (error) {
         if (!cancelled) {
@@ -645,7 +647,10 @@ export default function WelcomePage({ panel }: IWelcomePage) {
       }
     }
 
-    timer = window.setTimeout(refreshRunningExperiment, 1000);
+    timer = window.setTimeout(
+      refreshRunningExperiment,
+      DEFAULT_EXPERIMENT_POLL_INTERVAL_SECONDS * 1000
+    );
     return () => {
       cancelled = true;
       if (timer !== undefined) {

@@ -34,7 +34,11 @@ pip show jupyter-vre-workflow
 jupyter labextension list
 ```
 
-If not listed, reinstall and restart JupyterLab.
+If it is not listed, reinstall it in the Python environment used by Jupyter.
+For Kubernetes, install JuVRE in the notebook image and roll out that image;
+new pods load the extension on their first server start. A package installed
+into an already-running pod cannot add its Python handlers to that existing
+Jupyter Server process and requires a one-time restart.
 
 ### Metrics are all zero
 

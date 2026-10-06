@@ -84,6 +84,11 @@ class ServerExtensionTests(unittest.TestCase):
         self.assertIn("api/jupyter-vre-workflow/experiments", source)
         self.assertIn("jupyter-vre-workflow:experiment-started", source)
 
+    def test_frontend_defaults_to_five_second_experiment_polling(self):
+        source = Path("src/pages/WelcomePage.tsx").read_text()
+        self.assertIn("DEFAULT_EXPERIMENT_POLL_INTERVAL_SECONDS = 5", source)
+        self.assertNotIn("refreshRunningExperiment, 1000", source)
+
 
 if __name__ == "__main__":
     unittest.main()

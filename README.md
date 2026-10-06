@@ -27,6 +27,32 @@ In order to install the tool as an extension in Jupyter Notebook or Lab (not in 
 pip install --upgrade jupyter-vre-workflow
 ```
 
+JuVRE is a prebuilt JupyterLab extension, so it does not require a JupyterLab
+build. Refresh the browser after installing it into an environment before the
+Jupyter server starts.
+
+### Kubernetes installation without a post-install restart
+
+Install JuVRE while building the notebook image instead of running `pip` in an
+already-started pod:
+
+```dockerfile
+FROM quay.io/jupyter/base-notebook:latest
+
+RUN python -m pip install --no-cache-dir --upgrade jupyter-vre-workflow
+```
+
+The resulting pod starts Jupyter once, with both the frontend and authenticated
+server API already available. Pin the package version in production so that an
+image rollout is reproducible.
+
+Installing JuVRE into an already-running pod still requires that pod's Jupyter
+server process to restart once. The package contains Python server handlers,
+and Jupyter Server only discovers and imports newly installed handlers during
+startup. For a service with multiple replicas, use a rolling Deployment update
+with the derived image to avoid user-facing downtime rather than mutating live
+pods.
+
 ## Development & Extension Framework
 
 This repository was initially scaffolded using the official [JupyterLab Extension Tutorial](https://jupyterlab.readthedocs.io/en/stable/extension/extension_tutorial.html).  

@@ -28,6 +28,6 @@ The earlier Scaphandre/Prometheus installer remains available for separate expor
 
 ## Viewing and saving
 
-Open a notebook and choose **Run notebook as experiment**. Select its run to view live totals and power. Automatic refresh is enabled by default. The chart shows up to the latest 300 samples; `metrics.csv` preserves the complete series, including raw counters and domain labels.
+Open a notebook and choose **Run notebook as experiment**. Select its run to view live totals and power. Starting an experiment enables automatic refresh with a five-second default interval. The chart shows up to the latest 300 samples; `metrics.csv` preserves the complete series, including raw counters and domain labels.
 
 See [Reproducibility & Storage](./reproducibility.md) for artifact paths and run status.
