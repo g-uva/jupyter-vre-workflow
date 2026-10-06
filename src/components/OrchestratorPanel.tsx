@@ -420,9 +420,9 @@ export default function OrchestratorPanel({
                 Register this node
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Registration enters the node into mock VO GD-AS-DEMO. Other
-                sites and orchestration controls remain hidden until it
-                succeeds.
+                Registration enters the node into the GD-AS-DEMO demonstration
+                VO. Other sites and orchestration controls remain hidden until
+                it succeeds.
               </Typography>
               <TextField
                 size="small"
@@ -477,7 +477,7 @@ export default function OrchestratorPanel({
                   <FormHelperText>
                     {
                       [
-                        'Contacting mock endpoint…',
+                        'Contacting registration endpoint…',
                         'Validating demo node…',
                         'Assigning GD-AS-DEMO membership…',
                         'Confirming registration…'
@@ -558,15 +558,15 @@ export default function OrchestratorPanel({
                 sx={{ alignSelf: 'flex-start' }}
               >
                 {syncing
-                  ? 'Synchronising with mock catalogue…'
+                  ? 'Synchronising with catalogue…'
                   : metadata.sync
-                    ? 'Present in mock GD-AS-DEMO catalogue'
+                    ? 'Present in GD-AS-DEMO catalogue'
                     : 'Synchronise metadata'}
               </Button>
               {metadata.sync && (
                 <Alert severity="success">
-                  Mock catalogue ID: {metadata.sync.catalogue_id}. This is not
-                  FDMI publication.
+                  Catalogue ID: {metadata.sync.catalogue_id}. This is not FDMI
+                  publication.
                 </Alert>
               )}
             </Stack>

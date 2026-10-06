@@ -38,7 +38,7 @@ experiments/
 - `metrics.csv`: long-form rows with `timestamp_utc,timestamp_unix,metric,labels,value,unit`. Raw RAPL counter values retain domain identifiers, and available Scaphandre/Prometheus series retain their labels. Derived energy and power have explicit units. Rows are flushed throughout execution rather than waiting for the run to finish.
 - `run.json`: schema version, source path, run ID, UTC timestamps, kernelspec, status, completed/total code-cell counts, input/output SHA-256 hashes, artifact names and telemetry status/summary.
 - `reproducibility.json`: per-experiment CIM selection, the two editable demo
-  mappings, configuration revision, generated artefact state and mock FDMI
+  mappings, configuration revision, generated artefact state and FDMI
   receipt.
 - `ro-crate-metadata.json`: a replace-in-place RO-Crate 1.1 JSON-LD descriptor
   referencing the input notebook, executed notebook and raw metrics. It also
@@ -68,9 +68,9 @@ Use an environment where the notebook's kernelspec and dependencies are availabl
 
 ## Publishing
 
-The Autumn School workflow uses internal mock CIM and FDMI services. Connect to
+The Autumn School workflow uses internal CIM and FDMI demonstration services. Connect to
 CIM, configure a standard and mapping, generate the RO-Crate, then submit it to
-the mock FDMI target. Submission is unavailable while the crate is absent or
+the FDMI target. Submission is unavailable while the crate is absent or
 stale. A standard or mapping change invalidates it; regeneration also marks an
 earlier receipt stale. Identical submissions are idempotent.
 

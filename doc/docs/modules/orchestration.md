@@ -13,19 +13,19 @@ runner or remote output store.
 ## Workshop flow
 
 1. The initial map is centred on Greece and exposes only the local GRNET demo
-   node. Register the pre-filled, per-user `GD-DEMO-…` node with mock VO
+   node. Register the pre-filled, per-user `GD-DEMO-…` node with demonstration VO
    `GD-AS-DEMO` to reveal the other stable demo sites.
 2. Select an existing successful experiment using the page controls. JuVRE
    reads local `run.json`, `metrics.csv` and `ro-crate-metadata.json` when
    available. RO-Crate and FDMI publication are not required.
-3. Optionally synchronise metadata to the mock `GD-AS-DEMO` catalogue. “Online”
-   refers only to that mock catalogue; failed synchronisation preserves the
+3. Optionally synchronise metadata to the demonstration `GD-AS-DEMO` catalogue. “Online”
+   refers only to that catalogue; failed synchronisation preserves the
    local record.
 4. Choose one or more sites. They are processed sequentially through metadata,
    training, inference and result stages. Workshop defaults take about 75
    seconds per site; tests can set `JUVRE_PREDICTION_SITE_SECONDS=0`.
 5. Choose one predicted site and start the simulated rerun. The timeline shows
-   package preparation, metadata sending, resource request, mock VM startup,
+   package preparation, metadata sending, resource request, virtual environment preparation,
    training, inference, output collection and local saving. No VM is created.
 6. Open or download the saved log and comparison JSON.
 

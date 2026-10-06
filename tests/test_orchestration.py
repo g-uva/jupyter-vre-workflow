@@ -70,12 +70,12 @@ class RegistrationTests(unittest.TestCase):
             self.manager.default_node_name("bob"),
         )
 
-    def test_failed_mock_registration_is_not_persisted(self):
+    def test_failed_demo_registration_is_not_persisted(self):
         client = FederationDemoClient(
-            "http://mock", post_json=lambda _url, _payload: {"accepted": False}
+            "http://invalid.test", post_json=lambda _url, _payload: {"accepted": False}
         )
         manager = OrchestrationManager(self.root, client)
-        with self.assertRaisesRegex(RuntimeError, "rejected"):
+        with self.assertRaisesRegex(RuntimeError, "not accepted"):
             manager.register("alice", {
                 "node_name": "GD-DEMO-001", "site": "Athens",
                 "operator": "Alice", "contact": "alice@example.org"
@@ -100,9 +100,9 @@ class RegistrationTests(unittest.TestCase):
         relative = self.make_experiment()
         from jupyter_vre_workflow.orchestration import CatalogueDemoClient
         self.manager.catalogue_client = CatalogueDemoClient(
-            "http://mock", post_json=lambda _url, _payload: {"accepted": False}
+            "http://invalid.test", post_json=lambda _url, _payload: {"accepted": False}
         )
-        with self.assertRaisesRegex(RuntimeError, "rejected"):
+        with self.assertRaisesRegex(RuntimeError, "did not accept"):
             self.manager.sync_metadata("alice", relative)
         metadata = self.manager.experiment_folder("alice", "run-1") / "metadata.json"
         self.assertTrue(metadata.is_file())

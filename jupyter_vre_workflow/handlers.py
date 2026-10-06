@@ -239,7 +239,7 @@ class ModuleStatusHandler(APIHandler):
 
 
 class CimConnectionHandler(APIHandler):
-    """Server-side bridge to the cluster-internal mock CIM endpoint."""
+    """Server-side bridge to the cluster-internal CIM endpoint."""
 
     def initialize(self, client, manager):
         self.client = client

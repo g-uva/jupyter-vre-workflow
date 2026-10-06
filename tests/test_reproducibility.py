@@ -23,10 +23,10 @@ class CimDemoTests(unittest.TestCase):
 
     def test_invalid_or_failed_service_is_not_connected(self):
         with self.assertRaisesRegex(RuntimeError, "invalid response"):
-            CimDemoClient("http://mock", fetch_json=lambda _: {}).connect()
+            CimDemoClient("http://invalid.test", fetch_json=lambda _: {}).connect()
         with self.assertRaisesRegex(RuntimeError, "not accepted"):
             CimDemoClient(
-                "http://mock",
+                "http://invalid.test",
                 fetch_json=lambda _: {
                     "authenticated": False,
                     "identity": "nobody",
@@ -78,7 +78,7 @@ class ReproducibilityStateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Connect successfully"):
             self.manager.generate_crate(self.relative)
         self.manager.mark_cim_connected(self.relative, {
-            "endpoint": "embedded://mock-cim", "identity": "gd-super-user"
+            "endpoint": "embedded://demo-cim", "identity": "gd-super-user"
         })
         state = self.manager.generate_crate(self.relative)
         self.assertTrue(state["crate_current"])
@@ -94,7 +94,7 @@ class ReproducibilityStateTests(unittest.TestCase):
     def test_mapping_change_invalidates_generated_crate(self):
         self.manager.configure(self.relative, "greendigit-commons", {})
         self.manager.mark_cim_connected(self.relative, {
-            "endpoint": "embedded://mock-cim", "identity": "gd-super-user"
+            "endpoint": "embedded://demo-cim", "identity": "gd-super-user"
         })
         self.manager.generate_crate(self.relative)
         changed = self.manager.configure(
@@ -115,7 +115,7 @@ class ReproducibilityStateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "up-to-date"):
             self.manager.publish(self.relative)
         self.manager.mark_cim_connected(self.relative, {
-            "endpoint": "embedded://mock-cim", "identity": "gd-super-user"
+            "endpoint": "embedded://demo-cim", "identity": "gd-super-user"
         })
         self.manager.generate_crate(self.relative)
         first = self.manager.publish(self.relative)
@@ -129,7 +129,7 @@ class ReproducibilityStateTests(unittest.TestCase):
     def test_regeneration_makes_previous_publication_stale(self):
         self.manager.configure(self.relative, "greendigit-commons", {})
         self.manager.mark_cim_connected(self.relative, {
-            "endpoint": "embedded://mock-cim", "identity": "gd-super-user"
+            "endpoint": "embedded://demo-cim", "identity": "gd-super-user"
         })
         self.manager.generate_crate(self.relative)
         self.manager.publish(self.relative)

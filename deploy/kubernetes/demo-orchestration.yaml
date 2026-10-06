@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: juvre-mock-federation
+  name: juvre-demo-federation
 data:
   server.py: |
     import hashlib, json
@@ -34,17 +34,17 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: juvre-mock-federation
+  name: juvre-demo-federation
 spec:
   replicas: 1
   selector:
-    matchLabels: { app: juvre-mock-federation }
+    matchLabels: { app: juvre-demo-federation }
   template:
     metadata:
-      labels: { app: juvre-mock-federation }
+      labels: { app: juvre-demo-federation }
     spec:
       containers:
-        - name: mock-federation
+        - name: federation-demo
           image: python:3.12-alpine
           command: [python, /app/server.py]
           ports: [{ name: http, containerPort: 8080 }]
@@ -55,12 +55,12 @@ spec:
               periodSeconds: 5
             }
           volumeMounts: [{ name: app, mountPath: /app }]
-      volumes: [{ name: app, configMap: { name: juvre-mock-federation } }]
+      volumes: [{ name: app, configMap: { name: juvre-demo-federation } }]
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: juvre-mock-federation
+  name: juvre-demo-federation
 spec:
-  selector: { app: juvre-mock-federation }
+  selector: { app: juvre-demo-federation }
   ports: [{ name: http, port: 8080, targetPort: http }]

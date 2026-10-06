@@ -28,7 +28,7 @@ def utc_now():
 
 
 class FederationDemoClient:
-    ENDPOINT = "http://juvre-mock-federation:8080/v1/register"
+    ENDPOINT = "http://juvre-demo-federation:8080/v1/register"
 
     def __init__(self, endpoint=None, post_json=None):
         self.endpoint = endpoint if endpoint is not None else os.environ.get(
@@ -48,7 +48,7 @@ class FederationDemoClient:
             with urlopen(request, timeout=5) as response:
                 return json.load(response)
         except (OSError, URLError, ValueError) as error:
-            raise RuntimeError(f"Mock federation endpoint unavailable: {error}") from error
+            raise RuntimeError(f"Federation endpoint unavailable: {error}") from error
 
     def register(self, payload):
         if self.endpoint:
@@ -61,19 +61,19 @@ class FederationDemoClient:
                 ).hexdigest()[:10].upper(),
             }
         if not isinstance(result, dict) or not result.get("accepted"):
-            raise RuntimeError("Mock federation rejected the registration")
+            raise RuntimeError("Federation registration was not accepted")
         return result
 
     def describe(self):
         return {
-            "mode": "mock",
-            "configured_endpoint": self.endpoint or "embedded://mock-federation",
+            "mode": "demo",
+            "configured_endpoint": self.endpoint or "embedded://demo-federation",
             "kubernetes_service": self.ENDPOINT,
         }
 
 
 class CatalogueDemoClient:
-    ENDPOINT = "http://juvre-mock-federation:8080/v1/catalogue"
+    ENDPOINT = "http://juvre-demo-federation:8080/v1/catalogue"
 
     def __init__(self, endpoint=None, post_json=None):
         self.endpoint = endpoint if endpoint is not None else os.environ.get(
@@ -90,13 +90,13 @@ class CatalogueDemoClient:
             ).hexdigest()[:16].upper()
             result = {"accepted": True, "catalogue_id": f"GD-AS-DEMO-{key}"}
         if not isinstance(result, dict) or not result.get("accepted"):
-            raise RuntimeError("Mock GD-AS-DEMO catalogue rejected synchronisation")
+            raise RuntimeError("GD-AS-DEMO catalogue did not accept synchronisation")
         return result
 
     def describe(self):
         return {
-            "mode": "mock GD-AS-DEMO catalogue",
-            "configured_endpoint": self.endpoint or "embedded://mock-catalogue",
+            "mode": "GD-AS-DEMO demonstration catalogue",
+            "configured_endpoint": self.endpoint or "embedded://demo-catalogue",
             "kubernetes_service": self.ENDPOINT,
         }
 
@@ -514,9 +514,9 @@ class OrchestrationManager:
         state = json.loads(path.read_text())
         stages = [
             ("Preparing the local package", 1),
-            ("Sending metadata to the mock target", 3),
+            ("Sending metadata to the target", 3),
             ("Requesting simulated resources", 2),
-            ("Spawning a mock VM", 4),
+            ("Preparing the virtual execution environment", 4),
             ("Starting simulated training", 1),
             ("Running simulated inference", 1),
             ("Collecting simulated outputs", 2),
@@ -622,7 +622,7 @@ class OrchestrationManager:
     def _metadata_response(local):
         result = dict(local)
         result["metadata_status"] = "Local and online" if local.get("sync") else "Local"
-        result["online_definition"] = "Online means present only in the mock GD-AS-DEMO catalogue, not FDMI."
+        result["online_definition"] = "Online means present in the GD-AS-DEMO demonstration catalogue, not FDMI."
         return result
 
     @staticmethod

@@ -917,7 +917,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                   <Typography variant="h6">Reproducibility</Typography>
                   <Typography variant="body2" color="text.secondary">
                     Configure a demonstration CIM mapping, generate RO-Crate
-                    metadata, and submit it to the internal mock FDMI target.
+                    metadata, and submit it to the internal FDMI target.
                   </Typography>
                 </Box>
               </Box>
@@ -951,8 +951,9 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                 <Box>
                   <Typography variant="h6">Orchestration</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Register with a mock federation, predict site outcomes, and
-                    simulate orchestration without provisioning remote compute.
+                    Register with the demonstration federation, predict site
+                    outcomes, and simulate orchestration without provisioning
+                    remote compute.
                   </Typography>
                 </Box>
               </Box>

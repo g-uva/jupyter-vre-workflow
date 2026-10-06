@@ -43,7 +43,7 @@ interface IReproducibilityPanelProps {
 }
 
 const CONNECTION_STEPS = [
-  'Discovering the internal mock CIM endpoint',
+  'Discovering the internal CIM endpoint',
   'Simulating EGI Check-in authentication',
   'Retrieving available standards',
   'Selecting the demonstration standard'
@@ -183,7 +183,7 @@ export default function ReproducibilityPanel({
       }
     } catch (error) {
       setConnectionError(
-        error instanceof Error ? error.message : 'Could not connect to mock CIM'
+        error instanceof Error ? error.message : 'Could not connect to CIM'
       );
     } finally {
       setConnecting(false);
@@ -261,8 +261,8 @@ export default function ReproducibilityPanel({
               {connecting
                 ? 'Connecting…'
                 : connection
-                  ? 'Reconnect to mock CIM'
-                  : 'Connect to mock CIM'}
+                  ? 'Reconnect to CIM'
+                  : 'Connect to CIM'}
             </Button>
             {(connecting || connection) && (
               <Box sx={{ mt: 2 }}>
@@ -357,7 +357,7 @@ export default function ReproducibilityPanel({
             ) : (
               <Typography variant="body2" color="text.secondary">
                 Not connected. The standards list becomes usable only after a
-                successful response from the mock service.
+                successful response from the demonstration service.
               </Typography>
             )}
           </Paper>
@@ -477,7 +477,7 @@ export default function ReproducibilityPanel({
           {!experimentPath
             ? 'Select a tracked experiment first.'
             : !connection?.connected
-              ? 'Connect successfully to the mock CIM service first.'
+              ? 'Connect successfully to the CIM service first.'
               : !state?.configured
                 ? 'Configure a standard first.'
                 : 'Generation writes a real RO-Crate 1.1 JSON-LD metadata descriptor beside the run outputs.'}
@@ -554,7 +554,7 @@ export default function ReproducibilityPanel({
             ? 'Submitting artefact…'
             : state?.publication && !state.publication.stale
               ? 'Already submitted'
-              : 'Publish to mock FDMI'}
+              : 'Publish to FDMI'}
         </Button>
         <FormHelperText>
           {!state?.crate_current
@@ -567,7 +567,7 @@ export default function ReproducibilityPanel({
             sx={{ mt: 1.5 }}
             action={<Button onClick={handlePublish}>Retry</Button>}
           >
-            Mock FDMI submission failed: {publicationError}
+            FDMI submission failed: {publicationError}
           </Alert>
         )}
         {state?.publication && (
@@ -578,7 +578,7 @@ export default function ReproducibilityPanel({
             <Typography variant="body2" fontWeight={700}>
               {state.publication.stale
                 ? 'Previous receipt is stale; publish the regenerated artefact.'
-                : 'Mock FDMI submission accepted'}
+                : 'FDMI submission accepted'}
             </Typography>
             <Typography
               variant="caption"

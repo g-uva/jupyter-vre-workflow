@@ -32,7 +32,7 @@ export interface IRegistrationState {
   selected_site_id: 'GRNET';
   demo_notice: string;
   federation: {
-    mode: 'mock';
+    mode: 'demo';
     configured_endpoint: string;
     kubernetes_service: string;
   };

@@ -60,10 +60,10 @@ CIM_STANDARDS = [
 ]
 
 
-def mock_cim_response():
-    """Return the contract exposed by the in-cluster mock CIM service."""
+def demo_cim_response():
+    """Return the contract exposed by the in-cluster CIM demonstration service."""
     return {
-        "service": "JuVRE Autumn School mock CIM",
+        "service": "JuVRE Autumn School CIM demonstration",
         "mode": "demo",
         "authenticated": True,
         "identity": "gd-super-user",
@@ -74,9 +74,9 @@ def mock_cim_response():
 
 
 class FdmiDemoClient:
-    """Submit metadata to the mock FDMI service, or its local equivalent."""
+    """Submit metadata to the FDMI demonstration service or local equivalent."""
 
-    KUBERNETES_ENDPOINT = "http://juvre-mock-fdmi:8080/v1/submissions"
+    KUBERNETES_ENDPOINT = "http://juvre-demo-fdmi:8080/v1/submissions"
 
     def __init__(self, endpoint=None, post_json=None):
         self.endpoint = endpoint if endpoint is not None else os.environ.get(
@@ -96,12 +96,12 @@ class FdmiDemoClient:
             with urlopen(request, timeout=5) as response:
                 return json.load(response)
         except (OSError, URLError, ValueError) as error:
-            raise RuntimeError(f"Mock FDMI endpoint unavailable: {error}") from error
+            raise RuntimeError(f"FDMI endpoint unavailable: {error}") from error
 
     def describe(self):
         return {
-            "mode": "internal Kubernetes mock" if self.endpoint else "embedded local mock",
-            "endpoint": self.endpoint or "embedded://mock-fdmi",
+            "mode": "internal Kubernetes demo" if self.endpoint else "embedded local demo",
+            "endpoint": self.endpoint or "embedded://demo-fdmi",
             "kubernetes_service": self.KUBERNETES_ENDPOINT,
             "external_integration": False,
         }
@@ -115,15 +115,15 @@ class FdmiDemoClient:
                 "accepted": True,
                 "receipt": f"FDMI-DEMO-{key[:16].upper()}",
                 "idempotency_key": key,
-                "message": "Accepted by the embedded Autumn School mock FDMI target.",
+                "message": "Accepted by the embedded Autumn School FDMI target.",
             }
         if not isinstance(result, dict) or not result.get("accepted") or not result.get("receipt"):
-            raise RuntimeError("Mock FDMI endpoint rejected or returned an invalid receipt")
+            raise RuntimeError("FDMI endpoint rejected or returned an invalid receipt")
         return result
 
 
 class CimDemoClient:
-    """Fetch mock CIM data from Kubernetes, with an equivalent local fallback."""
+    """Fetch CIM demonstration data from Kubernetes or the local fallback."""
 
     def __init__(self, endpoint=None, fetch_json=None):
         self.endpoint = endpoint if endpoint is not None else os.environ.get(
@@ -138,17 +138,17 @@ class CimDemoClient:
             with urlopen(request, timeout=5) as response:
                 return json.load(response)
         except (OSError, URLError, ValueError) as error:
-            raise RuntimeError(f"Mock CIM endpoint unavailable: {error}") from error
+            raise RuntimeError(f"CIM endpoint unavailable: {error}") from error
 
     def connect(self):
-        data = self.fetch_json(self.endpoint) if self.endpoint else mock_cim_response()
+        data = self.fetch_json(self.endpoint) if self.endpoint else demo_cim_response()
         required = {"authenticated", "identity", "standards", "default_standard"}
         if not isinstance(data, dict) or not required.issubset(data):
-            raise RuntimeError("Mock CIM endpoint returned an invalid response")
+            raise RuntimeError("CIM endpoint returned an invalid response")
         if not data["authenticated"]:
             raise RuntimeError("Demo authentication was not accepted")
         result = dict(data)
-        result["endpoint"] = self.endpoint or "embedded://mock-cim"
+        result["endpoint"] = self.endpoint or "embedded://demo-cim"
         result["connected"] = True
         return result
 
@@ -345,7 +345,7 @@ class ReproducibilityManager:
         folder = self.resolve_experiment(relative)
         state = self._load(folder)
         if not (state.get("cim_connection") or {}).get("connected"):
-            raise ValueError("Connect successfully to the mock CIM service first")
+            raise ValueError("Connect successfully to the CIM service first")
         standard = next(
             (item for item in CIM_STANDARDS if item["key"] == state["standard_key"]),
             None,

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: juvre-mock-cim
+  name: juvre-demo-cim
 data:
   server.py: |
     import json
@@ -18,7 +18,7 @@ data:
       def do_GET(self):
         if self.path not in ("/", "/v1/standards"):
           self.send_error(404); return
-        body = json.dumps({"service":"JuVRE Autumn School mock CIM","mode":"demo","authenticated":True,"identity":"gd-super-user","identity_note":"Simulated EGI Check-in identity; no real account was verified.","standards":STANDARDS,"default_standard":"greendigit-commons"}).encode()
+        body = json.dumps({"service":"JuVRE Autumn School CIM demonstration","mode":"demo","authenticated":True,"identity":"gd-super-user","identity_note":"Simulated EGI Check-in identity; no real account was verified.","standards":STANDARDS,"default_standard":"greendigit-commons"}).encode()
         self.send_response(200); self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
     HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
@@ -26,17 +26,17 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: juvre-mock-cim
+  name: juvre-demo-cim
 spec:
   replicas: 1
   selector:
-    matchLabels: { app: juvre-mock-cim }
+    matchLabels: { app: juvre-demo-cim }
   template:
     metadata:
-      labels: { app: juvre-mock-cim }
+      labels: { app: juvre-demo-cim }
     spec:
       containers:
-        - name: mock-cim
+        - name: cim-demo
           image: python:3.12-alpine
           command: [python, /app/server.py]
           ports: [{ name: http, containerPort: 8080 }]
@@ -47,12 +47,12 @@ spec:
               periodSeconds: 5
             }
           volumeMounts: [{ name: app, mountPath: /app }]
-      volumes: [{ name: app, configMap: { name: juvre-mock-cim } }]
+      volumes: [{ name: app, configMap: { name: juvre-demo-cim } }]
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: juvre-mock-cim
+  name: juvre-demo-cim
 spec:
-  selector: { app: juvre-mock-cim }
+  selector: { app: juvre-demo-cim }
   ports: [{ name: http, port: 8080, targetPort: http }]

@@ -23,8 +23,8 @@ Each of the three modules is installed directly from within the Jupyter VRE Work
 - **Reproducibility:** prompts for your FDMI catalogue endpoint and schema agreement; EIMPS/CIM and EIMPS/KPI URLs are also configurable
 - **Orchestration:** prompts for the T6.3 Orchestrator endpoint and T6.2 module URL
 
-:::info Mock endpoints available
-If you do not yet have live FDMI or Orchestration endpoints, mock endpoints are provided for the tutorial. Enter them when prompted.
+:::info Demonstration endpoints available
+If you do not yet have live FDMI or Orchestration endpoints, internal demonstration endpoints are provided for the tutorial. Enter them when prompted.
 :::
 
 ## Keep credentials out of notebooks
