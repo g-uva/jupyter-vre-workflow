@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 import jupyter_vre_workflow
 from jupyter_vre_workflow.handlers import (
+    CimConnectionHandler,
     ExperimentsHandler,
     MetricsInstallHandler,
     ModuleStatusHandler,
@@ -40,13 +41,15 @@ class ServerExtensionTests(unittest.TestCase):
             [
                 "/services/notebooks/api/jupyter-vre-workflow/experiments",
                 "/services/notebooks/api/jupyter-vre-workflow/module-status",
+                "/services/notebooks/api/jupyter-vre-workflow/reproducibility/cim/connect",
                 "/services/notebooks/api/jupyter-vre-workflow/run-install",
             ],
         )
         self.assertIs(handlers[0][1], ExperimentsHandler)
         self.assertEqual(Path(handlers[0][2]["manager"].root), Path(root_dir))
         self.assertIs(handlers[1][1], ModuleStatusHandler)
-        self.assertIs(handlers[2][1], MetricsInstallHandler)
+        self.assertIs(handlers[2][1], CimConnectionHandler)
+        self.assertIs(handlers[3][1], MetricsInstallHandler)
 
     def test_loader_registers_all_handlers(self):
         with TemporaryDirectory() as root_dir:
@@ -59,7 +62,7 @@ class ServerExtensionTests(unittest.TestCase):
             )
             server_app = SimpleNamespace(web_app=web_app, log=Mock())
             jupyter_vre_workflow._load_jupyter_server_extension(server_app)
-        self.assertEqual(len(web_app.add_handlers.call_args.args[1]), 3)
+        self.assertEqual(len(web_app.add_handlers.call_args.args[1]), 4)
 
     def test_module_status_requires_both_telemetry_executables(self):
         with patch(

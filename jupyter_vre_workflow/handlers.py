@@ -12,6 +12,7 @@ from jupyter_server.utils import url_path_join
 from tornado import web
 
 from .experiments import ExperimentManager
+from .reproducibility import CimDemoClient
 
 
 class ExperimentsHandler(APIHandler):
@@ -236,6 +237,21 @@ class ModuleStatusHandler(APIHandler):
         self.finish(get_module_status())
 
 
+class CimConnectionHandler(APIHandler):
+    """Server-side bridge to the cluster-internal mock CIM endpoint."""
+
+    def initialize(self, client):
+        self.client = client
+
+    @web.authenticated
+    async def post(self):
+        try:
+            result = await asyncio.to_thread(self.client.connect)
+        except RuntimeError as error:
+            raise web.HTTPError(502, reason=str(error)) from error
+        self.finish(result)
+
+
 class MetricsInstallHandler(APIHandler):
     @web.authenticated
     async def get(self):
@@ -318,6 +334,7 @@ def setup_handlers(web_app):
     base_url = web_app.settings.get("base_url", "/")
     root_dir = web_app.settings["contents_manager"].root_dir
     manager = ExperimentManager(root_dir)
+    cim_client = CimDemoClient()
     namespace = url_path_join(base_url, "api", "jupyter-vre-workflow")
     web_app.add_handlers(
         ".*$",
@@ -328,6 +345,11 @@ def setup_handlers(web_app):
                 {"manager": manager},
             ),
             (url_path_join(namespace, "module-status"), ModuleStatusHandler),
+            (
+                url_path_join(namespace, "reproducibility", "cim", "connect"),
+                CimConnectionHandler,
+                {"client": cim_client},
+            ),
             (url_path_join(namespace, "run-install"), MetricsInstallHandler),
         ],
     )

@@ -30,8 +30,6 @@ import {
   deleteExperiment
 } from '../api/experiments';
 import ModuleInstallGate from '../components/ModuleInstallGate';
-import { IExportJsonProps } from '../api/apiScripts';
-import { exportSendJson } from '../api/exportMetadata';
 import { NotebookPanel } from '@jupyterlab/notebook';
 import { ServerConnection } from '@jupyterlab/services';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
@@ -49,12 +47,9 @@ import {
 } from '../api/moduleStatus';
 import {
   experimentPath,
-  getHandleSessionMetrics,
-  handleGetTime,
   handleLoadExperimentList,
   handleLoadWorkflowList
 } from '../api/handleNotebookContents';
-import JupyterDialogWarning from '../components/JupyterDialogWarning';
 import { IInstallerProgress, runMetricsInstaller } from '../api/installer';
 import ReproducibilityPanel from '../components/ReproducibilityPanel';
 import OrchestratorPanel from '../components/OrchestratorPanel';
@@ -396,43 +391,6 @@ export default function WelcomePage({ panel }: IWelcomePage) {
 
   function handleSetMetrics() {
     fetchMetrics();
-  }
-
-  async function handleSubmitValues(
-    args: Pick<
-      IExportJsonProps,
-      'title' | 'creator' | 'email' | 'orcid' | 'token'
-    >
-  ) {
-    if (panel && selectedWorkflow && selectedExperiment) {
-      const session_metrics = await getHandleSessionMetrics(
-        selectedWorkflow,
-        selectedExperiment,
-        panel
-      );
-      const startEndTime = await handleGetTime(
-        selectedWorkflow,
-        selectedExperiment,
-        panel
-      );
-      if (session_metrics && startEndTime) {
-        await exportSendJson(panel, {
-          ...args,
-          session_metrics,
-          creation_date: startEndTime.start_time,
-          experiment_id: selectedExperiment,
-          workflow_id: selectedWorkflow
-        });
-      } else {
-        JupyterDialogWarning({
-          message: 'Could not get selected session metrics or creation date.'
-        });
-      }
-    } else {
-      JupyterDialogWarning({
-        message: 'Could not get selected Experiment/Workflow.'
-      });
-    }
   }
 
   async function handleRefreshWorkflowList() {
@@ -958,8 +916,8 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                 <Box>
                   <Typography variant="h6">Reproducibility</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Submit RO-Crate metadata to FDMI, mint a Zenodo DOI, and
-                    register with CIM / SAREF standards.
+                    Configure a demonstration CIM mapping, generate RO-Crate
+                    metadata, and submit it to the internal mock FDMI target.
                   </Typography>
                 </Box>
               </Box>
@@ -978,7 +936,6 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                   <ReproducibilityPanel
                     selectedWorkflow={selectedWorkflow}
                     selectedExperiment={selectedExperiment}
-                    onSubmit={handleSubmitValues}
                   />
                 </ModuleInstallGate>
               </Box>

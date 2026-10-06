@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juvre-mock-cim
+data:
+  server.py: |
+    import json
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    STANDARDS = [
+      {"key":"greendigit-commons","label":"GreenDIGIT Commons","profile":"Autumn School demonstration profile","version":"Demo profile 2026.1","description":"A demonstrative vocabulary profile connecting notebook runs, measurements and provenance for the GreenDIGIT training workflow.","compliance":"Demonstration guidance only. This is not an authoritative or certified GreenDIGIT specification."},
+      {"key":"saref4energy","label":"SAREF4Energy","profile":"Energy domain extension","version":"ETSI TS 103 410-1","description":"SAREF extension for the energy domain.","compliance":"Vocabulary mapping preview; no conformance assessment is performed."},
+      {"key":"saref4environment","label":"SAREF4Environment","profile":"Environment domain extension","version":"ETSI TS 103 410-7","description":"SAREF extension for environmental observations and properties.","compliance":"Vocabulary mapping preview; no conformance assessment is performed."},
+      {"key":"saref4bldg","label":"SAREF4BLDG","profile":"Building domain extension","version":"ETSI TS 103 410-3","description":"SAREF extension for building devices and building spaces.","compliance":"Vocabulary mapping preview; no conformance assessment is performed."},
+      {"key":"iec-cim","label":"IEC CIM","profile":"Common Information Model","version":"IEC 61968 / IEC 61970 family","description":"Common Information Model concepts for electric power systems.","compliance":"Family reference only; no IEC profile validation is performed."}
+    ]
+    class Handler(BaseHTTPRequestHandler):
+      def do_GET(self):
+        if self.path not in ("/", "/v1/standards"):
+          self.send_error(404); return
+        body = json.dumps({"service":"JuVRE Autumn School mock CIM","mode":"demo","authenticated":True,"identity":"gd-super-user","identity_note":"Simulated EGI Check-in identity; no real account was verified.","standards":STANDARDS,"default_standard":"greendigit-commons"}).encode()
+        self.send_response(200); self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+    HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juvre-mock-cim
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: juvre-mock-cim }
+  template:
+    metadata:
+      labels: { app: juvre-mock-cim }
+    spec:
+      containers:
+        - name: mock-cim
+          image: python:3.12-alpine
+          command: [python, /app/server.py]
+          ports: [{ name: http, containerPort: 8080 }]
+          readinessProbe:
+            {
+              httpGet: { path: /v1/standards, port: http },
+              initialDelaySeconds: 1,
+              periodSeconds: 5
+            }
+          volumeMounts: [{ name: app, mountPath: /app }]
+      volumes: [{ name: app, configMap: { name: juvre-mock-cim } }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: juvre-mock-cim
+spec:
+  selector: { app: juvre-mock-cim }
+  ports: [{ name: http, port: 8080, targetPort: http }]
