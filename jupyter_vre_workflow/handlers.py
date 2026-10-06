@@ -12,7 +12,7 @@ from jupyter_server.utils import url_path_join
 from tornado import web
 
 from .experiments import ExperimentManager
-from .reproducibility import CimDemoClient
+from .reproducibility import CimDemoClient, ReproducibilityManager
 
 
 class ExperimentsHandler(APIHandler):
@@ -252,6 +252,29 @@ class CimConnectionHandler(APIHandler):
         self.finish(result)
 
 
+class ReproducibilityConfigHandler(APIHandler):
+    def initialize(self, manager):
+        self.manager = manager
+
+    @web.authenticated
+    async def get(self):
+        try:
+            self.finish(self.manager.get(self.get_argument("path")))
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(404, reason=str(error)) from error
+
+    @web.authenticated
+    async def put(self):
+        body = self.get_json_body() or {}
+        try:
+            result = self.manager.configure(
+                body.get("path"), body.get("standard_key"), body.get("mapping", {})
+            )
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+        self.finish(result)
+
+
 class MetricsInstallHandler(APIHandler):
     @web.authenticated
     async def get(self):
@@ -335,6 +358,7 @@ def setup_handlers(web_app):
     root_dir = web_app.settings["contents_manager"].root_dir
     manager = ExperimentManager(root_dir)
     cim_client = CimDemoClient()
+    reproducibility_manager = ReproducibilityManager(root_dir)
     namespace = url_path_join(base_url, "api", "jupyter-vre-workflow")
     web_app.add_handlers(
         ".*$",
@@ -349,6 +373,11 @@ def setup_handlers(web_app):
                 url_path_join(namespace, "reproducibility", "cim", "connect"),
                 CimConnectionHandler,
                 {"client": cim_client},
+            ),
+            (
+                url_path_join(namespace, "reproducibility", "config"),
+                ReproducibilityConfigHandler,
+                {"manager": reproducibility_manager},
             ),
             (url_path_join(namespace, "run-install"), MetricsInstallHandler),
         ],

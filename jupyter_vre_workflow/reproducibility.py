@@ -2,6 +2,9 @@
 
 import json
 import os
+import csv
+import hashlib
+from pathlib import Path
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -98,3 +101,125 @@ class CimDemoClient:
         result["endpoint"] = self.endpoint or "embedded://mock-cim"
         result["connected"] = True
         return result
+
+
+class ReproducibilityManager:
+    """Persist configuration beside one tracked experiment and build previews."""
+
+    STATE_FILE = "reproducibility.json"
+
+    def __init__(self, root):
+        self.root = Path(root).resolve()
+
+    def resolve_experiment(self, relative):
+        if not isinstance(relative, str) or not relative or Path(relative).is_absolute():
+            raise ValueError("Expected an experiment path relative to the Jupyter root")
+        folder = (self.root / relative).resolve()
+        if self.root not in folder.parents or not (folder / "run.json").is_file():
+            raise ValueError("Experiment does not exist")
+        return folder
+
+    @staticmethod
+    def _default_state():
+        return {
+            "schema_version": 1,
+            "standard_key": None,
+            "mapping": {
+                "experiment_term": "schema:Dataset",
+                "metric_term": "sosa:Observation",
+            },
+            "configuration_revision": None,
+            "crate": None,
+            "publication": None,
+        }
+
+    def _load(self, folder):
+        path = folder / self.STATE_FILE
+        if not path.is_file():
+            return self._default_state()
+        saved = json.loads(path.read_text())
+        state = self._default_state()
+        default_mapping = dict(state["mapping"])
+        state.update(saved)
+        default_mapping.update(saved.get("mapping", {}))
+        state["mapping"] = default_mapping
+        return state
+
+    @staticmethod
+    def _revision(standard_key, mapping):
+        source = json.dumps(
+            {"standard_key": standard_key, "mapping": mapping}, sort_keys=True
+        ).encode()
+        return hashlib.sha256(source).hexdigest()[:16]
+
+    def get(self, relative):
+        folder = self.resolve_experiment(relative)
+        state = self._load(folder)
+        run = json.loads((folder / "run.json").read_text())
+        metrics_path = folder / run.get("artifacts", {}).get("metrics", "metrics.csv")
+        metrics = []
+        if metrics_path.is_file():
+            with metrics_path.open(newline="") as stream:
+                seen = set()
+                for row in csv.DictReader(stream):
+                    name = row.get("metric")
+                    if not name or name in seen:
+                        continue
+                    seen.add(name)
+                    metrics.append(
+                        {
+                            "source": name,
+                            "unit": row.get("unit") or "unknown",
+                            "mapped_type": state["mapping"]["metric_term"],
+                        }
+                    )
+        standard = next(
+            (item for item in CIM_STANDARDS if item["key"] == state["standard_key"]),
+            None,
+        )
+        state["standard"] = standard
+        state["preview"] = {
+            "experiment_id": run.get("id"),
+            "workflow_id": run.get("workflow_id"),
+            "run_status": run.get("status"),
+            "run_type": state["mapping"]["experiment_term"],
+            "metrics": metrics,
+        }
+        state["configured"] = standard is not None
+        state["crate_current"] = bool(
+            state.get("crate")
+            and state["crate"].get("configuration_revision")
+            == state["configuration_revision"]
+        )
+        return state
+
+    def configure(self, relative, standard_key, mapping):
+        folder = self.resolve_experiment(relative)
+        if standard_key not in {item["key"] for item in CIM_STANDARDS}:
+            raise ValueError("Unsupported CIM standard")
+        if not isinstance(mapping, dict):
+            raise ValueError("Mapping must be an object")
+        allowed = {"experiment_term", "metric_term"}
+        if set(mapping) - allowed:
+            raise ValueError("Only the preview experiment and metric terms are editable")
+        previous = self._load(folder)
+        merged = dict(previous["mapping"])
+        for key, value in mapping.items():
+            if not isinstance(value, str) or not value.strip() or len(value) > 120:
+                raise ValueError(f"Invalid mapping value for {key}")
+            merged[key] = value.strip()
+        revision = self._revision(standard_key, merged)
+        changed = revision != previous.get("configuration_revision")
+        previous.update(
+            {
+                "standard_key": standard_key,
+                "mapping": merged,
+                "configuration_revision": revision,
+            }
+        )
+        if changed and previous.get("publication"):
+            previous["publication"]["stale"] = True
+        (folder / self.STATE_FILE).write_text(
+            json.dumps(previous, indent=2, ensure_ascii=False) + "\n"
+        )
+        return self.get(relative)

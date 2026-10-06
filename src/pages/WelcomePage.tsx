@@ -936,6 +936,9 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                   <ReproducibilityPanel
                     selectedWorkflow={selectedWorkflow}
                     selectedExperiment={selectedExperiment}
+                    experimentPath={
+                      run?.id === selectedExperiment ? run.path : null
+                    }
                   />
                 </ModuleInstallGate>
               </Box>

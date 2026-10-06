@@ -15,6 +15,7 @@ import {
   RadioGroup,
   Select,
   Stack,
+  TextField,
   Typography
 } from '@mui/material';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
@@ -25,13 +26,17 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import {
   connectCim,
+  configureReproducibility,
+  getReproducibilityState,
   ICimConnection,
-  ICimStandard
+  ICimStandard,
+  IReproducibilityState
 } from '../api/reproducibility';
 
 interface IReproducibilityPanelProps {
   selectedWorkflow: string | null;
   selectedExperiment: string | null;
+  experimentPath: string | null;
 }
 
 const CONNECTION_STEPS = [
@@ -63,7 +68,8 @@ function WorkflowCard({
 
 export default function ReproducibilityPanel({
   selectedWorkflow,
-  selectedExperiment
+  selectedExperiment,
+  experimentPath
 }: IReproducibilityPanelProps) {
   const [connection, setConnection] = React.useState<ICimConnection | null>(
     null
@@ -72,6 +78,13 @@ export default function ReproducibilityPanel({
   const [connectionStep, setConnectionStep] = React.useState(-1);
   const [connectionError, setConnectionError] = React.useState('');
   const [selectedStandardKey, setSelectedStandardKey] = React.useState('');
+  const [state, setState] = React.useState<IReproducibilityState | null>(null);
+  const [draftMapping, setDraftMapping] = React.useState({
+    experiment_term: 'schema:Dataset',
+    metric_term: 'sosa:Observation'
+  });
+  const [savingMapping, setSavingMapping] = React.useState(false);
+  const [configurationError, setConfigurationError] = React.useState('');
 
   const standard: ICimStandard | undefined = connection?.standards.find(
     item => item.key === selectedStandardKey
@@ -80,6 +93,68 @@ export default function ReproducibilityPanel({
     selectedWorkflow && selectedExperiment
       ? `${selectedWorkflow} / ${selectedExperiment}`
       : 'No experiment selected';
+
+  React.useEffect(() => {
+    let active = true;
+    setState(null);
+    setConfigurationError('');
+    if (!experimentPath) {
+      return () => {
+        active = false;
+      };
+    }
+    getReproducibilityState(experimentPath)
+      .then(result => {
+        if (active) {
+          setState(result);
+          setDraftMapping(result.mapping);
+          if (result.standard_key) {
+            setSelectedStandardKey(result.standard_key);
+          }
+        }
+      })
+      .catch(error => {
+        if (active) {
+          setConfigurationError(
+            error instanceof Error ? error.message : String(error)
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [experimentPath]);
+
+  async function saveConfiguration(
+    standardKey: string,
+    mapping: Partial<IReproducibilityState['mapping']> = {}
+  ) {
+    if (!experimentPath) {
+      return;
+    }
+    setSavingMapping(true);
+    setConfigurationError('');
+    try {
+      const result = await configureReproducibility(
+        experimentPath,
+        standardKey,
+        mapping
+      );
+      setState(result);
+      setDraftMapping(result.mapping);
+    } catch (error) {
+      setConfigurationError(
+        error instanceof Error ? error.message : String(error)
+      );
+    } finally {
+      setSavingMapping(false);
+    }
+  }
+
+  async function handleStandardChange(key: string) {
+    setSelectedStandardKey(key);
+    await saveConfiguration(key);
+  }
 
   async function handleConnect() {
     setConnecting(true);
@@ -94,7 +169,11 @@ export default function ReproducibilityPanel({
       }
       const result = await request;
       setConnection(result);
-      setSelectedStandardKey(result.default_standard);
+      const selected = state?.standard_key ?? result.default_standard;
+      setSelectedStandardKey(selected);
+      if (experimentPath && !state?.configured) {
+        await saveConfiguration(selected);
+      }
     } catch (error) {
       setConnectionError(
         error instanceof Error ? error.message : 'Could not connect to mock CIM'
@@ -216,9 +295,8 @@ export default function ReproducibilityPanel({
                   <Select
                     label="Standard"
                     value={selectedStandardKey}
-                    onChange={event =>
-                      setSelectedStandardKey(event.target.value)
-                    }
+                    onChange={event => handleStandardChange(event.target.value)}
+                    disabled={!experimentPath || savingMapping}
                   >
                     {connection.standards.map(item => (
                       <MenuItem key={item.key} value={item.key}>
@@ -227,6 +305,11 @@ export default function ReproducibilityPanel({
                     ))}
                   </Select>
                 </FormControl>
+                {!experimentPath && (
+                  <FormHelperText>
+                    Select a tracked experiment to save the standard.
+                  </FormHelperText>
+                )}
               </Stack>
             ) : (
               <Typography variant="body2" color="text.secondary">
@@ -250,13 +333,87 @@ export default function ReproducibilityPanel({
       </WorkflowCard>
 
       <WorkflowCard title="2. Preview standards and metrics mapping">
-        <Stack direction="row" gap={1} alignItems="center">
-          <DescriptionOutlinedIcon color="disabled" />
-          <Typography variant="body2" color="text.secondary">
-            Unavailable until an experiment and standard are configured. Safe
-            mapping edits will be enabled by the experiment metadata backend.
-          </Typography>
-        </Stack>
+        {state?.configured ? (
+          <Stack gap={2}>
+            <Alert severity="info" icon={false}>
+              Configured for <strong>{state.standard?.label}</strong>. This is a
+              demonstrative mapping preview, not a compliance validation.
+            </Alert>
+            <Stack direction={{ xs: 'column', md: 'row' }} gap={1.5}>
+              <TextField
+                size="small"
+                label="Experiment type"
+                value={draftMapping.experiment_term}
+                onChange={event =>
+                  setDraftMapping(value => ({
+                    ...value,
+                    experiment_term: event.target.value
+                  }))
+                }
+                helperText="Safe example field"
+              />
+              <TextField
+                size="small"
+                label="Metric observation type"
+                value={draftMapping.metric_term}
+                onChange={event =>
+                  setDraftMapping(value => ({
+                    ...value,
+                    metric_term: event.target.value
+                  }))
+                }
+                helperText="Safe example field"
+              />
+              <Button
+                onClick={() =>
+                  saveConfiguration(selectedStandardKey, draftMapping)
+                }
+                disabled={savingMapping}
+              >
+                {savingMapping ? 'Saving…' : 'Save mapping edits'}
+              </Button>
+            </Stack>
+            <Paper variant="outlined" sx={{ p: 1.5, background: '#f8fafc' }}>
+              <Typography variant="caption" fontWeight={700}>
+                Run {state.preview.experiment_id} · {state.preview.run_status}
+              </Typography>
+              <Typography variant="body2">
+                Experiment → {state.preview.run_type}
+              </Typography>
+              {state.preview.metrics.length ? (
+                state.preview.metrics.map(metric => (
+                  <Typography key={metric.source} variant="body2">
+                    {metric.source} ({metric.unit}) → {metric.mapped_type}
+                  </Typography>
+                ))
+              ) : (
+                <Typography variant="body2" color="warning.main">
+                  No metric rows are available for this run.
+                </Typography>
+              )}
+            </Paper>
+            <TextField
+              disabled
+              fullWidth
+              size="small"
+              label="Advanced mapping editor (planned)"
+              value="Broader vocabulary and configuration controls require the later mapping backend."
+            />
+          </Stack>
+        ) : (
+          <Stack direction="row" gap={1} alignItems="center">
+            <DescriptionOutlinedIcon color="disabled" />
+            <Typography variant="body2" color="text.secondary">
+              Unavailable until an experiment is selected, CIM is connected, and
+              a standard is configured.
+            </Typography>
+          </Stack>
+        )}
+        {configurationError && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {configurationError}
+          </Alert>
+        )}
       </WorkflowCard>
 
       <WorkflowCard title="3. Generate RO-Crate metadata">
