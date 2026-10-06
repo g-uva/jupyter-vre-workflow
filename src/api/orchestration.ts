@@ -62,6 +62,33 @@ export interface IExperimentMetadata {
   };
 }
 
+export interface IWorkloadEstimate {
+  duration_s: number;
+  it_power_w: number;
+  it_energy_kwh: number;
+  facility_energy_kwh: number;
+  operational_emissions_gco2e: number;
+}
+
+export interface IPredictionState {
+  status: 'idle' | 'queued' | 'running' | 'completed' | 'cancelled' | 'failed';
+  queue: { site_id: string; status: string }[];
+  results: {
+    site: ISite;
+    status: 'completed';
+    simulated: true;
+    inputs: Record<string, number>;
+    assumptions: Record<string, string | number>;
+    training: IWorkloadEstimate;
+    inference: IWorkloadEstimate;
+  }[];
+  current_site: string | null;
+  current_stage: string | null;
+  progress: number;
+  error: string | null;
+  assumptions: Record<string, string | number>;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const settings = ServerConnection.makeSettings();
   const url = new URL(
@@ -110,5 +137,37 @@ export function selectExperimentMetadata(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user, path, action })
+  });
+}
+
+export function getPredictions(
+  user: string,
+  path: string
+): Promise<IPredictionState> {
+  return request(
+    `orchestration/predictions?user=${encodeURIComponent(user)}&path=${encodeURIComponent(path)}`
+  );
+}
+
+export function startPredictions(
+  user: string,
+  path: string,
+  siteIds: string[]
+): Promise<IPredictionState> {
+  return request('orchestration/predictions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user, path, site_ids: siteIds })
+  });
+}
+
+export function cancelPredictions(
+  user: string,
+  path: string
+): Promise<IPredictionState> {
+  return request('orchestration/predictions', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user, path })
   });
 }

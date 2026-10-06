@@ -355,6 +355,40 @@ class OrchestrationMetadataHandler(APIHandler):
         self.finish(result)
 
 
+class OrchestrationPredictionHandler(APIHandler):
+    def initialize(self, manager):
+        self.manager = manager
+
+    @web.authenticated
+    async def get(self):
+        try:
+            self.finish(self.manager.get_prediction(
+                self.get_argument("user", ""), self.get_argument("path")
+            ))
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+
+    @web.authenticated
+    async def post(self):
+        body = self.get_json_body() or {}
+        try:
+            self.finish(self.manager.start_prediction(
+                body.get("user", ""), body.get("path"), body.get("site_ids")
+            ))
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+
+    @web.authenticated
+    async def delete(self):
+        body = self.get_json_body() or {}
+        try:
+            self.finish(self.manager.cancel_prediction(
+                body.get("user", ""), body.get("path")
+            ))
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+
+
 class MetricsInstallHandler(APIHandler):
     @web.authenticated
     async def get(self):
@@ -480,6 +514,11 @@ def setup_handlers(web_app):
             (
                 url_path_join(namespace, "orchestration", "metadata"),
                 OrchestrationMetadataHandler,
+                {"manager": orchestration_manager},
+            ),
+            (
+                url_path_join(namespace, "orchestration", "predictions"),
+                OrchestrationPredictionHandler,
                 {"manager": orchestration_manager},
             ),
             (url_path_join(namespace, "run-install"), MetricsInstallHandler),

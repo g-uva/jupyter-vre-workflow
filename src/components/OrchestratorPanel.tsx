@@ -5,11 +5,13 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   FormControl,
   FormHelperText,
   InputLabel,
   LinearProgress,
+  ListItemText,
   MenuItem,
   Paper,
   Select,
@@ -21,12 +23,16 @@ import AutorenewIcon from '@mui/icons-material/Autorenew';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import {
+  cancelPredictions,
   getRegistration,
+  getPredictions,
   IExperimentMetadata,
+  IPredictionState,
   IRegistrationState,
   ISite,
   registerNode,
-  selectExperimentMetadata
+  selectExperimentMetadata,
+  startPredictions
 } from '../api/orchestration';
 
 const MAP_STYLE =
@@ -89,6 +95,13 @@ export default function OrchestratorPanel({
   const [metadataLoading, setMetadataLoading] = React.useState(false);
   const [syncing, setSyncing] = React.useState(false);
   const [metadataError, setMetadataError] = React.useState('');
+  const [selectedPredictionSites, setSelectedPredictionSites] = React.useState<
+    string[]
+  >(['GRNET']);
+  const [predictions, setPredictions] = React.useState<IPredictionState | null>(
+    null
+  );
+  const [predictionError, setPredictionError] = React.useState('');
   const [form, setForm] = React.useState({
     node_name: '',
     site: 'Athens, Greece',
@@ -155,6 +168,66 @@ export default function OrchestratorPanel({
       );
     } finally {
       setSyncing(false);
+    }
+  }
+
+  const loadPredictions = React.useCallback(async () => {
+    if (!experimentPath || !metadata?.minimum_ready) {
+      setPredictions(null);
+      return;
+    }
+    try {
+      setPredictions(await getPredictions(user, experimentPath));
+      setPredictionError('');
+    } catch (predictionLoadError) {
+      setPredictionError(
+        predictionLoadError instanceof Error
+          ? predictionLoadError.message
+          : String(predictionLoadError)
+      );
+    }
+  }, [experimentPath, metadata?.minimum_ready, user]);
+
+  React.useEffect(() => {
+    void loadPredictions();
+  }, [loadPredictions]);
+
+  React.useEffect(() => {
+    if (!['queued', 'running'].includes(predictions?.status ?? '')) {
+      return;
+    }
+    const timer = window.setInterval(() => void loadPredictions(), 1000);
+    return () => window.clearInterval(timer);
+  }, [loadPredictions, predictions?.status]);
+
+  async function handleStartPredictions() {
+    if (!experimentPath) {
+      return;
+    }
+    setPredictionError('');
+    try {
+      setPredictions(
+        await startPredictions(user, experimentPath, selectedPredictionSites)
+      );
+    } catch (predictionStartError) {
+      setPredictionError(
+        predictionStartError instanceof Error
+          ? predictionStartError.message
+          : String(predictionStartError)
+      );
+    }
+  }
+
+  async function handleCancelPredictions() {
+    if (!experimentPath) {
+      return;
+    }
+    try {
+      setPredictions(await cancelPredictions(user, experimentPath));
+    } catch (cancelError) {
+      setPredictionError(
+        cancelError instanceof Error ? cancelError.message : String(cancelError)
+      );
     }
   }
 
@@ -451,6 +524,148 @@ export default function OrchestratorPanel({
             >
               Synchronisation failed; the local record is preserved.{' '}
               {metadataError}
+            </Alert>
+          )}
+        </Paper>
+      )}
+
+      {state?.registered && (
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="subtitle2" fontWeight={700}>
+            3. Predict training and inference across demo sites
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Sites run sequentially at about 75 seconds each in workshop mode.
+            Results and queue progress are saved under this user and experiment
+            in m3l2 and reopen after refresh.
+          </Typography>
+          <Stack direction={{ xs: 'column', md: 'row' }} gap={1.5} mt={1.5}>
+            <FormControl size="small" sx={{ minWidth: 300 }}>
+              <InputLabel>Demo sites</InputLabel>
+              <Select
+                multiple
+                label="Demo sites"
+                value={selectedPredictionSites}
+                disabled={
+                  !metadata?.minimum_ready ||
+                  ['queued', 'running'].includes(predictions?.status ?? '')
+                }
+                onChange={event =>
+                  setSelectedPredictionSites(
+                    typeof event.target.value === 'string'
+                      ? event.target.value.split(',')
+                      : event.target.value
+                  )
+                }
+                renderValue={selected => selected.join(', ')}
+              >
+                {sites.map(site => (
+                  <MenuItem key={site.id} value={site.id}>
+                    <Checkbox
+                      checked={selectedPredictionSites.includes(site.id)}
+                    />
+                    <ListItemText primary={`${site.flag} ${site.name}`} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
+              onClick={handleStartPredictions}
+              disabled={
+                !metadata?.minimum_ready ||
+                !selectedPredictionSites.length ||
+                ['queued', 'running'].includes(predictions?.status ?? '')
+              }
+            >
+              {predictions?.status === 'failed' ||
+              predictions?.status === 'cancelled'
+                ? 'Retry selected sites'
+                : 'Estimate selected sites'}
+            </Button>
+            {['queued', 'running'].includes(predictions?.status ?? '') && (
+              <Button color="error" onClick={handleCancelPredictions}>
+                Cancel queue
+              </Button>
+            )}
+          </Stack>
+          {!metadata?.minimum_ready && (
+            <FormHelperText>
+              Select a suitable experiment before estimating sites.
+            </FormHelperText>
+          )}
+          {predictions && predictions.status !== 'idle' && (
+            <Stack gap={1.25} mt={2}>
+              <LinearProgress
+                variant="determinate"
+                value={predictions.progress}
+              />
+              <Typography variant="body2">
+                <strong>Simulated progress:</strong>{' '}
+                {predictions.current_site ?? 'queue'} ·{' '}
+                {predictions.current_stage ?? predictions.status}
+              </Typography>
+              <Stack direction="row" gap={1} flexWrap="wrap">
+                {predictions.queue.map(item => (
+                  <Chip
+                    key={item.site_id}
+                    label={`${item.site_id}: ${item.status}`}
+                    color={
+                      item.status === 'completed'
+                        ? 'success'
+                        : item.status === 'running'
+                          ? 'primary'
+                          : 'default'
+                    }
+                    variant="outlined"
+                  />
+                ))}
+              </Stack>
+              {predictions.results.map(result => (
+                <Paper
+                  key={result.site.id}
+                  variant="outlined"
+                  sx={{ p: 1.5, background: '#f8fafc' }}
+                >
+                  <Typography variant="subtitle2">
+                    {result.site.flag} {result.site.name} — saved simulated
+                    estimate
+                  </Typography>
+                  {(['training', 'inference'] as const).map(kind => (
+                    <Typography key={kind} variant="body2">
+                      <strong>
+                        {kind === 'training' ? 'Training' : 'Inference'}:
+                      </strong>{' '}
+                      {result[kind].duration_s.toFixed(2)} s · IT{' '}
+                      {result[kind].it_energy_kwh.toFixed(6)} kWh · facility{' '}
+                      {result[kind].facility_energy_kwh.toFixed(6)} kWh ·
+                      operational emissions{' '}
+                      {result[kind].operational_emissions_gco2e.toFixed(3)}{' '}
+                      gCO₂e
+                    </Typography>
+                  ))}
+                  <Typography variant="caption" color="text.secondary">
+                    Inputs: {result.inputs.base_it_power_w} W IT, performance ×
+                    {result.inputs.performance_factor}, PUE {result.inputs.pue}{' '}
+                    applied once, stable demo carbon intensity{' '}
+                    {result.inputs.carbon_intensity_g_kwh} gCO₂e/kWh. Not live
+                    grid data or a full SCI assessment.
+                  </Typography>
+                </Paper>
+              ))}
+              <Alert severity="info" icon={false}>
+                {String(predictions.assumptions.power_source)}.{' '}
+                {String(predictions.assumptions.energy_boundary)}.{' '}
+                {String(predictions.assumptions.inference_duration)}.
+              </Alert>
+            </Stack>
+          )}
+          {predictionError && (
+            <Alert
+              severity="error"
+              sx={{ mt: 1.5 }}
+              action={<Button onClick={handleStartPredictions}>Retry</Button>}
+            >
+              Prediction failed: {predictionError}
             </Alert>
           )}
         </Paper>

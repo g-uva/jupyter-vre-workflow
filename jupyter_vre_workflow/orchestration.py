@@ -5,6 +5,7 @@ import csv
 import json
 import os
 import re
+import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import URLError
@@ -100,10 +101,18 @@ class CatalogueDemoClient:
 
 
 class OrchestrationManager:
-    def __init__(self, root, federation_client=None, catalogue_client=None):
+    def __init__(self, root, federation_client=None, catalogue_client=None,
+                 prediction_site_seconds=None):
         self.root = Path(root).resolve()
         self.federation_client = federation_client or FederationDemoClient()
         self.catalogue_client = catalogue_client or CatalogueDemoClient()
+        self.prediction_site_seconds = (
+            float(prediction_site_seconds)
+            if prediction_site_seconds is not None
+            else float(os.environ.get("JUVRE_PREDICTION_SITE_SECONDS", "75"))
+        )
+        self.prediction_tasks = {}
+        self.prediction_cancellations = {}
 
     @staticmethod
     def user_key(user):
@@ -283,6 +292,168 @@ class OrchestrationManager:
         self._write_json(folder / "metadata.json", saved)
         self._write_json(folder / "catalogue.json", {"payload": payload, **saved["sync"]})
         return self._metadata_response(saved)
+
+    def prediction_path(self, user, experiment_id):
+        return self.experiment_folder(user, experiment_id) / "predictions.json"
+
+    def get_prediction(self, user, relative):
+        local = self.select_metadata(user, relative)
+        path = self.prediction_path(user, local["experiment"]["id"])
+        if path.is_file():
+            return json.loads(path.read_text())
+        return {
+            "status": "idle", "queue": [], "results": [], "current_site": None,
+            "current_stage": None, "progress": 0, "error": None,
+            "assumptions": self._prediction_assumptions(local),
+        }
+
+    def start_prediction(self, user, relative, site_ids):
+        local = self.select_metadata(user, relative)
+        if not local["minimum_ready"]:
+            raise ValueError("Experiment metadata is incomplete: " + ", ".join(local["missing"]))
+        if not isinstance(site_ids, list) or not site_ids:
+            raise ValueError("Select at least one demo site")
+        known = {site["id"] for site in SITES}
+        if len(set(site_ids)) != len(site_ids) or any(site not in known for site in site_ids):
+            raise ValueError("Site selection contains an unsupported or duplicate site")
+        key = (self.user_key(user), local["experiment"]["id"])
+        existing = self.prediction_tasks.get(key)
+        if existing is not None and not existing.done():
+            raise ValueError("A prediction queue is already running")
+        state = {
+            "status": "queued",
+            "queue": [{"site_id": site_id, "status": "queued"} for site_id in site_ids],
+            "results": [], "current_site": None, "current_stage": None,
+            "progress": 0, "error": None, "started_at": utc_now(),
+            "completed_at": None,
+            "assumptions": self._prediction_assumptions(local),
+        }
+        path = self.prediction_path(user, local["experiment"]["id"])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self._write_json(path, state)
+        cancellation = asyncio.Event()
+        self.prediction_cancellations[key] = cancellation
+        task = asyncio.create_task(
+            self._run_prediction(user, relative, local, site_ids, cancellation)
+        )
+        self.prediction_tasks[key] = task
+        task.add_done_callback(lambda _task: self.prediction_tasks.pop(key, None))
+        return state
+
+    def cancel_prediction(self, user, relative):
+        local = self.select_metadata(user, relative)
+        key = (self.user_key(user), local["experiment"]["id"])
+        cancellation = self.prediction_cancellations.get(key)
+        if cancellation is None:
+            raise ValueError("No prediction queue is running")
+        cancellation.set()
+        return self.get_prediction(user, relative)
+
+    async def _run_prediction(self, user, relative, local, site_ids, cancellation):
+        path = self.prediction_path(user, local["experiment"]["id"])
+        state = json.loads(path.read_text())
+        stages = [
+            "Preparing experiment metadata",
+            "Estimating simulated training",
+            "Estimating simulated inference",
+            "Calculating site results",
+        ]
+        total_steps = len(site_ids) * len(stages)
+        completed_steps = 0
+        try:
+            state["status"] = "running"
+            for index, site_id in enumerate(site_ids):
+                site = next(site for site in SITES if site["id"] == site_id)
+                state["current_site"] = site_id
+                state["queue"][index]["status"] = "running"
+                for stage in stages:
+                    if cancellation.is_set():
+                        state["status"] = "cancelled"
+                        state["queue"][index]["status"] = "cancelled"
+                        state["current_stage"] = "Cancelled by participant"
+                        state["completed_at"] = utc_now()
+                        self._write_json(path, state)
+                        return
+                    state["current_stage"] = stage
+                    state["progress"] = round(100 * completed_steps / total_steps)
+                    self._write_json(path, state)
+                    await asyncio.sleep(max(0, self.prediction_site_seconds / len(stages)))
+                    completed_steps += 1
+                state["results"].append(self._estimate_site(local, site))
+                state["queue"][index]["status"] = "completed"
+                state["progress"] = round(100 * completed_steps / total_steps)
+                self._write_json(path, state)
+            state["status"] = "completed"
+            state["current_site"] = None
+            state["current_stage"] = "Saved predictions locally"
+            state["progress"] = 100
+            state["completed_at"] = utc_now()
+        except Exception as error:
+            state["status"] = "failed"
+            state["error"] = str(error)
+            state["completed_at"] = utc_now()
+        finally:
+            self._write_json(path, state)
+
+    @staticmethod
+    def _prediction_assumptions(local):
+        measurements = local["measurements"]
+        runtime = local["experiment"]["runtime_s"]
+        if measurements["average_power_w"] is not None:
+            power = measurements["average_power_w"]
+            power_source = "measured average_power_w"
+        elif measurements["energy_j"] is not None and runtime:
+            power = measurements["energy_j"] / runtime
+            power_source = "derived from measured energy_j / runtime"
+        else:
+            power = 120.0
+            power_source = "demo assumption: 120 W IT power because no usable power or energy metric exists"
+        return {
+            "base_runtime_s": runtime,
+            "base_it_power_w": power,
+            "power_source": power_source,
+            "training_duration": "measured runtime divided by stable site performance factor",
+            "inference_duration": "15% of site training duration, minimum 5 seconds",
+            "inference_power": "65% of training IT power",
+            "energy_boundary": "IT energy only before PUE; source telemetry is treated as IT/component energy",
+            "facility_formula": "facility kWh = IT kWh × site PUE (applied once)",
+            "emissions_formula": "gCO2e = facility kWh × demo carbon intensity gCO2e/kWh",
+            "assessment_scope": "Operational estimate only; not live grid data and not a full SCI assessment",
+        }
+
+    @staticmethod
+    def _workload_result(duration_s, power_w, site):
+        it_kwh = power_w * duration_s / 3_600_000
+        facility_kwh = it_kwh * site["pue"]
+        emissions_g = facility_kwh * site["carbon_intensity_g_kwh"]
+        return {
+            "duration_s": round(duration_s, 6),
+            "it_power_w": round(power_w, 6),
+            "it_energy_kwh": round(it_kwh, 9),
+            "facility_energy_kwh": round(facility_kwh, 9),
+            "operational_emissions_gco2e": round(emissions_g, 6),
+        }
+
+    def _estimate_site(self, local, site):
+        assumptions = self._prediction_assumptions(local)
+        training_duration = assumptions["base_runtime_s"] / site["performance_factor"]
+        inference_duration = max(5.0, training_duration * 0.15)
+        power = assumptions["base_it_power_w"]
+        return {
+            "site": site,
+            "status": "completed",
+            "simulated": True,
+            "inputs": {
+                "base_runtime_s": assumptions["base_runtime_s"],
+                "base_it_power_w": power,
+                "performance_factor": site["performance_factor"],
+                "pue": site["pue"],
+                "carbon_intensity_g_kwh": site["carbon_intensity_g_kwh"],
+            },
+            "assumptions": assumptions,
+            "training": self._workload_result(training_duration, power, site),
+            "inference": self._workload_result(inference_duration, power * 0.65, site),
+        }
 
     @staticmethod
     def _metadata_response(local):

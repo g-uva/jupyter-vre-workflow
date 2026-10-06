@@ -13,6 +13,7 @@ from jupyter_vre_workflow.handlers import (
     ModuleStatusHandler,
     OrchestrationRegistrationHandler,
     OrchestrationMetadataHandler,
+    OrchestrationPredictionHandler,
     ReproducibilityConfigHandler,
     RoCrateHandler,
     get_module_status,
@@ -52,6 +53,7 @@ class ServerExtensionTests(unittest.TestCase):
                 "/services/notebooks/api/jupyter-vre-workflow/reproducibility/publish",
                 "/services/notebooks/api/jupyter-vre-workflow/orchestration/registration",
                 "/services/notebooks/api/jupyter-vre-workflow/orchestration/metadata",
+                "/services/notebooks/api/jupyter-vre-workflow/orchestration/predictions",
                 "/services/notebooks/api/jupyter-vre-workflow/run-install",
             ],
         )
@@ -64,7 +66,8 @@ class ServerExtensionTests(unittest.TestCase):
         self.assertIs(handlers[5][1], FdmiPublishHandler)
         self.assertIs(handlers[6][1], OrchestrationRegistrationHandler)
         self.assertIs(handlers[7][1], OrchestrationMetadataHandler)
-        self.assertIs(handlers[8][1], MetricsInstallHandler)
+        self.assertIs(handlers[8][1], OrchestrationPredictionHandler)
+        self.assertIs(handlers[9][1], MetricsInstallHandler)
 
     def test_loader_registers_all_handlers(self):
         with TemporaryDirectory() as root_dir:
@@ -77,7 +80,7 @@ class ServerExtensionTests(unittest.TestCase):
             )
             server_app = SimpleNamespace(web_app=web_app, log=Mock())
             jupyter_vre_workflow._load_jupyter_server_extension(server_app)
-        self.assertEqual(len(web_app.add_handlers.call_args.args[1]), 9)
+        self.assertEqual(len(web_app.add_handlers.call_args.args[1]), 10)
 
     def test_module_status_requires_both_telemetry_executables(self):
         with patch(

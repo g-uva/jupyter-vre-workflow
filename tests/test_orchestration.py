@@ -1,3 +1,4 @@
+import asyncio
 import json
 import tempfile
 import unittest
@@ -113,6 +114,51 @@ class RegistrationTests(unittest.TestCase):
         local = self.manager.select_metadata("alice", relative)
         self.assertFalse(local["minimum_ready"])
         self.assertIn("a successful run status", local["missing"])
+
+
+class PredictionTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.manager = OrchestrationManager(self.root, prediction_site_seconds=0)
+        self.manager.register("alice", {
+            "node_name": "GD-DEMO-001", "site": "Athens",
+            "operator": "Alice", "contact": "alice@example.org"
+        })
+        helper = RegistrationTests()
+        helper.root = self.root
+        self.relative = helper.make_experiment()
+
+    async def asyncTearDown(self):
+        if self.manager.prediction_tasks:
+            await asyncio.gather(*self.manager.prediction_tasks.values(), return_exceptions=True)
+        self.temporary.cleanup()
+
+    async def test_two_sites_are_sequential_stable_and_unit_correct(self):
+        self.manager.start_prediction("alice", self.relative, ["GRNET", "NIKHEF"])
+        await asyncio.gather(*list(self.manager.prediction_tasks.values()))
+        first = self.manager.get_prediction("alice", self.relative)
+        self.assertEqual(first["status"], "completed")
+        self.assertEqual([q["status"] for q in first["queue"]], ["completed", "completed"])
+        result = first["results"][0]
+        expected_it = 120 * 6 / 3_600_000
+        self.assertAlmostEqual(result["training"]["it_energy_kwh"], expected_it)
+        self.assertAlmostEqual(result["training"]["facility_energy_kwh"], expected_it * 1.48)
+        self.assertAlmostEqual(
+            result["training"]["operational_emissions_gco2e"], expected_it * 1.48 * 380
+        )
+        self.manager.start_prediction("alice", self.relative, ["GRNET"])
+        await asyncio.gather(*list(self.manager.prediction_tasks.values()))
+        repeated = self.manager.get_prediction("alice", self.relative)
+        self.assertEqual(repeated["results"][0]["training"], result["training"])
+
+    async def test_cancelled_queue_is_persisted(self):
+        self.manager.prediction_site_seconds = 0.2
+        self.manager.start_prediction("alice", self.relative, ["GRNET", "NIKHEF"])
+        await asyncio.sleep(0.01)
+        self.manager.cancel_prediction("alice", self.relative)
+        await asyncio.gather(*list(self.manager.prediction_tasks.values()))
+        self.assertEqual(self.manager.get_prediction("alice", self.relative)["status"], "cancelled")
 
 
 if __name__ == "__main__":
