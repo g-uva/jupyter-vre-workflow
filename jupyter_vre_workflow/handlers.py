@@ -240,15 +240,21 @@ class ModuleStatusHandler(APIHandler):
 class CimConnectionHandler(APIHandler):
     """Server-side bridge to the cluster-internal mock CIM endpoint."""
 
-    def initialize(self, client):
+    def initialize(self, client, manager):
         self.client = client
+        self.manager = manager
 
     @web.authenticated
     async def post(self):
+        body = self.get_json_body() or {}
         try:
             result = await asyncio.to_thread(self.client.connect)
+            if body.get("path"):
+                self.manager.mark_cim_connected(body["path"], result)
         except RuntimeError as error:
             raise web.HTTPError(502, reason=str(error)) from error
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
         self.finish(result)
 
 
@@ -273,6 +279,19 @@ class ReproducibilityConfigHandler(APIHandler):
         except (ValueError, OSError, json.JSONDecodeError) as error:
             raise web.HTTPError(400, reason=str(error)) from error
         self.finish(result)
+
+
+class RoCrateHandler(APIHandler):
+    def initialize(self, manager):
+        self.manager = manager
+
+    @web.authenticated
+    async def post(self):
+        body = self.get_json_body() or {}
+        try:
+            self.finish(self.manager.generate_crate(body.get("path")))
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
 
 
 class MetricsInstallHandler(APIHandler):
@@ -372,7 +391,12 @@ def setup_handlers(web_app):
             (
                 url_path_join(namespace, "reproducibility", "cim", "connect"),
                 CimConnectionHandler,
-                {"client": cim_client},
+                {"client": cim_client, "manager": reproducibility_manager},
+            ),
+            (
+                url_path_join(namespace, "reproducibility", "crate"),
+                RoCrateHandler,
+                {"manager": reproducibility_manager},
             ),
             (
                 url_path_join(namespace, "reproducibility", "config"),

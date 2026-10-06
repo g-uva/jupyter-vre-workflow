@@ -5,6 +5,7 @@ import os
 import csv
 import hashlib
 from pathlib import Path
+from datetime import datetime, timezone
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -129,6 +130,7 @@ class ReproducibilityManager:
                 "metric_term": "sosa:Observation",
             },
             "configuration_revision": None,
+            "cim_connection": None,
             "crate": None,
             "publication": None,
         }
@@ -219,7 +221,166 @@ class ReproducibilityManager:
         )
         if changed and previous.get("publication"):
             previous["publication"]["stale"] = True
-        (folder / self.STATE_FILE).write_text(
-            json.dumps(previous, indent=2, ensure_ascii=False) + "\n"
+        self._write_state(folder, previous)
+        return self.get(relative)
+
+    def mark_cim_connected(self, relative, connection):
+        folder = self.resolve_experiment(relative)
+        state = self._load(folder)
+        state["cim_connection"] = {
+            "connected": True,
+            "endpoint": connection["endpoint"],
+            "identity": connection["identity"],
+            "mode": "demo",
+        }
+        self._write_state(folder, state)
+        return self.get(relative)
+
+    @staticmethod
+    def _write_state(folder, state):
+        path = folder / ReproducibilityManager.STATE_FILE
+        temporary = path.with_suffix(path.suffix + ".tmp")
+        temporary.write_text(json.dumps(state, indent=2, ensure_ascii=False) + "\n")
+        temporary.replace(path)
+
+    def generate_crate(self, relative):
+        folder = self.resolve_experiment(relative)
+        state = self._load(folder)
+        if not (state.get("cim_connection") or {}).get("connected"):
+            raise ValueError("Connect successfully to the mock CIM service first")
+        standard = next(
+            (item for item in CIM_STANDARDS if item["key"] == state["standard_key"]),
+            None,
         )
+        if standard is None or not state.get("configuration_revision"):
+            raise ValueError("Configure a supported CIM standard first")
+        run = json.loads((folder / "run.json").read_text())
+        artifacts = run.get("artifacts", {})
+        names = {
+            "input": artifacts.get("input", "notebook.ipynb"),
+            "output": artifacts.get("output", "executed.ipynb"),
+            "metrics": artifacts.get("metrics", "metrics.csv"),
+        }
+        missing = [name for name in names.values() if not (folder / name).is_file()]
+        if missing:
+            raise ValueError("Missing run files: " + ", ".join(missing))
+
+        metric_summaries = []
+        with (folder / names["metrics"]).open(newline="") as stream:
+            grouped = {}
+            for row in csv.DictReader(stream):
+                metric = row.get("metric")
+                if not metric:
+                    continue
+                item = grouped.setdefault(
+                    metric,
+                    {"count": 0, "units": set(), "values": []},
+                )
+                item["count"] += 1
+                if row.get("unit"):
+                    item["units"].add(row["unit"])
+                try:
+                    item["values"].append(float(row["value"]))
+                except (TypeError, ValueError):
+                    pass
+            for metric, item in sorted(grouped.items()):
+                summary = {
+                    "name": metric,
+                    "count": item["count"],
+                    "units": sorted(item["units"]),
+                    "mapped_type": state["mapping"]["metric_term"],
+                }
+                if item["values"]:
+                    summary["minimum"] = min(item["values"])
+                    summary["maximum"] = max(item["values"])
+                metric_summaries.append(summary)
+
+        generated = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        crate_name = "ro-crate-metadata.json"
+        standard_id = f"#standard-{standard['key']}"
+        action_id = f"#run-{run['id']}"
+        graph = [
+            {
+                "@id": crate_name,
+                "@type": "CreativeWork",
+                "about": {"@id": "./"},
+                "conformsTo": {"@id": "https://w3id.org/ro/crate/1.1"},
+            },
+            {
+                "@id": "./",
+                "@type": "Dataset",
+                "name": f"JuVRE experiment {run.get('workflow_id')} / {run.get('id')}",
+                "datePublished": generated,
+                "hasPart": [{"@id": value} for value in names.values()],
+                "mentions": [{"@id": action_id}, {"@id": standard_id}],
+                "additionalProperty": [
+                    {
+                        "@type": "PropertyValue",
+                        "name": "JuVRE metric summary",
+                        "value": metric_summaries,
+                    },
+                    {
+                        "@type": "PropertyValue",
+                        "name": "CIM preview mapping",
+                        "value": state["mapping"],
+                    },
+                ],
+            },
+            {
+                "@id": action_id,
+                "@type": "CreateAction",
+                "name": "Execute tracked Jupyter notebook experiment",
+                "actionStatus": run.get("status"),
+                "startTime": run.get("start_time"),
+                "endTime": run.get("end_time"),
+                "object": {"@id": names["input"]},
+                "result": [{"@id": names["output"]}, {"@id": names["metrics"]}],
+                "instrument": {"@id": names["input"]},
+            },
+            {
+                "@id": standard_id,
+                "@type": "CreativeWork",
+                "name": standard["label"],
+                "version": standard["version"],
+                "description": standard["description"],
+                "usageInfo": standard["compliance"],
+            },
+            {
+                "@id": names["input"],
+                "@type": ["File", "SoftwareSourceCode"],
+                "name": "Input notebook snapshot",
+                "sha256": run.get("input_sha256"),
+            },
+            {
+                "@id": names["output"],
+                "@type": ["File", "SoftwareSourceCode"],
+                "name": "Executed notebook",
+                "sha256": run.get("output_sha256"),
+            },
+            {
+                "@id": names["metrics"],
+                "@type": "File",
+                "name": "Experiment metrics",
+                "encodingFormat": "text/csv",
+            },
+        ]
+        crate = {
+            "@context": "https://w3id.org/ro/crate/1.1/context",
+            "@graph": graph,
+        }
+        crate_path = folder / crate_name
+        temporary = crate_path.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(crate, indent=2, ensure_ascii=False) + "\n")
+        temporary.replace(crate_path)
+        previous_generation = (state.get("crate") or {}).get("generation", 0)
+        state["crate"] = {
+            "name": crate_name,
+            "path": str(crate_path.relative_to(self.root)),
+            "generated_at": generated,
+            "configuration_revision": state["configuration_revision"],
+            "generation": previous_generation + 1,
+        }
+        if state.get("publication"):
+            state["publication"]["stale"] = True
+        self._write_state(folder, state)
         return self.get(relative)

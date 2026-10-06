@@ -40,8 +40,12 @@ class ReproducibilityStateTests(unittest.TestCase):
         self.folder.mkdir(parents=True)
         (self.folder / "run.json").write_text(json.dumps({
             "id": "run-1", "workflow_id": "demo", "status": "succeeded",
-            "artifacts": {"metrics": "metrics.csv"}
+            "start_time": "2026-10-06T10:00:00Z", "end_time": "2026-10-06T10:01:00Z",
+            "input_sha256": "input-hash", "output_sha256": "output-hash",
+            "artifacts": {"input": "notebook.ipynb", "output": "executed.ipynb", "metrics": "metrics.csv"}
         }))
+        (self.folder / "notebook.ipynb").write_text("{}")
+        (self.folder / "executed.ipynb").write_text("{}")
         with (self.folder / "metrics.csv").open("w", newline="") as stream:
             writer = csv.writer(stream)
             writer.writerow(["timestamp_utc", "timestamp_unix", "metric", "labels", "value", "unit"])
@@ -64,6 +68,35 @@ class ReproducibilityStateTests(unittest.TestCase):
     def test_only_safe_mapping_fields_are_accepted(self):
         with self.assertRaisesRegex(ValueError, "Only the preview"):
             self.manager.configure(self.relative, "iec-cim", {"endpoint": "evil"})
+
+    def test_crate_requires_connection_and_contains_run_provenance(self):
+        self.manager.configure(self.relative, "greendigit-commons", {})
+        with self.assertRaisesRegex(ValueError, "Connect successfully"):
+            self.manager.generate_crate(self.relative)
+        self.manager.mark_cim_connected(self.relative, {
+            "endpoint": "embedded://mock-cim", "identity": "gd-super-user"
+        })
+        state = self.manager.generate_crate(self.relative)
+        self.assertTrue(state["crate_current"])
+        self.assertEqual(state["crate"]["generation"], 1)
+        crate = json.loads((self.folder / "ro-crate-metadata.json").read_text())
+        self.assertEqual(crate["@context"], "https://w3id.org/ro/crate/1.1/context")
+        graph = {item["@id"]: item for item in crate["@graph"]}
+        self.assertIn("notebook.ipynb", graph)
+        self.assertIn("executed.ipynb", graph)
+        self.assertEqual(graph["#run-run-1"]["actionStatus"], "succeeded")
+        self.assertEqual(graph["#standard-greendigit-commons"]["name"], "GreenDIGIT Commons")
+
+    def test_mapping_change_invalidates_generated_crate(self):
+        self.manager.configure(self.relative, "greendigit-commons", {})
+        self.manager.mark_cim_connected(self.relative, {
+            "endpoint": "embedded://mock-cim", "identity": "gd-super-user"
+        })
+        self.manager.generate_crate(self.relative)
+        changed = self.manager.configure(
+            self.relative, "iec-cim", {"metric_term": "cim:Measurement"}
+        )
+        self.assertFalse(changed["crate_current"])
 
 
 if __name__ == "__main__":

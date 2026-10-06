@@ -25,8 +25,10 @@ import CloudOutlinedIcon from '@mui/icons-material/CloudOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import {
+  artifactUrl,
   connectCim,
   configureReproducibility,
+  generateRoCrate,
   getReproducibilityState,
   ICimConnection,
   ICimStandard,
@@ -85,6 +87,8 @@ export default function ReproducibilityPanel({
   });
   const [savingMapping, setSavingMapping] = React.useState(false);
   const [configurationError, setConfigurationError] = React.useState('');
+  const [generating, setGenerating] = React.useState(false);
+  const [generationError, setGenerationError] = React.useState('');
 
   const standard: ICimStandard | undefined = connection?.standards.find(
     item => item.key === selectedStandardKey
@@ -162,7 +166,7 @@ export default function ReproducibilityPanel({
     setConnectionError('');
     setConnectionStep(0);
     try {
-      const request = connectCim();
+      const request = connectCim(experimentPath);
       for (let step = 0; step < CONNECTION_STEPS.length - 1; step++) {
         await new Promise(resolve => window.setTimeout(resolve, 250));
         setConnectionStep(step + 1);
@@ -180,6 +184,24 @@ export default function ReproducibilityPanel({
       );
     } finally {
       setConnecting(false);
+    }
+  }
+
+  async function handleGenerate() {
+    if (!experimentPath) {
+      return;
+    }
+    setGenerating(true);
+    setGenerationError('');
+    try {
+      const result = await generateRoCrate(experimentPath);
+      setState(result);
+    } catch (error) {
+      setGenerationError(
+        error instanceof Error ? error.message : String(error)
+      );
+    } finally {
+      setGenerating(false);
     }
   }
 
@@ -417,12 +439,60 @@ export default function ReproducibilityPanel({
       </WorkflowCard>
 
       <WorkflowCard title="3. Generate RO-Crate metadata">
-        <Button disabled startIcon={<DescriptionOutlinedIcon />}>
-          Generate RO-Crate metadata
+        <Button
+          onClick={handleGenerate}
+          disabled={generating || !connection?.connected || !state?.configured}
+          startIcon={
+            generating ? <AutorenewIcon /> : <DescriptionOutlinedIcon />
+          }
+        >
+          {generating
+            ? 'Generating…'
+            : state?.crate_current
+              ? 'Regenerate RO-Crate metadata'
+              : 'Generate RO-Crate metadata'}
         </Button>
         <FormHelperText>
-          Requires a successful CIM connection and configured standard.
+          {!experimentPath
+            ? 'Select a tracked experiment first.'
+            : !connection?.connected
+              ? 'Connect successfully to the mock CIM service first.'
+              : !state?.configured
+                ? 'Configure a standard first.'
+                : 'Generation writes a real RO-Crate 1.1 JSON-LD metadata descriptor beside the run outputs.'}
         </FormHelperText>
+        {generationError && (
+          <Alert severity="error" sx={{ mt: 1.5 }}>
+            Generation failed: {generationError}
+          </Alert>
+        )}
+        {state?.crate && (
+          <Alert
+            severity={state.crate_current ? 'success' : 'warning'}
+            sx={{ mt: 1.5 }}
+          >
+            <Typography variant="body2" fontWeight={700}>
+              {state.crate_current
+                ? 'RO-Crate metadata is up to date'
+                : 'RO-Crate metadata is stale — regenerate before publishing'}
+            </Typography>
+            <Typography variant="caption" display="block">
+              {state.crate.name} · {state.crate.path} · generated{' '}
+              {new Date(state.crate.generated_at).toLocaleString()} · generation{' '}
+              {state.crate.generation}
+            </Typography>
+            <Button
+              size="small"
+              component="a"
+              href={artifactUrl(state.crate.path)}
+              target="_blank"
+              rel="noreferrer"
+              sx={{ mt: 0.5 }}
+            >
+              Inspect or download artefact
+            </Button>
+          </Alert>
+        )}
       </WorkflowCard>
 
       <WorkflowCard title="4. Publish experiment metadata">

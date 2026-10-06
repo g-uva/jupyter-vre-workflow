@@ -28,6 +28,19 @@ export interface IReproducibilityState {
   configuration_revision: string | null;
   configured: boolean;
   crate_current: boolean;
+  cim_connection: {
+    connected: boolean;
+    endpoint: string;
+    identity: string;
+    mode: 'demo';
+  } | null;
+  crate: {
+    name: string;
+    path: string;
+    generated_at: string;
+    configuration_revision: string;
+    generation: number;
+  } | null;
   preview: {
     experiment_id: string;
     workflow_id: string;
@@ -61,12 +74,36 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function connectCim(): Promise<ICimConnection> {
+export function connectCim(
+  experimentPath?: string | null
+): Promise<ICimConnection> {
   return request<ICimConnection>('reproducibility/cim/connect', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: '{}'
+    body: JSON.stringify({ path: experimentPath ?? undefined })
   });
+}
+
+export function generateRoCrate(
+  experimentPath: string
+): Promise<IReproducibilityState> {
+  return request<IReproducibilityState>('reproducibility/crate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: experimentPath })
+  });
+}
+
+export function artifactUrl(path: string): string {
+  const settings = ServerConnection.makeSettings();
+  const encoded = path
+    .split('/')
+    .map(part => encodeURIComponent(part))
+    .join('/');
+  return new URL(
+    `${settings.baseUrl.replace(/\/?$/, '/')}files/${encoded}`,
+    window.location.origin
+  ).toString();
 }
 
 export function getReproducibilityState(
