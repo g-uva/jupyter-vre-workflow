@@ -25,8 +25,8 @@ import { mainColour01, mainColour02, mainColour03 } from '../helpers/constants';
 
 // ─── Grid constants (must mirror ReactGridLayout props exactly) ────────────────
 const COLS = 2;
-const ROW_HEIGHT = 320;
-const HEADER_HEIGHT = 58;  // fixed — keeps chart area height stable
+const ROW_HEIGHT = 440;
+const HEADER_HEIGHT = 58; // fixed — keeps chart area height stable
 const MARGIN: [number, number] = [16, 16];
 const PAD: [number, number] = [8, 8];
 
@@ -46,7 +46,7 @@ const METRIC_META: Record<string, IMetricMeta> = {
     label: 'Host Energy',
     unit: 'Wh',
     color: mainColour01,
-    transform: (v: number) => v / 3.6e9   // µJ → Wh
+    transform: (v: number) => v / 3.6e9 // µJ → Wh
   },
   scaph_host_load_avg_fifteen: {
     label: 'Load Avg (15 min)',
@@ -57,13 +57,13 @@ const METRIC_META: Record<string, IMetricMeta> = {
     label: 'Host Power',
     unit: 'W',
     color: mainColour03,
-    transform: (v: number) => v / 1e6     // µW → W
+    transform: (v: number) => v / 1e6 // µW → W
   },
   scaph_process_power_microwatts: {
     label: 'Process Power',
     unit: 'W',
     color: '#7c3aed',
-    transform: (v: number) => v / 1e6     // µW → W
+    transform: (v: number) => v / 1e6 // µW → W
   }
 };
 
@@ -95,7 +95,10 @@ function makeId() {
   return `w-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
 }
 
-function findNextPosition(existing: LayoutItem[], span: 1 | 2): { x: number; y: number } {
+function findNextPosition(
+  existing: LayoutItem[],
+  span: 1 | 2
+): { x: number; y: number } {
   const occupied = new Set<string>();
   for (const item of existing) {
     for (let cx = item.x; cx < item.x + item.w; cx++) {
@@ -200,7 +203,7 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <Box>
+    <Box sx={{ overflow: 'visible' }}>
       {/* Toolbar (replaces the old tab bar) */}
       <Stack
         direction="row"
@@ -269,7 +272,10 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
             const meta = getMetricMeta(key);
             return (
               <ListItem disablePadding key={key}>
-                <ListItemButton onClick={() => addWidget(key)} sx={{ px: 2, py: 0.75 }}>
+                <ListItemButton
+                  onClick={() => addWidget(key)}
+                  sx={{ px: 2, py: 0.75 }}
+                >
                   <Box
                     sx={{
                       width: 9,
@@ -300,10 +306,22 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
       {/* Grid area */}
       <Box
         ref={containerRef}
-        sx={{ position: 'relative', minHeight: containerHeight, background: '#f8fafc' }}
+        sx={{
+          position: 'relative',
+          minHeight: containerHeight,
+          background: '#f8fafc',
+          overflow: 'visible'
+        }}
       >
         {/* Ghost background slots */}
-        <Box sx={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 0,
+            pointerEvents: 'none'
+          }}
+        >
           {Array.from({ length: numGhostRows }, (_, row) =>
             Array.from({ length: COLS }, (_, col) => (
               <Box
@@ -416,7 +434,12 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
                           {meta.unit && (
                             <Typography
                               variant="caption"
-                              sx={{ color: meta.color, opacity: 0.7, fontWeight: 600, fontSize: 10 }}
+                              sx={{
+                                color: meta.color,
+                                opacity: 0.7,
+                                fontWeight: 600,
+                                fontSize: 10
+                              }}
                             >
                               ({meta.unit})
                             </Typography>
@@ -434,7 +457,11 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
 
                       <Stack direction="row" alignItems="center">
                         <Tooltip
-                          title={span === 1 ? 'Expand to full width' : 'Collapse to half width'}
+                          title={
+                            span === 1
+                              ? 'Expand to full width'
+                              : 'Collapse to half width'
+                          }
                           placement="top"
                         >
                           <IconButton
@@ -444,7 +471,10 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
                               width: 26,
                               height: 26,
                               color: span === 2 ? '#1e40af' : '#94a3b8',
-                              '&:hover': { color: '#1e40af', background: '#eff6ff' }
+                              '&:hover': {
+                                color: '#1e40af',
+                                background: '#eff6ff'
+                              }
                             }}
                           >
                             <ViewColumnOutlinedIcon sx={{ fontSize: 15 }} />
@@ -459,7 +489,10 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
                               width: 26,
                               height: 26,
                               color: '#94a3b8',
-                              '&:hover': { color: '#ef4444', background: '#fef2f2' }
+                              '&:hover': {
+                                color: '#ef4444',
+                                background: '#fef2f2'
+                              }
                             }}
                           >
                             <DeleteOutlineIcon sx={{ fontSize: 15 }} />
@@ -478,7 +511,10 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
                               cursor: 'grab',
                               color: '#94a3b8',
                               borderRadius: '4px',
-                              '&:hover': { color: '#475569', background: '#f1f5f9' },
+                              '&:hover': {
+                                color: '#475569',
+                                background: '#f1f5f9'
+                              },
                               '&:active': { cursor: 'grabbing' }
                             }}
                           >
