@@ -968,7 +968,14 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                   installed={moduleStatus.orchestration.installed}
                   onInstall={() => handleInstallModule('orchestration')}
                 >
-                  <OrchestratorPanel username={username} />
+                  <OrchestratorPanel
+                    username={username}
+                    selectedWorkflow={selectedWorkflow}
+                    selectedExperiment={selectedExperiment}
+                    experimentPath={
+                      run?.id === selectedExperiment ? run.path : null
+                    }
+                  />
                 </ModuleInstallGate>
               </Box>
             </Box>

@@ -1,6 +1,7 @@
 """Persistent services for the Autumn School orchestration demonstration."""
 
 import hashlib
+import csv
 import json
 import os
 import re
@@ -69,10 +70,40 @@ class FederationDemoClient:
         }
 
 
+class CatalogueDemoClient:
+    ENDPOINT = "http://juvre-mock-federation:8080/v1/catalogue"
+
+    def __init__(self, endpoint=None, post_json=None):
+        self.endpoint = endpoint if endpoint is not None else os.environ.get(
+            "JUVRE_CATALOGUE_URL", ""
+        )
+        self.post_json = post_json or FederationDemoClient._post_json
+
+    def sync(self, payload):
+        if self.endpoint:
+            result = self.post_json(self.endpoint, payload)
+        else:
+            key = hashlib.sha256(
+                f"{payload['user_key']}:{payload['experiment']['id']}".encode()
+            ).hexdigest()[:16].upper()
+            result = {"accepted": True, "catalogue_id": f"GD-AS-DEMO-{key}"}
+        if not isinstance(result, dict) or not result.get("accepted"):
+            raise RuntimeError("Mock GD-AS-DEMO catalogue rejected synchronisation")
+        return result
+
+    def describe(self):
+        return {
+            "mode": "mock GD-AS-DEMO catalogue",
+            "configured_endpoint": self.endpoint or "embedded://mock-catalogue",
+            "kubernetes_service": self.ENDPOINT,
+        }
+
+
 class OrchestrationManager:
-    def __init__(self, root, federation_client=None):
+    def __init__(self, root, federation_client=None, catalogue_client=None):
         self.root = Path(root).resolve()
         self.federation_client = federation_client or FederationDemoClient()
+        self.catalogue_client = catalogue_client or CatalogueDemoClient()
 
     @staticmethod
     def user_key(user):
@@ -135,6 +166,130 @@ class OrchestrationManager:
         folder.mkdir(parents=True, exist_ok=True)
         self._write_json(folder / "registration.json", registration)
         return self.get_registration(user)
+
+    def resolve_experiment(self, relative):
+        if not isinstance(relative, str) or not relative or Path(relative).is_absolute():
+            raise ValueError("Expected an experiment path relative to the Jupyter root")
+        folder = (self.root / relative).resolve()
+        if self.root not in folder.parents or not (folder / "run.json").is_file():
+            raise ValueError("Experiment does not exist")
+        return folder
+
+    def experiment_folder(self, user, experiment_id):
+        safe_id = re.sub(r"[^a-zA-Z0-9._-]+", "-", str(experiment_id)).strip("-")
+        if not safe_id:
+            raise ValueError("Experiment has no usable identifier")
+        return self.user_folder(user) / "experiments" / safe_id
+
+    @staticmethod
+    def _parse_time(value):
+        if not value:
+            return None
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+    def select_metadata(self, user, relative):
+        registration = self.get_registration(user)
+        if not registration["registered"]:
+            raise ValueError("Register this node before selecting metadata")
+        source_folder = self.resolve_experiment(relative)
+        run = json.loads((source_folder / "run.json").read_text())
+        missing = []
+        if run.get("status") != "succeeded":
+            missing.append("a successful run status")
+        start = self._parse_time(run.get("start_time"))
+        end = self._parse_time(run.get("end_time"))
+        runtime_s = (end - start).total_seconds() if start and end else None
+        if runtime_s is None or runtime_s <= 0:
+            missing.append("valid start and end timestamps")
+        artifacts = run.get("artifacts", {})
+        for key, fallback in (("input", "notebook.ipynb"), ("output", "executed.ipynb")):
+            if not (source_folder / artifacts.get(key, fallback)).is_file():
+                missing.append(f"{key} notebook artefact")
+
+        metrics_path = source_folder / artifacts.get("metrics", "metrics.csv")
+        metric_names = set()
+        final_energy_j = None
+        average_power_w = None
+        if metrics_path.is_file():
+            with metrics_path.open(newline="") as stream:
+                for row in csv.DictReader(stream):
+                    name = row.get("metric")
+                    if name:
+                        metric_names.add(name)
+                    try:
+                        value = float(row.get("value", ""))
+                    except (TypeError, ValueError):
+                        continue
+                    if name == "energy_j":
+                        final_energy_j = value
+                    elif name == "average_power_w":
+                        average_power_w = value
+        crate_path = source_folder / "ro-crate-metadata.json"
+        source = (
+            "local RO-Crate plus run.json and metrics.csv"
+            if crate_path.is_file()
+            else "local run.json and metrics.csv"
+        )
+        local = {
+            "user_key": registration["user_key"],
+            "experiment_path": relative,
+            "experiment": {
+                "id": run.get("id"),
+                "workflow_id": run.get("workflow_id"),
+                "status": run.get("status"),
+                "runtime_s": runtime_s,
+            },
+            "source": source,
+            "ro_crate_available": crate_path.is_file(),
+            "metrics_available": sorted(metric_names),
+            "measurements": {
+                "energy_j": final_energy_j,
+                "average_power_w": average_power_w,
+            },
+            "minimum_ready": not missing,
+            "missing": missing,
+            "selected_at": utc_now(),
+            "sync": None,
+        }
+        target = self.experiment_folder(user, run.get("id"))
+        target.mkdir(parents=True, exist_ok=True)
+        saved = target / "metadata.json"
+        if saved.is_file():
+            prior = json.loads(saved.read_text())
+            if prior.get("experiment_path") == relative:
+                local["sync"] = prior.get("sync")
+        self._write_json(saved, local)
+        return self._metadata_response(local)
+
+    def sync_metadata(self, user, relative):
+        local = self.select_metadata(user, relative)
+        if not local["minimum_ready"]:
+            raise ValueError("Experiment metadata is incomplete: " + ", ".join(local["missing"]))
+        payload = {
+            "vo": "GD-AS-DEMO",
+            "user_key": local["user_key"],
+            "experiment": local["experiment"],
+            "source": local["source"],
+        }
+        result = self.catalogue_client.sync(payload)
+        folder = self.experiment_folder(user, local["experiment"]["id"])
+        saved = json.loads((folder / "metadata.json").read_text())
+        saved["sync"] = {
+            "catalogue_id": result["catalogue_id"],
+            "synced_at": utc_now(),
+            "target": self.catalogue_client.describe(),
+            "simulated": True,
+        }
+        self._write_json(folder / "metadata.json", saved)
+        self._write_json(folder / "catalogue.json", {"payload": payload, **saved["sync"]})
+        return self._metadata_response(saved)
+
+    @staticmethod
+    def _metadata_response(local):
+        result = dict(local)
+        result["metadata_status"] = "Local and online" if local.get("sync") else "Local"
+        result["online_definition"] = "Online means present only in the mock GD-AS-DEMO catalogue, not FDMI."
+        return result
 
     @staticmethod
     def _write_json(path, value):

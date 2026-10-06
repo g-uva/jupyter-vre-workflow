@@ -13,7 +13,7 @@ from tornado import web
 
 from .experiments import ExperimentManager
 from .reproducibility import CimDemoClient, FdmiDemoClient, ReproducibilityManager
-from .orchestration import FederationDemoClient, OrchestrationManager
+from .orchestration import CatalogueDemoClient, FederationDemoClient, OrchestrationManager
 
 
 class ExperimentsHandler(APIHandler):
@@ -335,6 +335,26 @@ class OrchestrationRegistrationHandler(APIHandler):
         self.finish(result)
 
 
+class OrchestrationMetadataHandler(APIHandler):
+    def initialize(self, manager):
+        self.manager = manager
+
+    @web.authenticated
+    async def post(self):
+        body = self.get_json_body() or {}
+        action = body.get("action", "select")
+        try:
+            method = self.manager.sync_metadata if action == "sync" else self.manager.select_metadata
+            result = await asyncio.to_thread(
+                method, body.get("user", ""), body.get("path")
+            )
+        except RuntimeError as error:
+            raise web.HTTPError(502, reason=str(error)) from error
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+        self.finish(result)
+
+
 class MetricsInstallHandler(APIHandler):
     @web.authenticated
     async def get(self):
@@ -419,7 +439,9 @@ def setup_handlers(web_app):
     manager = ExperimentManager(root_dir)
     cim_client = CimDemoClient()
     reproducibility_manager = ReproducibilityManager(root_dir, FdmiDemoClient())
-    orchestration_manager = OrchestrationManager(root_dir, FederationDemoClient())
+    orchestration_manager = OrchestrationManager(
+        root_dir, FederationDemoClient(), CatalogueDemoClient()
+    )
     namespace = url_path_join(base_url, "api", "jupyter-vre-workflow")
     web_app.add_handlers(
         ".*$",
@@ -453,6 +475,11 @@ def setup_handlers(web_app):
             (
                 url_path_join(namespace, "orchestration", "registration"),
                 OrchestrationRegistrationHandler,
+                {"manager": orchestration_manager},
+            ),
+            (
+                url_path_join(namespace, "orchestration", "metadata"),
+                OrchestrationMetadataHandler,
                 {"manager": orchestration_manager},
             ),
             (url_path_join(namespace, "run-install"), MetricsInstallHandler),

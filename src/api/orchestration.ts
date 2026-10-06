@@ -38,6 +38,30 @@ export interface IRegistrationState {
   };
 }
 
+export interface IExperimentMetadata {
+  user_key: string;
+  experiment_path: string;
+  experiment: {
+    id: string;
+    workflow_id: string;
+    status: string;
+    runtime_s: number | null;
+  };
+  source: string;
+  ro_crate_available: boolean;
+  metrics_available: string[];
+  measurements: { energy_j: number | null; average_power_w: number | null };
+  minimum_ready: boolean;
+  missing: string[];
+  metadata_status: 'Local' | 'Local and online';
+  online_definition: string;
+  sync: null | {
+    catalogue_id: string;
+    synced_at: string;
+    simulated: true;
+  };
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const settings = ServerConnection.makeSettings();
   const url = new URL(
@@ -74,5 +98,17 @@ export function registerNode(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user, registration })
+  });
+}
+
+export function selectExperimentMetadata(
+  user: string,
+  path: string,
+  action: 'select' | 'sync' = 'select'
+): Promise<IExperimentMetadata> {
+  return request('orchestration/metadata', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user, path, action })
   });
 }

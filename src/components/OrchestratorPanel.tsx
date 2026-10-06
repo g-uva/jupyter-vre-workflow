@@ -22,9 +22,11 @@ import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import {
   getRegistration,
+  IExperimentMetadata,
   IRegistrationState,
   ISite,
-  registerNode
+  registerNode,
+  selectExperimentMetadata
 } from '../api/orchestration';
 
 const MAP_STYLE =
@@ -32,6 +34,9 @@ const MAP_STYLE =
 
 interface IOrchestratorPanelProps {
   username: string;
+  selectedWorkflow: string | null;
+  selectedExperiment: string | null;
+  experimentPath: string | null;
 }
 
 function SiteMarker({
@@ -66,7 +71,10 @@ function SiteMarker({
 }
 
 export default function OrchestratorPanel({
-  username
+  username,
+  selectedWorkflow,
+  selectedExperiment,
+  experimentPath
 }: IOrchestratorPanelProps) {
   const user = username || 'local-user';
   const [state, setState] = React.useState<IRegistrationState | null>(null);
@@ -75,6 +83,12 @@ export default function OrchestratorPanel({
   const [registering, setRegistering] = React.useState(false);
   const [registrationStep, setRegistrationStep] = React.useState(0);
   const [error, setError] = React.useState('');
+  const [metadata, setMetadata] = React.useState<IExperimentMetadata | null>(
+    null
+  );
+  const [metadataLoading, setMetadataLoading] = React.useState(false);
+  const [syncing, setSyncing] = React.useState(false);
+  const [metadataError, setMetadataError] = React.useState('');
   const [form, setForm] = React.useState({
     node_name: '',
     site: 'Athens, Greece',
@@ -102,6 +116,47 @@ export default function OrchestratorPanel({
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  const loadMetadata = React.useCallback(async () => {
+    setMetadata(null);
+    setMetadataError('');
+    if (!state?.registered || !experimentPath) {
+      return;
+    }
+    setMetadataLoading(true);
+    try {
+      setMetadata(await selectExperimentMetadata(user, experimentPath));
+    } catch (metadataLoadError) {
+      setMetadataError(
+        metadataLoadError instanceof Error
+          ? metadataLoadError.message
+          : String(metadataLoadError)
+      );
+    } finally {
+      setMetadataLoading(false);
+    }
+  }, [experimentPath, state?.registered, user]);
+
+  React.useEffect(() => {
+    void loadMetadata();
+  }, [loadMetadata]);
+
+  async function handleSync() {
+    if (!experimentPath) {
+      return;
+    }
+    setSyncing(true);
+    setMetadataError('');
+    try {
+      setMetadata(await selectExperimentMetadata(user, experimentPath, 'sync'));
+    } catch (syncError) {
+      setMetadataError(
+        syncError instanceof Error ? syncError.message : String(syncError)
+      );
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   async function handleRegister() {
     setRegistering(true);
@@ -324,15 +379,80 @@ export default function OrchestratorPanel({
       {state?.registered && (
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle2" fontWeight={700}>
-            Experiment prediction and simulated orchestration
+            2. Select and synchronise experiment metadata
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Select suitable local experiment metadata before these mock controls
-            become available.
-          </Typography>
-          <Button disabled sx={{ mt: 1 }}>
-            Select experiment to continue
-          </Button>
+          {!experimentPath ? (
+            <Alert severity="warning" sx={{ mt: 1.5 }}>
+              Select an existing experiment in the page controls before site
+              estimates or orchestration can be enabled.
+            </Alert>
+          ) : metadataLoading ? (
+            <LinearProgress sx={{ mt: 1.5 }} />
+          ) : metadata ? (
+            <Stack gap={1.25} mt={1.5}>
+              <Stack direction="row" gap={1} flexWrap="wrap">
+                <Chip
+                  label={`${selectedWorkflow} / ${selectedExperiment}`}
+                  color="primary"
+                />
+                <Chip label={`Run: ${metadata.experiment.status}`} />
+                <Chip
+                  label={metadata.metadata_status}
+                  color={metadata.sync ? 'success' : 'warning'}
+                />
+              </Stack>
+              <Typography variant="body2">
+                Runtime:{' '}
+                {metadata.experiment.runtime_s?.toFixed(3) ?? 'missing'} s ·
+                source: {metadata.source}
+              </Typography>
+              <Typography variant="body2">
+                Metrics: {metadata.metrics_available.join(', ') || 'none'} ·
+                RO-Crate:{' '}
+                {metadata.ro_crate_available
+                  ? 'available'
+                  : 'not generated (optional)'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {metadata.online_definition}
+              </Typography>
+              {!metadata.minimum_ready && (
+                <Alert severity="error">
+                  Cannot estimate yet. Missing: {metadata.missing.join('; ')}.
+                </Alert>
+              )}
+              <Button
+                onClick={handleSync}
+                disabled={
+                  syncing || !metadata.minimum_ready || Boolean(metadata.sync)
+                }
+                startIcon={syncing ? <AutorenewIcon /> : <HubOutlinedIcon />}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                {syncing
+                  ? 'Synchronising with mock catalogue…'
+                  : metadata.sync
+                    ? 'Present in mock GD-AS-DEMO catalogue'
+                    : 'Synchronise metadata'}
+              </Button>
+              {metadata.sync && (
+                <Alert severity="success">
+                  Mock catalogue ID: {metadata.sync.catalogue_id}. This is not
+                  FDMI publication.
+                </Alert>
+              )}
+            </Stack>
+          ) : null}
+          {metadataError && (
+            <Alert
+              severity="error"
+              sx={{ mt: 1.5 }}
+              action={<Button onClick={loadMetadata}>Retry</Button>}
+            >
+              Synchronisation failed; the local record is preserved.{' '}
+              {metadataError}
+            </Alert>
+          )}
         </Paper>
       )}
     </Stack>
