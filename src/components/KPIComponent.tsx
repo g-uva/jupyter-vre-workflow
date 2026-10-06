@@ -9,12 +9,7 @@ import {
   RawMetrics
 } from '../helpers/types';
 
-import {
-  getAvgValue,
-  getDeltaAverage,
-  getLatestValue,
-  microjoulesToKWh
-} from '../helpers/utils';
+import { getLatestValue, microjoulesToKWh } from '../helpers/utils';
 
 import { Grid2, Stack } from '@mui/material';
 
@@ -28,10 +23,21 @@ import { mainColour01, mainColour02, mainColour03 } from '../helpers/constants';
 
 type MetricProfile = 'Last' | 'Avg';
 
-// Default static values
+// Used when no carbon-intensity metric is available from Prometheus.
 const defaultCarbonIntensity = 400;
-const embodiedEmissions = 50000;
 // const hepScore23 = 42.3;
+
+function getTotalIncrease(metricData: [number, string][] | undefined): number {
+  if (!metricData || metricData.length < 2) {
+    return 0;
+  }
+
+  const sorted = [...metricData].sort((a, b) => a[0] - b[0]);
+  return sorted.slice(1).reduce((total, [, value], index) => {
+    const delta = Number(value) - Number(sorted[index][1]);
+    return delta >= 0 ? total + delta : total;
+  }, 0);
+}
 
 async function prometheusMetricsProxy(
   type: MetricProfile,
@@ -39,25 +45,24 @@ async function prometheusMetricsProxy(
 ): Promise<IPrometheusMetrics> {
   // const carbonIntensity =
   //   (await getDynamicCarbonIntensity()) ?? defaultCarbonIntensity;
-  const carbonIntensity = defaultCarbonIntensity;
   const rawEnergyConsumed = raw.get(METRIC_KEY_MAP.energyConsumed);
-  const rawFunctionalUnit = raw.get(METRIC_KEY_MAP.functionalUnit);
+  const measuredCarbonIntensity = getLatestValue(
+    raw.get(METRIC_KEY_MAP.carbonIntensity)
+  );
 
   const energyConsumed = microjoulesToKWh(
-    (type === 'Avg'
-      ? getDeltaAverage(rawEnergyConsumed)
-      : getLatestValue(rawEnergyConsumed)) ?? 0
+    type === 'Avg'
+      ? getTotalIncrease(rawEnergyConsumed)
+      : (getLatestValue(rawEnergyConsumed) ?? 0)
   );
-  const functionalUnit =
-    (type === 'Avg'
-      ? getAvgValue(rawFunctionalUnit)
-      : getLatestValue(rawFunctionalUnit)) ?? 0;
 
   return {
     energyConsumed: Math.abs(energyConsumed),
-    carbonIntensity,
-    embodiedEmissions,
-    functionalUnit
+    carbonIntensity: measuredCarbonIntensity ?? defaultCarbonIntensity,
+    // Until workload-specific embodied emissions and units are configured,
+    // report operational impact per completed experiment.
+    embodiedEmissions: 0,
+    functionalUnit: 1
     // hepScore23
   };
 }
@@ -126,7 +131,7 @@ const kpiCardsData: Array<{
   {
     key: 'sci',
     title: 'SCI',
-    unit: 'gCO₂/unit',
+    unit: 'gCO₂/experiment',
     color: mainColour01,
     icon: (
       <EnergySavingsLeafOutlinedIcon
@@ -148,7 +153,7 @@ const kpiCardsData: Array<{
   {
     key: 'energyPerUnit',
     title: 'Energy/U',
-    unit: 'Wh/unit',
+    unit: 'Wh/experiment',
     color: mainColour03,
     icon: (
       <SolarPowerOutlinedIcon

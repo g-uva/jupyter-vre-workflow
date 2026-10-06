@@ -2,6 +2,14 @@ import React from 'react';
 import { Grid2, Paper, SxProps, Typography } from '@mui/material';
 import { shortenNumber } from '../helpers/utils';
 
+function formatKpiValue(value: number): string {
+  if (value !== 0 && Math.abs(value) < 0.001) {
+    const [coefficient, exponent] = value.toExponential(2).split('e');
+    return `${coefficient}×10^${Number(exponent)}`;
+  }
+  return shortenNumber(value);
+}
+
 interface IKpiValue {
   children?: React.ReactNode;
   title: string;
@@ -60,7 +68,7 @@ export default function KpiValue(props: IKpiValue) {
             {title}
           </Typography>
           <Typography sx={{ ...styles.typographyValue, color }}>
-            {shortenNumber(value)}
+            {formatKpiValue(value)}
           </Typography>
           <Typography sx={{ ...styles.typographyUnit, color }}>
             {unit}

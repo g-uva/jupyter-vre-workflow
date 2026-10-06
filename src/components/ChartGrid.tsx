@@ -30,6 +30,19 @@ const HEADER_HEIGHT = 58; // fixed — keeps chart area height stable
 const MARGIN: [number, number] = [16, 16];
 const PAD: [number, number] = [8, 8];
 
+const DEFAULT_METRIC_KEYS = [
+  'scaph_host_energy_microjoules',
+  'scaph_host_power_microwatts',
+  'scaph_process_power_microwatts',
+  'scaph_host_load_avg_fifteen'
+];
+
+function defaultMetricKeys(metrics: string[]): string[] {
+  const preferred = DEFAULT_METRIC_KEYS.filter(key => metrics.includes(key));
+  const remaining = metrics.filter(key => !preferred.includes(key));
+  return [...preferred, ...remaining].slice(0, 4);
+}
+
 // ─── Metric metadata ──────────────────────────────────────────────────────────
 interface IMetricMeta {
   label: string;
@@ -81,7 +94,9 @@ function applyTransform(
   data: [number, string][],
   transform?: (v: number) => number
 ): [number, string][] {
-  if (!transform) return data;
+  if (!transform) {
+    return data;
+  }
   return data.map(([t, v]) => [t, String(transform(Number(v)).toFixed(4))]);
 }
 
@@ -116,7 +131,9 @@ function findNextPosition(
           break;
         }
       }
-      if (fits) return { x, y };
+      if (fits) {
+        return { x, y };
+      }
     }
   }
   return { x: 0, y: 100 };
@@ -134,10 +151,13 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
   const [containerWidth, setContainerWidth] = React.useState(640);
 
   const [widgets, setWidgets] = React.useState<IWidget[]>(() =>
-    metrics.slice(0, 4).map((key, i) => ({ id: `init-${i}`, metricKey: key }))
+    defaultMetricKeys(metrics).map((key, i) => ({
+      id: `init-${i}`,
+      metricKey: key
+    }))
   );
   const [layout, setLayout] = React.useState<LayoutItem[]>(() =>
-    metrics.slice(0, 4).map((_key, i) => ({
+    defaultMetricKeys(metrics).map((_key, i) => ({
       i: `init-${i}`,
       x: i % COLS,
       y: Math.floor(i / COLS),
@@ -149,10 +169,14 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
   const [addAnchor, setAddAnchor] = React.useState<HTMLElement | null>(null);
 
   React.useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) {
+      return;
+    }
     const observer = new ResizeObserver(entries => {
       const w = entries[0]?.contentRect.width;
-      if (w) setContainerWidth(w);
+      if (w) {
+        setContainerWidth(w);
+      }
     });
     observer.observe(containerRef.current);
     return () => observer.disconnect();
@@ -175,7 +199,9 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
   function toggleSpan(id: string) {
     setLayout(prev =>
       prev.map(l => {
-        if (l.i !== id) return l;
+        if (l.i !== id) {
+          return l;
+        }
         const newW = l.w === 1 ? 2 : 1;
         return { ...l, w: newW, x: newW === 2 ? 0 : l.x };
       })
@@ -195,7 +221,9 @@ export default function ChartGrid({ metrics, dataMap }: IChartGridProps) {
     const item = layout.find(l => l.i === widgetId);
     const span = item?.w ?? 1;
     const innerPad = 28;
-    if (span === 1) return Math.max(180, colWidth - innerPad);
+    if (span === 1) {
+      return Math.max(180, colWidth - innerPad);
+    }
     return Math.max(360, containerWidth - 2 * PAD[0] - MARGIN[0] - innerPad);
   }
 
