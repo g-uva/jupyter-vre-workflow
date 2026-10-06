@@ -73,6 +73,55 @@ def mock_cim_response():
     }
 
 
+class FdmiDemoClient:
+    """Submit metadata to the mock FDMI service, or its local equivalent."""
+
+    KUBERNETES_ENDPOINT = "http://juvre-mock-fdmi:8080/v1/submissions"
+
+    def __init__(self, endpoint=None, post_json=None):
+        self.endpoint = endpoint if endpoint is not None else os.environ.get(
+            "JUVRE_FDMI_URL", ""
+        )
+        self.post_json = post_json or self._post_json
+
+    @staticmethod
+    def _post_json(url, payload):
+        request = Request(
+            url,
+            data=json.dumps(payload).encode(),
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=5) as response:
+                return json.load(response)
+        except (OSError, URLError, ValueError) as error:
+            raise RuntimeError(f"Mock FDMI endpoint unavailable: {error}") from error
+
+    def describe(self):
+        return {
+            "mode": "internal Kubernetes mock" if self.endpoint else "embedded local mock",
+            "endpoint": self.endpoint or "embedded://mock-fdmi",
+            "kubernetes_service": self.KUBERNETES_ENDPOINT,
+            "external_integration": False,
+        }
+
+    def submit(self, payload):
+        if self.endpoint:
+            result = self.post_json(self.endpoint, payload)
+        else:
+            key = payload["idempotency_key"]
+            result = {
+                "accepted": True,
+                "receipt": f"FDMI-DEMO-{key[:16].upper()}",
+                "idempotency_key": key,
+                "message": "Accepted by the embedded Autumn School mock FDMI target.",
+            }
+        if not isinstance(result, dict) or not result.get("accepted") or not result.get("receipt"):
+            raise RuntimeError("Mock FDMI endpoint rejected or returned an invalid receipt")
+        return result
+
+
 class CimDemoClient:
     """Fetch mock CIM data from Kubernetes, with an equivalent local fallback."""
 
@@ -109,8 +158,9 @@ class ReproducibilityManager:
 
     STATE_FILE = "reproducibility.json"
 
-    def __init__(self, root):
+    def __init__(self, root, fdmi_client=None):
         self.root = Path(root).resolve()
+        self.fdmi_client = fdmi_client or FdmiDemoClient()
 
     def resolve_experiment(self, relative):
         if not isinstance(relative, str) or not relative or Path(relative).is_absolute():
@@ -188,6 +238,7 @@ class ReproducibilityManager:
             "metrics": metrics,
         }
         state["configured"] = standard is not None
+        state["fdmi_target"] = self.fdmi_client.describe()
         state["crate_current"] = bool(
             state.get("crate")
             and state["crate"].get("configuration_revision")
@@ -222,6 +273,53 @@ class ReproducibilityManager:
         if changed and previous.get("publication"):
             previous["publication"]["stale"] = True
         self._write_state(folder, previous)
+        return self.get(relative)
+
+    def publish(self, relative):
+        folder = self.resolve_experiment(relative)
+        state = self._load(folder)
+        crate = state.get("crate") or {}
+        if (
+            not crate
+            or crate.get("configuration_revision") != state.get("configuration_revision")
+        ):
+            raise ValueError("Generate an up-to-date RO-Crate artefact first")
+        crate_path = folder / crate.get("name", "ro-crate-metadata.json")
+        if not crate_path.is_file():
+            raise ValueError("Generated RO-Crate artefact is missing")
+        artifact_sha256 = hashlib.sha256(crate_path.read_bytes()).hexdigest()
+        previous = state.get("publication") or {}
+        if (
+            not previous.get("stale")
+            and previous.get("artifact_sha256") == artifact_sha256
+            and previous.get("receipt")
+        ):
+            return self.get(relative)
+        run = json.loads((folder / "run.json").read_text())
+        payload = {
+            "experiment_id": run.get("id"),
+            "workflow_id": run.get("workflow_id"),
+            "standard_key": state.get("standard_key"),
+            "artifact_name": crate_path.name,
+            "artifact_sha256": artifact_sha256,
+            "idempotency_key": hashlib.sha256(
+                f"{run.get('id')}:{artifact_sha256}".encode()
+            ).hexdigest(),
+            "ro_crate_metadata": json.loads(crate_path.read_text()),
+        }
+        result = self.fdmi_client.submit(payload)
+        submitted = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        state["publication"] = {
+            "status": "accepted",
+            "receipt": result["receipt"],
+            "message": result.get("message"),
+            "idempotency_key": payload["idempotency_key"],
+            "artifact_sha256": artifact_sha256,
+            "submitted_at": submitted,
+            "endpoint": self.fdmi_client.describe()["endpoint"],
+            "stale": False,
+        }
+        self._write_state(folder, state)
         return self.get(relative)
 
     def mark_cim_connected(self, relative, connection):

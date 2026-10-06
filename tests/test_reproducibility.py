@@ -4,7 +4,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from jupyter_vre_workflow.reproducibility import CimDemoClient, ReproducibilityManager
+from jupyter_vre_workflow.reproducibility import (
+    CimDemoClient,
+    FdmiDemoClient,
+    ReproducibilityManager,
+)
 
 
 class CimDemoTests(unittest.TestCase):
@@ -97,6 +101,40 @@ class ReproducibilityStateTests(unittest.TestCase):
             self.relative, "iec-cim", {"metric_term": "cim:Measurement"}
         )
         self.assertFalse(changed["crate_current"])
+
+    def test_publish_requires_current_crate_and_is_idempotent(self):
+        calls = []
+
+        class RecordingFdmi(FdmiDemoClient):
+            def submit(self, payload):
+                calls.append(payload)
+                return {"accepted": True, "receipt": "FDMI-DEMO-RECEIPT"}
+
+        self.manager = ReproducibilityManager(self.root, RecordingFdmi(endpoint=""))
+        self.manager.configure(self.relative, "greendigit-commons", {})
+        with self.assertRaisesRegex(ValueError, "up-to-date"):
+            self.manager.publish(self.relative)
+        self.manager.mark_cim_connected(self.relative, {
+            "endpoint": "embedded://mock-cim", "identity": "gd-super-user"
+        })
+        self.manager.generate_crate(self.relative)
+        first = self.manager.publish(self.relative)
+        second = self.manager.publish(self.relative)
+        self.assertEqual(first["publication"]["receipt"], "FDMI-DEMO-RECEIPT")
+        self.assertEqual(second["publication"]["receipt"], "FDMI-DEMO-RECEIPT")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["experiment_id"], "run-1")
+        self.assertEqual(calls[0]["standard_key"], "greendigit-commons")
+
+    def test_regeneration_makes_previous_publication_stale(self):
+        self.manager.configure(self.relative, "greendigit-commons", {})
+        self.manager.mark_cim_connected(self.relative, {
+            "endpoint": "embedded://mock-cim", "identity": "gd-super-user"
+        })
+        self.manager.generate_crate(self.relative)
+        self.manager.publish(self.relative)
+        regenerated = self.manager.generate_crate(self.relative)
+        self.assertTrue(regenerated["publication"]["stale"])
 
 
 if __name__ == "__main__":

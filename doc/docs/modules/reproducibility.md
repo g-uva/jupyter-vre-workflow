@@ -29,12 +29,20 @@ experiments/
       executed.ipynb
       metrics.csv
       run.json
+      reproducibility.json
+      ro-crate-metadata.json
 ```
 
 - `notebook.ipynb`: code, markdown, attachments and metadata at start, with old outputs and execution counts cleared.
 - `executed.ipynb`: executed cells, outputs, errors and cell timing metadata; checkpointed after each executed code cell and finalized when the run ends.
 - `metrics.csv`: long-form rows with `timestamp_utc,timestamp_unix,metric,labels,value,unit`. Raw RAPL counter values retain domain identifiers, and available Scaphandre/Prometheus series retain their labels. Derived energy and power have explicit units. Rows are flushed throughout execution rather than waiting for the run to finish.
 - `run.json`: schema version, source path, run ID, UTC timestamps, kernelspec, status, completed/total code-cell counts, input/output SHA-256 hashes, artifact names and telemetry status/summary.
+- `reproducibility.json`: per-experiment CIM selection, the two editable demo
+  mappings, configuration revision, generated artefact state and mock FDMI
+  receipt.
+- `ro-crate-metadata.json`: a replace-in-place RO-Crate 1.1 JSON-LD descriptor
+  referencing the input notebook, executed notebook and raw metrics. It also
+  records the run action, status, metric summary, chosen standard and mapping.
 
 UUID suffixes prevent collisions between runs started at the same time. The notebook's parent directory distinguishes equally named notebooks in different folders. The source notebook's outputs are not replaced with the background run's outputs: open `executed.ipynb` to inspect them. External datasets and files written by notebook code remain in the original working directory; they are not automatically copied into the artifact bundle.
 
@@ -60,4 +68,14 @@ Use an environment where the notebook's kernelspec and dependencies are availabl
 
 ## Publishing
 
-FDMI/Zenodo publishing is deferred. The existing publishing panel still contains simulated connection/success indicators; it is not proof of delivery. These experiment artifacts do not yet constitute a generated and uploaded RO-Crate.
+The Autumn School workflow uses internal mock CIM and FDMI services. Connect to
+CIM, configure a standard and mapping, generate the RO-Crate, then submit it to
+the mock FDMI target. Submission is unavailable while the crate is absent or
+stale. A standard or mapping change invalidates it; regeneration also marks an
+earlier receipt stale. Identical submissions are idempotent.
+
+GreenDIGIT Commons is demonstration guidance rather than an authoritative
+specification, and the other listed standards are mapping references rather
+than verified compliance claims. The displayed `gd-super-user` is a simulated
+EGI Check-in identity. No real account is verified, no external FDMI or Zenodo
+service is contacted, and no DOI is minted.

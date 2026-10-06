@@ -32,7 +32,8 @@ import {
   getReproducibilityState,
   ICimConnection,
   ICimStandard,
-  IReproducibilityState
+  IReproducibilityState,
+  publishToFdmi
 } from '../api/reproducibility';
 
 interface IReproducibilityPanelProps {
@@ -89,6 +90,8 @@ export default function ReproducibilityPanel({
   const [configurationError, setConfigurationError] = React.useState('');
   const [generating, setGenerating] = React.useState(false);
   const [generationError, setGenerationError] = React.useState('');
+  const [publishing, setPublishing] = React.useState(false);
+  const [publicationError, setPublicationError] = React.useState('');
 
   const standard: ICimStandard | undefined = connection?.standards.find(
     item => item.key === selectedStandardKey
@@ -202,6 +205,24 @@ export default function ReproducibilityPanel({
       );
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function handlePublish() {
+    if (!experimentPath) {
+      return;
+    }
+    setPublishing(true);
+    setPublicationError('');
+    try {
+      const result = await publishToFdmi(experimentPath);
+      setState(result);
+    } catch (error) {
+      setPublicationError(
+        error instanceof Error ? error.message : String(error)
+      );
+    } finally {
+      setPublishing(false);
     }
   }
 
@@ -496,13 +517,83 @@ export default function ReproducibilityPanel({
       </WorkflowCard>
 
       <WorkflowCard title="4. Publish experiment metadata">
-        <Button disabled startIcon={<SendOutlinedIcon />}>
-          Publish to mock FDMI
+        {state?.fdmi_target && (
+          <Alert severity="info" icon={false} sx={{ mb: 1.5 }}>
+            <Typography variant="body2" fontWeight={700}>
+              Target: {state.fdmi_target.mode}
+            </Typography>
+            <Typography
+              variant="caption"
+              display="block"
+              sx={{ fontFamily: 'monospace' }}
+            >
+              Configured: {state.fdmi_target.endpoint}
+            </Typography>
+            <Typography
+              variant="caption"
+              display="block"
+              sx={{ fontFamily: 'monospace' }}
+            >
+              Kubernetes: {state.fdmi_target.kubernetes_service}
+            </Typography>
+            <Typography variant="caption">
+              Demonstration target only; no external FDMI registry is contacted.
+            </Typography>
+          </Alert>
+        )}
+        <Button
+          onClick={handlePublish}
+          disabled={
+            publishing ||
+            !state?.crate_current ||
+            Boolean(state.publication && !state.publication.stale)
+          }
+          startIcon={publishing ? <AutorenewIcon /> : <SendOutlinedIcon />}
+        >
+          {publishing
+            ? 'Submitting artefact…'
+            : state?.publication && !state.publication.stale
+              ? 'Already submitted'
+              : 'Publish to mock FDMI'}
         </Button>
         <FormHelperText>
-          Requires an up-to-date generated RO-Crate artefact. No DOI is minted
-          and nothing is sent to Zenodo.
+          {!state?.crate_current
+            ? 'Requires an up-to-date generated RO-Crate artefact.'
+            : 'Submits the artefact and experiment identifier idempotently. No DOI is minted and nothing is sent to Zenodo.'}
         </FormHelperText>
+        {publicationError && (
+          <Alert
+            severity="error"
+            sx={{ mt: 1.5 }}
+            action={<Button onClick={handlePublish}>Retry</Button>}
+          >
+            Mock FDMI submission failed: {publicationError}
+          </Alert>
+        )}
+        {state?.publication && (
+          <Alert
+            severity={state.publication.stale ? 'warning' : 'success'}
+            sx={{ mt: 1.5 }}
+          >
+            <Typography variant="body2" fontWeight={700}>
+              {state.publication.stale
+                ? 'Previous receipt is stale; publish the regenerated artefact.'
+                : 'Mock FDMI submission accepted'}
+            </Typography>
+            <Typography
+              variant="caption"
+              display="block"
+              sx={{ fontFamily: 'monospace' }}
+            >
+              Receipt: {state.publication.receipt}
+            </Typography>
+            <Typography variant="caption">
+              {state.publication.endpoint} ·{' '}
+              {new Date(state.publication.submitted_at).toLocaleString()} ·{' '}
+              {state.standard?.label}
+            </Typography>
+          </Alert>
+        )}
       </WorkflowCard>
     </Stack>
   );

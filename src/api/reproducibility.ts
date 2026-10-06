@@ -41,6 +41,20 @@ export interface IReproducibilityState {
     configuration_revision: string;
     generation: number;
   } | null;
+  fdmi_target: {
+    mode: string;
+    endpoint: string;
+    kubernetes_service: string;
+    external_integration: false;
+  };
+  publication: {
+    status: 'accepted';
+    receipt: string;
+    message?: string;
+    submitted_at: string;
+    endpoint: string;
+    stale: boolean;
+  } | null;
   preview: {
     experiment_id: string;
     workflow_id: string;
@@ -104,6 +118,16 @@ export function artifactUrl(path: string): string {
     `${settings.baseUrl.replace(/\/?$/, '/')}files/${encoded}`,
     window.location.origin
   ).toString();
+}
+
+export function publishToFdmi(
+  experimentPath: string
+): Promise<IReproducibilityState> {
+  return request<IReproducibilityState>('reproducibility/publish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: experimentPath })
+  });
 }
 
 export function getReproducibilityState(

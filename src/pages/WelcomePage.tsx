@@ -212,7 +212,7 @@ const MODULE_DETAILS: Record<
     key: 'reproducibility',
     label: 'Reproducibility',
     prerequisiteText:
-      'Requires the metadata schema and an FDMI connection to be configured.'
+      'Uses internal CIM and FDMI demo services; select a tracked experiment to begin.'
   },
   [WorkflowModule.Orchestration]: {
     key: 'orchestration',

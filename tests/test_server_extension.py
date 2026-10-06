@@ -8,6 +8,7 @@ import jupyter_vre_workflow
 from jupyter_vre_workflow.handlers import (
     CimConnectionHandler,
     ExperimentsHandler,
+    FdmiPublishHandler,
     MetricsInstallHandler,
     ModuleStatusHandler,
     ReproducibilityConfigHandler,
@@ -46,6 +47,7 @@ class ServerExtensionTests(unittest.TestCase):
                 "/services/notebooks/api/jupyter-vre-workflow/reproducibility/cim/connect",
                 "/services/notebooks/api/jupyter-vre-workflow/reproducibility/crate",
                 "/services/notebooks/api/jupyter-vre-workflow/reproducibility/config",
+                "/services/notebooks/api/jupyter-vre-workflow/reproducibility/publish",
                 "/services/notebooks/api/jupyter-vre-workflow/run-install",
             ],
         )
@@ -55,7 +57,8 @@ class ServerExtensionTests(unittest.TestCase):
         self.assertIs(handlers[2][1], CimConnectionHandler)
         self.assertIs(handlers[3][1], RoCrateHandler)
         self.assertIs(handlers[4][1], ReproducibilityConfigHandler)
-        self.assertIs(handlers[5][1], MetricsInstallHandler)
+        self.assertIs(handlers[5][1], FdmiPublishHandler)
+        self.assertIs(handlers[6][1], MetricsInstallHandler)
 
     def test_loader_registers_all_handlers(self):
         with TemporaryDirectory() as root_dir:
@@ -68,7 +71,7 @@ class ServerExtensionTests(unittest.TestCase):
             )
             server_app = SimpleNamespace(web_app=web_app, log=Mock())
             jupyter_vre_workflow._load_jupyter_server_extension(server_app)
-        self.assertEqual(len(web_app.add_handlers.call_args.args[1]), 6)
+        self.assertEqual(len(web_app.add_handlers.call_args.args[1]), 7)
 
     def test_module_status_requires_both_telemetry_executables(self):
         with patch(

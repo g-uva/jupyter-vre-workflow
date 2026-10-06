@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juvre-mock-fdmi
+data:
+  server.py: |
+    import hashlib
+    import json
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    receipts = {}
+    class Handler(BaseHTTPRequestHandler):
+      def do_GET(self):
+        if self.path != "/healthz": self.send_error(404); return
+        self.send_response(204); self.end_headers()
+      def do_POST(self):
+        if self.path != "/v1/submissions": self.send_error(404); return
+        try:
+          length = int(self.headers.get("Content-Length", "0"))
+          payload = json.loads(self.rfile.read(length))
+          key = payload["idempotency_key"]
+          if not payload.get("experiment_id") or not payload.get("ro_crate_metadata"):
+            raise ValueError("experiment_id and ro_crate_metadata are required")
+          receipt = receipts.setdefault(key, "FDMI-DEMO-" + key[:16].upper())
+          body = json.dumps({"accepted": True, "receipt": receipt, "idempotency_key": key, "message": "Accepted by the Autumn School mock FDMI target."}).encode()
+          self.send_response(200); self.send_header("Content-Type", "application/json")
+          self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+        except (KeyError, ValueError, json.JSONDecodeError) as error:
+          self.send_error(400, str(error))
+    HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juvre-mock-fdmi
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: juvre-mock-fdmi }
+  template:
+    metadata:
+      labels: { app: juvre-mock-fdmi }
+    spec:
+      containers:
+        - name: mock-fdmi
+          image: python:3.12-alpine
+          command: [python, /app/server.py]
+          ports: [{ name: http, containerPort: 8080 }]
+          readinessProbe:
+            {
+              httpGet: { path: /healthz, port: http },
+              initialDelaySeconds: 1,
+              periodSeconds: 5
+            }
+          volumeMounts: [{ name: app, mountPath: /app }]
+      volumes: [{ name: app, configMap: { name: juvre-mock-fdmi } }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: juvre-mock-fdmi
+spec:
+  selector: { app: juvre-mock-fdmi }
+  ports: [{ name: http, port: 8080, targetPort: http }]

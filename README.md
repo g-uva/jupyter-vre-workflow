@@ -11,7 +11,9 @@ This code is open-source, so feel free to copy/paste it into your machine. Pleas
 - Run an entire notebook as a tracked experiment in a fresh kernel.
 - Read real RAPL energy, current power and average power, with explicit unavailable status when hardware counters cannot be read.
 - Save input/output notebooks, labelled raw metrics and precise run metadata in one experiment directory.
-- Experimental FDMI publishing UI; external delivery is not yet verified.
+- Autumn School reproducibility demo: configure a mock CIM standard mapping,
+  generate RO-Crate 1.1 metadata, and submit it idempotently to a mock FDMI
+  target. It does not publish externally or mint a DOI.
 
 Use **Run notebook as experiment** in the extension or command palette. Ordinary JupyterLab **Run All** does not create a tracked run. See the [experiment workflow and artifact layout](doc/docs/modules/reproducibility.md) and [hardware telemetry requirements](doc/docs/modules/telemetry.md).
 
@@ -96,6 +98,21 @@ You can generate a token at [pypi.org/manage/account/token](https://pypi.org/man
 Tracked runs use the authenticated Jupyter server REST endpoint `api/jupyter-vre-workflow/experiments` to create, inspect and cancel experiments. `jupyter_vre_workflow/experiments.py` owns execution and persistence; `jupyter_vre_workflow/telemetry.py` reads the counters. The frontend client is `src/api/experiments.ts`. Tracking no longer injects bookkeeping code into the interactive notebook kernel.
 
 Run the backend tests with `python -m unittest discover -s tests -v` in an environment with the project dependencies and `ipykernel` installed.
+
+### Autumn School reproducibility demo
+
+Select a successful tracked experiment, open **Reproducibility**, choose
+**Online**, and connect to the mock CIM service. GreenDIGIT Commons is selected
+by default as non-authoritative demonstration guidance. Review or change the
+two safe mapping terms, generate `ro-crate-metadata.json`, then publish it to
+the mock FDMI target and inspect the returned receipt. Changing the standard or
+mapping makes the generated artefact stale; regenerate before publishing.
+
+For Kubernetes deployment of the internal mocks, see
+[`deploy/kubernetes/README.md`](deploy/kubernetes/README.md). A local run uses
+contract-equivalent embedded services. The workflow simulates EGI Check-in as
+`gd-super-user`; it does not verify an EGI account, contact an external FDMI,
+register compliance, use Zenodo, or mint a DOI.
 
 ### Folder Structure
 
