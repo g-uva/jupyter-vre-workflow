@@ -12,7 +12,7 @@ import nbformat
 from jupyter_client.kernelspec import KernelSpecManager
 
 from jupyter_vre_workflow.experiments import ExperimentManager
-from jupyter_vre_workflow.telemetry import RaplReader
+from jupyter_vre_workflow.telemetry import PrometheusReader, RaplReader
 
 
 def zone(root, path, name, energy, maximum=100000000):
@@ -59,6 +59,27 @@ class RaplTests(unittest.TestCase):
                 RaplReader(temporary)
 
 
+class PrometheusTests(unittest.TestCase):
+    def test_scaphandre_series_are_normalized_for_csv(self):
+        reader = PrometheusReader(fetch_json=lambda _: {
+            "status": "success",
+            "data": {"result": [{
+                "metric": {
+                    "__name__": "scaph_host_power_microwatts",
+                    "instance": "localhost:8081",
+                },
+                "values": [[100.5, "2500000"]],
+            }]},
+        })
+
+        rows = reader.samples(100, 101)
+
+        self.assertEqual(rows[0]["metric"], "scaph_host_power_microwatts")
+        self.assertEqual(rows[0]["labels"], {"instance": "localhost:8081"})
+        self.assertEqual(rows[0]["unit"], "microwatts")
+        self.assertEqual(rows[0]["timestamp"], 100.5)
+
+
 class ExperimentTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -72,7 +93,11 @@ class ExperimentTests(unittest.IsolatedAsyncioTestCase):
         }))
         self.kernel_patch = patch.object(KernelSpecManager, 'kernel_dirs', [str(kernel.parent)])
         self.kernel_patch.start()
-        self.manager = ExperimentManager(self.root, reader_factory=lambda: RaplReader(self.root / 'absent'))
+        self.manager = ExperimentManager(
+            self.root,
+            reader_factory=lambda: RaplReader(self.root / 'absent'),
+            prometheus_reader_factory=lambda: None,
+        )
 
     async def asyncTearDown(self):
         for path in list(self.manager.tasks):
@@ -197,6 +222,36 @@ class ExperimentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(raw[-1]['value'], '2001000')
         reloaded = ExperimentManager(self.root).get(result['path'])
         self.assertEqual(reloaded['samples'][-1]['energy_j'], 2)
+
+    async def test_scaphandre_metrics_are_flushed_during_experiment(self):
+        class FakePrometheusReader:
+            def samples(self, start, end):
+                return [{
+                    "timestamp_utc": "2026-10-06T12:00:00.000000Z",
+                    "timestamp": 100.0,
+                    "metric": "scaph_host_energy_microjoules",
+                    "labels": {"instance": "localhost:8081"},
+                    "value": "1234",
+                    "unit": "microjoules",
+                }]
+
+        self.manager.prometheus_reader_factory = FakePrometheusReader
+        self.manager.prometheus_interval = 0.01
+        name, _ = self.notebook(['import time\ntime.sleep(0.1)'])
+        record = self.manager.start(name)
+        await asyncio.sleep(0.05)
+
+        with (self.root / record['path'] / 'metrics.csv').open() as stream:
+            rows = list(csv.DictReader(stream))
+        scaphandre = [
+            row for row in rows
+            if row['metric'] == 'scaph_host_energy_microjoules'
+        ]
+        self.assertEqual(len(scaphandre), 1)
+        self.assertEqual(scaphandre[0]['value'], '1234')
+
+        result = await self.finish(record)
+        self.assertIn('Scaphandre via Prometheus', result['telemetry']['source'])
 
     async def test_path_escape_is_rejected(self):
         for path in ['../outside.ipynb', '/tmp/outside.ipynb']:

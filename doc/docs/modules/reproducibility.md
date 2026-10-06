@@ -33,7 +33,7 @@ experiments/
 
 - `notebook.ipynb`: code, markdown, attachments and metadata at start, with old outputs and execution counts cleared.
 - `executed.ipynb`: executed cells, outputs, errors and cell timing metadata; checkpointed after each executed code cell and finalized when the run ends.
-- `metrics.csv`: long-form rows with `timestamp_utc,timestamp_unix,metric,labels,value,unit`. Raw RAPL counter values retain domain identifiers. Derived energy and power have explicit units.
+- `metrics.csv`: long-form rows with `timestamp_utc,timestamp_unix,metric,labels,value,unit`. Raw RAPL counter values retain domain identifiers, and available Scaphandre/Prometheus series retain their labels. Derived energy and power have explicit units. Rows are flushed throughout execution rather than waiting for the run to finish.
 - `run.json`: schema version, source path, run ID, UTC timestamps, kernelspec, status, completed/total code-cell counts, input/output SHA-256 hashes, artifact names and telemetry status/summary.
 
 UUID suffixes prevent collisions between runs started at the same time. The notebook's parent directory distinguishes equally named notebooks in different folders. The source notebook's outputs are not replaced with the background run's outputs: open `executed.ipynb` to inspect them. External datasets and files written by notebook code remain in the original working directory; they are not automatically copied into the artifact bundle.

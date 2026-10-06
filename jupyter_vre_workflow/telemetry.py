@@ -1,12 +1,75 @@
-"""Read Linux RAPL counters without synthetic fallbacks or double counting."""
+"""Read experiment telemetry from RAPL and Scaphandre/Prometheus."""
 
+import json
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+
+
+def metric_unit(name):
+    """Infer the unit encoded in a Scaphandre metric name."""
+    for suffix, unit in (
+        ("_microjoules", "microjoules"),
+        ("_microwatts", "microwatts"),
+        ("_seconds", "seconds"),
+        ("_bytes", "bytes"),
+    ):
+        if name.endswith(suffix):
+            return unit
+    return ""
+
+
+class PrometheusReader:
+    """Read all Scaphandre series from Prometheus over a time range."""
+
+    def __init__(self, url=None, timeout=3, fetch_json=None):
+        self.url = (url or os.environ.get(
+            "JUPYTER_VRE_PROMETHEUS_URL", "http://127.0.0.1:9090"
+        )).rstrip("/")
+        self.timeout = timeout
+        self.fetch_json = fetch_json or self._fetch_json
+
+    def _fetch_json(self, url):
+        with urlopen(url, timeout=self.timeout) as response:
+            return json.load(response)
+
+    def samples(self, start, end):
+        query = urlencode({
+            "query": '{__name__=~"scaph_.+"}',
+            "start": start,
+            "end": end,
+            "step": 5,
+        })
+        payload = self.fetch_json(f"{self.url}/api/v1/query_range?{query}")
+        if payload.get("status") != "success":
+            raise RuntimeError(f"Prometheus query failed: {payload.get('error', 'unknown error')}")
+
+        rows = []
+        for series in payload.get("data", {}).get("result", []):
+            labels = dict(series.get("metric", {}))
+            name = labels.pop("__name__", "")
+            if not name.startswith("scaph_"):
+                continue
+            for timestamp, value in series.get("values", []):
+                timestamp = float(timestamp)
+                rows.append({
+                    "timestamp_utc": datetime.fromtimestamp(
+                        timestamp, timezone.utc
+                    ).isoformat(timespec="microseconds").replace("+00:00", "Z"),
+                    "timestamp": timestamp,
+                    "metric": name,
+                    "labels": labels,
+                    "value": value,
+                    "unit": metric_unit(name),
+                })
+        return rows
 
 
 class RaplReader:

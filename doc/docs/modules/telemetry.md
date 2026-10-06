@@ -24,7 +24,11 @@ The Jupyter server user must be able to read each selected domain's `name`, `ene
 
 If counters are absent, unreadable or fail during a run, the notebook still executes and saves its artifacts. Telemetry is explicitly marked unavailable, with the reason recorded in `run.json`. A header-only `metrics.csv` means there were no measurements; it does not mean zero energy.
 
-The earlier Scaphandre/Prometheus installer remains available for separate exporter use. Tracked runs no longer depend on that exporter or the hardcoded remote Prometheus URL.
+When Scaphandre and Prometheus are available, tracked runs also append the same
+`scaph_*` series used by the charts to `metrics.csv` throughout execution. The
+Prometheus URL defaults to `http://127.0.0.1:9090` and can be changed with
+`JUPYTER_VRE_PROMETHEUS_URL`. Direct RAPL rows remain available when the server
+can read the host counters.
 
 ## Viewing and saving
 

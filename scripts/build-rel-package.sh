@@ -69,6 +69,11 @@ fi
 version=$(grep '"version":' package.json | head -1 | sed -E 's/.*"version": *"([^"]+)".*/\1/')
 echo "Pushing current version $version"
 
+# Rebuild the prebuilt frontend after the version bump. The Python build hook
+# intentionally skips this step when an existing bundle is present.
+echo "Building the prebuilt JupyterLab extension..."
+npm run build:prod
+
 # Clean old builds
 echo "Cleaning previous builds..."
 rm -rf dist/ build/ *.egg-info

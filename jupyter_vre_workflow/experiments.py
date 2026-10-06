@@ -7,13 +7,14 @@ import hashlib
 import json
 import os
 import shutil
+import time
 import uuid
 from pathlib import Path
 
 import nbformat
 from nbclient import NotebookClient
 
-from .telemetry import RaplReader, utc_now
+from .telemetry import PrometheusReader, RaplReader, utc_now
 
 
 def write_json(path, value):
@@ -23,12 +24,15 @@ def write_json(path, value):
 
 
 class ExperimentManager:
-    def __init__(self, root, reader_factory=None, sample_interval=1.0):
+    def __init__(self, root, reader_factory=None, sample_interval=1.0,
+                 prometheus_reader_factory=None, prometheus_interval=5.0):
         self.root = Path(root).resolve()
         self.reader_factory = reader_factory or (
             lambda: RaplReader(os.environ.get("ECOJUPYTER_RAPL_ROOT", "/sys/class/powercap"))
         )
         self.sample_interval = sample_interval
+        self.prometheus_reader_factory = prometheus_reader_factory or PrometheusReader
+        self.prometheus_interval = prometheus_interval
         self.tasks = {}
         self.active = {}
         self.records = {}
@@ -80,7 +84,7 @@ class ExperimentManager:
             "completed_code_cells": 0,
             "total_code_cells": sum(c.cell_type == "code" and bool(c.source.strip()) for c in notebook.cells),
             "artifacts": {"input": "notebook.ipynb", "output": "executed.ipynb", "metrics": "metrics.csv"},
-            "telemetry": {"status": "waiting", "source": "Linux powercap RAPL", "scope": None,
+            "telemetry": {"status": "waiting", "source": None, "scope": None,
                           "error": None, "sample_count": 0, "summary": None},
         }
         write_json(folder / "run.json", record)
@@ -163,8 +167,26 @@ class ExperimentManager:
         stop = asyncio.Event()
         telemetry = record["telemetry"]
         sampler = None
+        prometheus_sampler = None
         metrics_file = None
         final_status = "failed"
+        available_sources = set()
+        telemetry_errors = {}
+
+        def update_telemetry(source=None, error=None):
+            if source:
+                available_sources.add(source)
+                telemetry_errors.pop(source, None)
+            if error:
+                telemetry_errors[error[0]] = error[1]
+            telemetry["status"] = (
+                "available" if available_sources else
+                "unavailable" if telemetry_errors else "waiting"
+            )
+            telemetry["source"] = ", ".join(sorted(available_sources)) or None
+            telemetry["error"] = "; ".join(
+                f"{name}: {message}" for name, message in sorted(telemetry_errors.items())
+            ) or None
 
         def persist():
             write_json(folder / "run.json", record)
@@ -191,7 +213,7 @@ class ExperimentManager:
                         if value[metric] is not None:
                             writer.writerow([value["timestamp_utc"], value["timestamp"], metric, "{}", value[metric], unit])
                     metrics_file.flush()
-                    telemetry["status"] = "available"
+                    update_telemetry(source="Linux powercap RAPL")
                     telemetry["sample_count"] += 1
                     telemetry["summary"] = value
                     self.samples[record["path"]].append(value)
@@ -209,14 +231,70 @@ class ExperimentManager:
                         try:
                             sample()  # also take a final sample at completion
                         except Exception as error:
-                            telemetry.update(status="unavailable", error=str(error))
+                            available_sources.discard("Linux powercap RAPL")
+                            update_telemetry(error=("Linux powercap RAPL", str(error)))
                             persist()
                             return
 
                 sampler = asyncio.create_task(collect())
             except Exception as error:
-                telemetry.update(status="unavailable", error=str(error))
+                update_telemetry(error=("Linux powercap RAPL", str(error)))
                 persist()
+
+            try:
+                prometheus_reader = self.prometheus_reader_factory()
+            except Exception as error:
+                prometheus_reader = None
+                update_telemetry(error=("Scaphandre via Prometheus", str(error)))
+
+            if prometheus_reader is not None:
+                seen_prometheus_samples = set()
+                prometheus_start = time.time()
+
+                async def collect_prometheus():
+                    nonlocal prometheus_start
+                    while True:
+                        query_end = time.time()
+                        try:
+                            rows = await asyncio.to_thread(
+                                prometheus_reader.samples,
+                                prometheus_start,
+                                query_end,
+                            )
+                            written = 0
+                            latest = prometheus_start
+                            for row in rows:
+                                labels = json.dumps(row["labels"], sort_keys=True)
+                                key = (row["metric"], labels, row["timestamp"])
+                                if key in seen_prometheus_samples:
+                                    continue
+                                seen_prometheus_samples.add(key)
+                                writer.writerow([
+                                    row["timestamp_utc"], row["timestamp"],
+                                    row["metric"], labels, row["value"], row["unit"],
+                                ])
+                                latest = max(latest, row["timestamp"])
+                                written += 1
+                            if written:
+                                metrics_file.flush()
+                                prometheus_start = latest
+                                update_telemetry(source="Scaphandre via Prometheus")
+                                telemetry["sample_count"] += 1
+                                persist()
+                        except Exception as error:
+                            update_telemetry(error=("Scaphandre via Prometheus", str(error)))
+                            persist()
+
+                        if stop.is_set():
+                            return
+                        try:
+                            await asyncio.wait_for(
+                                stop.wait(), self.prometheus_interval
+                            )
+                        except asyncio.TimeoutError:
+                            pass
+
+                prometheus_sampler = asyncio.create_task(collect_prometheus())
 
             async def cell_complete(cell, execute_reply, **kwargs):
                 if cell.cell_type == "code" and cell.source.strip() and execute_reply["content"]["status"] == "ok":
@@ -246,7 +324,17 @@ class ExperimentManager:
             if sampler:
                 result = await asyncio.gather(sampler, return_exceptions=True)
                 if isinstance(result[0], BaseException):
-                    telemetry.update(status="unavailable", error=str(result[0]))
+                    available_sources.discard("Linux powercap RAPL")
+                    update_telemetry(error=("Linux powercap RAPL", str(result[0])))
+            if prometheus_sampler:
+                result = await asyncio.gather(
+                    prometheus_sampler, return_exceptions=True
+                )
+                if isinstance(result[0], BaseException):
+                    available_sources.discard("Scaphandre via Prometheus")
+                    update_telemetry(
+                        error=("Scaphandre via Prometheus", str(result[0]))
+                    )
             if metrics_file:
                 metrics_file.close()
             record["end_time"] = utc_now()
