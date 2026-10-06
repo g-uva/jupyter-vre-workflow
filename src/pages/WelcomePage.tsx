@@ -236,7 +236,7 @@ function shortExperimentId(experimentId: string): string {
   );
 }
 
-export default function WelcomePage({ panel }: IWelcomePage) {
+export default function WelcomePage({ username, panel }: IWelcomePage) {
   const notebookName =
     panel && !panel.isDisposed && panel.content.model
       ? panel.context.path.split('/').pop() || panel.title.label || null
@@ -951,8 +951,8 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                 <Box>
                   <Typography variant="h6">Orchestration</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    EGI site selection, energy/carbon estimation, and workload
-                    brokering via T6.2 ML and T6.3 services.
+                    Register with a mock federation, predict site outcomes, and
+                    simulate orchestration without provisioning remote compute.
                   </Typography>
                 </Box>
               </Box>
@@ -968,7 +968,7 @@ export default function WelcomePage({ panel }: IWelcomePage) {
                   installed={moduleStatus.orchestration.installed}
                   onInstall={() => handleInstallModule('orchestration')}
                 >
-                  <OrchestratorPanel />
+                  <OrchestratorPanel username={username} />
                 </ModuleInstallGate>
               </Box>
             </Box>

@@ -2,557 +2,166 @@ import React from 'react';
 import Map, { Marker } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {
+  Alert,
   Box,
   Button,
   Chip,
-  Divider,
   FormControl,
+  FormHelperText,
   InputLabel,
+  LinearProgress,
   MenuItem,
   Paper,
   Select,
   Stack,
+  TextField,
   Typography
 } from '@mui/material';
-import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
-import AutoGraphOutlinedIcon from '@mui/icons-material/AutoGraphOutlined';
+import AutorenewIcon from '@mui/icons-material/Autorenew';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
-import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
-import Co2OutlinedIcon from '@mui/icons-material/Co2';
-import ForestOutlinedIcon from '@mui/icons-material/ForestOutlined';
-import LeaderboardOutlinedIcon from '@mui/icons-material/LeaderboardOutlined';
-import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
+import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import {
+  getRegistration,
+  IRegistrationState,
+  ISite,
+  registerNode
+} from '../api/orchestration';
 
 const MAP_STYLE =
   'https://api.maptiler.com/maps/openstreetmap/style.json?key=EbBHdB4yorH5ew69HEPJ';
 
-// ─── EGI site data ────────────────────────────────────────────────────────────
-export interface IEgiSite {
-  id: string;
-  name: string;
-  country: string;
-  flag: string;
-  lat: number;
-  lon: number;
-  pue: number;
-  carbonIntensityGco2Kwh: number;
-  greenEnergyFraction: number;
-  availableCores: number;
-  totalPowerKw: number;
+interface IOrchestratorPanelProps {
+  username: string;
 }
 
-const EGI_SITES: IEgiSite[] = [
-  {
-    id: 'NIKHEF',
-    name: 'Nikhef',
-    country: 'Netherlands',
-    flag: '🇳🇱',
-    lat: 52.357,
-    lon: 4.954,
-    pue: 1.35,
-    carbonIntensityGco2Kwh: 185,
-    greenEnergyFraction: 0.78,
-    availableCores: 4800,
-    totalPowerKw: 960
-  },
-  {
-    id: 'CESNET',
-    name: 'CESNET',
-    country: 'Czech Republic',
-    flag: '🇨🇿',
-    lat: 50.077,
-    lon: 14.428,
-    pue: 1.42,
-    carbonIntensityGco2Kwh: 510,
-    greenEnergyFraction: 0.28,
-    availableCores: 2400,
-    totalPowerKw: 480
-  },
-  {
-    id: 'KIT',
-    name: 'KIT GridKa',
-    country: 'Germany',
-    flag: '🇩🇪',
-    lat: 49.012,
-    lon: 8.411,
-    pue: 1.28,
-    carbonIntensityGco2Kwh: 320,
-    greenEnergyFraction: 0.55,
-    availableCores: 7800,
-    totalPowerKw: 1560
-  },
-  {
-    id: 'INFN-CNAF',
-    name: 'INFN-CNAF',
-    country: 'Italy',
-    flag: '🇮🇹',
-    lat: 44.493,
-    lon: 11.340,
-    pue: 1.50,
-    carbonIntensityGco2Kwh: 235,
-    greenEnergyFraction: 0.62,
-    availableCores: 5200,
-    totalPowerKw: 1040
-  },
-  {
-    id: 'IN2P3-CC',
-    name: 'IN2P3-CC',
-    country: 'France',
-    flag: '🇫🇷',
-    lat: 45.776,
-    lon: 4.828,
-    pue: 1.31,
-    carbonIntensityGco2Kwh: 55,
-    greenEnergyFraction: 0.90,
-    availableCores: 9600,
-    totalPowerKw: 1920
-  },
-  {
-    id: 'CYFRONET',
-    name: 'Cyfronet AGH',
-    country: 'Poland',
-    flag: '🇵🇱',
-    lat: 50.064,
-    lon: 19.923,
-    pue: 1.55,
-    carbonIntensityGco2Kwh: 670,
-    greenEnergyFraction: 0.18,
-    availableCores: 3200,
-    totalPowerKw: 640
-  },
-  {
-    id: 'DESY',
-    name: 'DESY Hamburg',
-    country: 'Germany',
-    flag: '🇩🇪',
-    lat: 53.574,
-    lon: 9.882,
-    pue: 1.22,
-    carbonIntensityGco2Kwh: 280,
-    greenEnergyFraction: 0.61,
-    availableCores: 6400,
-    totalPowerKw: 1280
-  },
-  {
-    id: 'GRNET',
-    name: 'GRNET',
-    country: 'Greece',
-    flag: '🇬🇷',
-    lat: 37.986,
-    lon: 23.726,
-    pue: 1.48,
-    carbonIntensityGco2Kwh: 380,
-    greenEnergyFraction: 0.42,
-    availableCores: 1600,
-    totalPowerKw: 320
-  }
-];
-
-// ─── Prediction model ─────────────────────────────────────────────────────────
-const MOCK_JOB = { cpuCores: 4, durationMin: 25, powerPerCoreW: 14 };
-
-interface IPrediction {
-  jobEnergyWh: number;
-  totalEnergyWh: number;
-  co2g: number;
-  greenEnergyWh: number;
-}
-
-function predictForSite(site: IEgiSite): IPrediction {
-  const jobEnergyWh =
-    (MOCK_JOB.cpuCores * MOCK_JOB.powerPerCoreW * MOCK_JOB.durationMin) / 60;
-  const totalEnergyWh = jobEnergyWh * site.pue;
-  const co2g = totalEnergyWh * site.carbonIntensityGco2Kwh;
-  const greenEnergyWh = totalEnergyWh * site.greenEnergyFraction;
-  return {
-    jobEnergyWh: Math.round(jobEnergyWh * 1000) / 1000,
-    totalEnergyWh: Math.round(totalEnergyWh * 1000) / 1000,
-    co2g: Math.round(co2g * 10) / 10,
-    greenEnergyWh: Math.round(greenEnergyWh * 1000) / 1000
-  };
-}
-
-function siteColor(site: IEgiSite): string {
-  if (site.greenEnergyFraction >= 0.70) return '#16a34a';
-  if (site.greenEnergyFraction >= 0.45) return '#ca8a04';
-  return '#dc2626';
-}
-
-// ─── Marker ───────────────────────────────────────────────────────────────────
-// Pure DOM — no MUI components inside <Marker>. MUI icons work but require the
-// maplibre-gl CSS to give .maplibregl-marker its `position: absolute`, otherwise
-// markers render as block elements hidden at the canvas corner.
 function SiteMarker({
   site,
   selected,
   onClick
 }: {
-  site: IEgiSite;
+  site: ISite;
   selected: boolean;
   onClick: () => void;
 }) {
-  const color = siteColor(site);
-  const size = selected ? 36 : 28;
   return (
-    <div
-      title={`${site.name} — ${site.country}`}
+    <Box
+      title={`${site.name} — stable demo site`}
       onClick={onClick}
-      style={{
-        width: size,
-        height: size,
+      sx={{
+        width: selected ? 36 : 29,
+        height: selected ? 36 : 29,
         borderRadius: '50%',
-        border: `2.5px solid ${color}`,
-        background: selected ? color : '#ffffff',
+        border: '3px solid #1d4ed8',
+        background: selected ? '#1d4ed8' : '#fff',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        boxShadow: selected
-          ? `0 0 0 3px ${color}44, 0 2px 8px rgba(0,0,0,0.3)`
-          : '0 1px 5px rgba(0,0,0,0.25)',
-        fontSize: 13,
-        lineHeight: 1,
-        userSelect: 'none',
-        flexShrink: 0
+        boxShadow: '0 2px 8px rgba(0,0,0,.25)'
       }}
     >
       {site.flag}
-    </div>
-  );
-}
-
-// ─── Rank badge ───────────────────────────────────────────────────────────────
-function RankBadge({ rank }: { rank: number }) {
-  const bg = ['#16a34a', '#ca8a04', '#dc2626'][rank] ?? '#64748b';
-  return (
-    <Box
-      sx={{
-        width: 22,
-        height: 22,
-        borderRadius: '50%',
-        background: bg,
-        color: '#fff',
-        fontSize: 11,
-        fontWeight: 700,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0
-      }}
-    >
-      {rank + 1}
     </Box>
   );
 }
 
-// ─── Site detail panel ────────────────────────────────────────────────────────
-function SiteDetail({ site }: { site: IEgiSite }) {
-  const pred = predictForSite(site);
-  const color = siteColor(site);
-  return (
-    <Stack gap={1.5}>
-      <Stack direction="row" alignItems="center" gap={1}>
-        <Typography variant="h6" fontWeight={700} lineHeight={1.1}>
-          {site.flag} {site.name}
-        </Typography>
-      </Stack>
-      <Typography variant="caption" color="text.secondary">
-        {site.country}
-      </Typography>
-      <Divider />
-      <Box>
-        <Typography
-          variant="caption"
-          fontWeight={700}
-          color="text.secondary"
-          sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', mb: 0.75 }}
-        >
-          Site properties
-        </Typography>
-        <Stack gap={0.5}>
-          {[
-            { label: 'PUE', value: site.pue.toFixed(2) },
-            { label: 'Carbon intensity', value: `${site.carbonIntensityGco2Kwh} gCO₂/kWh` },
-            { label: 'Green energy', value: `${Math.round(site.greenEnergyFraction * 100)}%`, valueColor: color },
-            { label: 'Available cores', value: site.availableCores.toLocaleString() },
-            { label: 'Total power', value: `${site.totalPowerKw} kW` }
-          ].map(row => (
-            <Stack key={row.label} direction="row" justifyContent="space-between" alignItems="baseline">
-              <Typography variant="caption" color="text.secondary">{row.label}</Typography>
-              <Typography variant="caption" fontWeight={700} sx={{ color: row.valueColor ?? 'text.primary' }}>
-                {row.value}
-              </Typography>
-            </Stack>
-          ))}
-        </Stack>
-      </Box>
-      <Divider />
-      <Box>
-        <Typography
-          variant="caption"
-          fontWeight={700}
-          color="text.secondary"
-          sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', mb: 0.75 }}
-        >
-          Job estimate ({MOCK_JOB.cpuCores} cores · {MOCK_JOB.durationMin} min)
-        </Typography>
-        <Stack gap={0.6}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Stack direction="row" gap={0.5} alignItems="center">
-              <BoltOutlinedIcon sx={{ fontSize: 13, color: '#ca8a04' }} />
-              <Typography variant="caption" color="text.secondary">Energy</Typography>
-            </Stack>
-            <Typography variant="caption" fontWeight={700}>{pred.totalEnergyWh} Wh</Typography>
-          </Stack>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Stack direction="row" gap={0.5} alignItems="center">
-              <Co2OutlinedIcon sx={{ fontSize: 13, color: '#dc2626' }} />
-              <Typography variant="caption" color="text.secondary">Carbon</Typography>
-            </Stack>
-            <Typography variant="caption" fontWeight={700}>
-              {pred.co2g < 1000
-                ? `${pred.co2g} mgCO₂`
-                : `${(pred.co2g / 1000).toFixed(2)} gCO₂`}
-            </Typography>
-          </Stack>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Stack direction="row" gap={0.5} alignItems="center">
-              <ForestOutlinedIcon sx={{ fontSize: 13, color }} />
-              <Typography variant="caption" color="text.secondary">Green energy</Typography>
-            </Stack>
-            <Typography variant="caption" fontWeight={700} sx={{ color }}>
-              {pred.greenEnergyWh} Wh ({Math.round(site.greenEnergyFraction * 100)}%)
-            </Typography>
-          </Stack>
-        </Stack>
-      </Box>
-    </Stack>
-  );
-}
+export default function OrchestratorPanel({
+  username
+}: IOrchestratorPanelProps) {
+  const user = username || 'local-user';
+  const [state, setState] = React.useState<IRegistrationState | null>(null);
+  const [selectedSiteId, setSelectedSiteId] = React.useState('GRNET');
+  const [loading, setLoading] = React.useState(true);
+  const [registering, setRegistering] = React.useState(false);
+  const [registrationStep, setRegistrationStep] = React.useState(0);
+  const [error, setError] = React.useState('');
+  const [form, setForm] = React.useState({
+    node_name: '',
+    site: 'Athens, Greece',
+    operator: user,
+    contact: user.includes('@') ? user : `${user}@demo.invalid`
+  });
 
-// ─── Best options list ────────────────────────────────────────────────────────
-function BestOptionsList({
-  count,
-  onSelect
-}: {
-  count: number;
-  onSelect: (site: IEgiSite) => void;
-}) {
-  const ranked = [...EGI_SITES]
-    .map(site => ({ site, pred: predictForSite(site) }))
-    .sort((a, b) => a.pred.co2g - b.pred.co2g)
-    .slice(0, count);
-
-  return (
-    <Stack gap={1}>
-      <Typography
-        variant="caption"
-        fontWeight={700}
-        color="text.secondary"
-        sx={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}
-      >
-        Best {count} options — lowest CO₂
-      </Typography>
-      {ranked.map(({ site, pred }, i) => (
-        <Paper
-          key={site.id}
-          elevation={0}
-          onClick={() => onSelect(site)}
-          sx={{
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
-            p: 1.25,
-            cursor: 'pointer',
-            '&:hover': { background: '#f8fafc', borderColor: '#93c5fd' }
-          }}
-        >
-          <Stack direction="row" alignItems="center" gap={1}>
-            <RankBadge rank={i} />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="caption" fontWeight={700} noWrap>
-                {site.flag} {site.name}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: 10 }}>
-                {site.country} · {Math.round(site.greenEnergyFraction * 100)}% green
-              </Typography>
-            </Box>
-            <Stack alignItems="flex-end">
-              <Typography variant="caption" fontWeight={700} sx={{ color: siteColor(site), fontSize: 11 }}>
-                {pred.co2g < 1000 ? `${pred.co2g} mgCO₂` : `${(pred.co2g / 1000).toFixed(1)} gCO₂`}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
-                {pred.totalEnergyWh} Wh
-              </Typography>
-            </Stack>
-          </Stack>
-        </Paper>
-      ))}
-    </Stack>
-  );
-}
-
-// ─── Main component ───────────────────────────────────────────────────────────
-export default function OrchestratorPanel() {
-  const [selectedSite, setSelectedSite] = React.useState<IEgiSite | null>(null);
-  const [nSelect, setNSelect] = React.useState<number>(3);
-  const [estimateSiteId, setEstimateSiteId] = React.useState<string>(EGI_SITES[0].id);
-  const [panelMode, setPanelMode] = React.useState<'idle' | 'site' | 'best' | 'single'>('idle');
-
-  // ResizeObserver measures the map container so maplibre always gets a px height.
-  const mapBoxRef = React.useRef<HTMLDivElement>(null);
-  const [mapHeight, setMapHeight] = React.useState(380);
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await getRegistration(user);
+      setState(result);
+      setSelectedSiteId(result.selected_site_id);
+      setForm(value => ({ ...value, node_name: result.default_node_name }));
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error ? loadError.message : String(loadError)
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   React.useEffect(() => {
-    if (!mapBoxRef.current) return;
-    const obs = new ResizeObserver(entries => {
-      const h = entries[0]?.contentRect.height;
-      if (h && h > 0) setMapHeight(h);
-    });
-    obs.observe(mapBoxRef.current);
-    return () => obs.disconnect();
-  }, []);
+    void load();
+  }, [load]);
 
-  function handleMarkerClick(site: IEgiSite) {
-    setSelectedSite(site);
-    setPanelMode('site');
+  async function handleRegister() {
+    setRegistering(true);
+    setRegistrationStep(0);
+    setError('');
+    try {
+      const request = registerNode(user, form);
+      for (let step = 1; step <= 3; step++) {
+        await new Promise(resolve => window.setTimeout(resolve, 300));
+        setRegistrationStep(step);
+      }
+      const result = await request;
+      setState(result);
+      setSelectedSiteId('GRNET');
+    } catch (registrationError) {
+      setError(
+        registrationError instanceof Error
+          ? registrationError.message
+          : String(registrationError)
+      );
+    } finally {
+      setRegistering(false);
+    }
   }
 
-  const panelSite =
-    panelMode === 'single'
-      ? (EGI_SITES.find(s => s.id === estimateSiteId) ?? null)
-      : selectedSite;
+  const sites = state?.sites ?? [];
+  const selectedSite =
+    sites.find(site => site.id === selectedSiteId) ?? sites[0];
 
   return (
-    // height: 100% fills the moduleBody flex space; flex column distributes service bar / map / legend
-    <Box
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1.5,
-        minHeight: 0
-      }}
-    >
-      {/* ── Service status + estimation controls ── */}
-      <Paper
-        elevation={0}
-        sx={{ border: '1px solid #e2e8f0', borderRadius: '10px', p: 1.5, background: '#fff', flexShrink: 0 }}
-      >
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          gap={1.5}
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
-          flexWrap="wrap"
-        >
-          <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
-            <Chip
-              icon={<CheckCircleOutlinedIcon sx={{ fontSize: 13 }} />}
-              label={
-                <Stack direction="row" alignItems="center" gap={0.5}>
-                  <AutoGraphOutlinedIcon sx={{ fontSize: 12 }} />
-                  <span>T6.2 Multi-Level ML</span>
-                </Stack>
-              }
-              size="small"
-              color="success"
-              variant="outlined"
-              sx={{ fontSize: 11, '& .MuiChip-label': { display: 'flex', alignItems: 'center' } }}
-            />
-            <Chip
-              icon={<CheckCircleOutlinedIcon sx={{ fontSize: 13 }} />}
-              label={
-                <Stack direction="row" alignItems="center" gap={0.5}>
-                  <HubOutlinedIcon sx={{ fontSize: 12 }} />
-                  <span>T6.3 Brokering</span>
-                </Stack>
-              }
-              size="small"
-              color="success"
-              variant="outlined"
-              sx={{ fontSize: 11, '& .MuiChip-label': { display: 'flex', alignItems: 'center' } }}
-            />
-          </Stack>
+    <Stack gap={2}>
+      <Alert severity="info" icon={false}>
+        <strong>Autumn School simulation:</strong> federation membership, site
+        availability, prediction and execution are demo data. No live EGI, T6.2
+        or T6.3 service is contacted.
+      </Alert>
 
-          <Box sx={{ flex: 1 }} />
-
-          <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
-            <Stack direction="row" gap={0.75} alignItems="center">
-              <Button
-                size="small"
-                startIcon={<LeaderboardOutlinedIcon />}
-                onClick={() => { setSelectedSite(null); setPanelMode('best'); }}
-                sx={{ whiteSpace: 'nowrap' }}
-              >
-                Estimate best options
-              </Button>
-              <Select
-                size="small"
-                value={nSelect}
-                onChange={e => setNSelect(Number(e.target.value))}
-                sx={{ height: 32, fontSize: 12, minWidth: 56 }}
-              >
-                {[1, 2, 3, 5].map(n => (
-                  <MenuItem key={n} value={n} sx={{ fontSize: 12 }}>{n}</MenuItem>
-                ))}
-              </Select>
-            </Stack>
-
-            <Stack direction="row" gap={0.75} alignItems="center">
-              <Button
-                size="small"
-                startIcon={<StorageOutlinedIcon />}
-                onClick={() => {
-                  const site = EGI_SITES.find(s => s.id === estimateSiteId) ?? EGI_SITES[0];
-                  setSelectedSite(site);
-                  setPanelMode('single');
-                }}
-                sx={{ whiteSpace: 'nowrap' }}
-              >
-                Estimate for site
-              </Button>
-              <FormControl size="small" sx={{ minWidth: 130 }}>
-                <InputLabel sx={{ fontSize: 12 }}>Site</InputLabel>
-                <Select
-                  label="Site"
-                  value={estimateSiteId}
-                  onChange={e => setEstimateSiteId(e.target.value)}
-                  sx={{ height: 32, fontSize: 12 }}
-                >
-                  {EGI_SITES.map(s => (
-                    <MenuItem key={s.id} value={s.id} sx={{ fontSize: 12 }}>
-                      {s.flag} {s.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Stack>
-          </Stack>
-        </Stack>
-      </Paper>
-
-      {/* ── Map + side panel — flex: 1 fills the rest ── */}
-      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', gap: 2 }}>
-        {/* Map container — ResizeObserver measures actual height → passed to <Map> */}
+      <Box sx={{ display: 'flex', gap: 2, minHeight: 430 }}>
         <Box
-          ref={mapBoxRef}
           sx={{
             flex: 1,
             minWidth: 0,
-            minHeight: 0,
-            borderRadius: '10px',
-            overflow: 'hidden',
             border: '1px solid #e2e8f0',
-            position: 'relative'
+            borderRadius: 2,
+            overflow: 'hidden'
           }}
         >
           <Map
-            initialViewState={{ longitude: 10, latitude: 49.5, zoom: 4.1 }}
-            style={{ width: '100%', height: mapHeight }}
+            key={state?.registered ? 'federation' : 'greece'}
+            initialViewState={
+              state?.registered
+                ? { longitude: 15, latitude: 47, zoom: 3.7 }
+                : { longitude: 23.726, latitude: 37.986, zoom: 6.2 }
+            }
+            style={{ width: '100%', height: 430 }}
             mapStyle={MAP_STYLE}
             maplibreLogo={false}
             attributionControl={false}
           >
-            {EGI_SITES.map(site => (
+            {sites.map(site => (
               <Marker
                 key={site.id}
                 latitude={site.lat}
@@ -561,68 +170,171 @@ export default function OrchestratorPanel() {
               >
                 <SiteMarker
                   site={site}
-                  selected={selectedSite?.id === site.id}
-                  onClick={() => handleMarkerClick(site)}
+                  selected={site.id === selectedSiteId}
+                  onClick={() => setSelectedSiteId(site.id)}
                 />
               </Marker>
             ))}
           </Map>
         </Box>
 
-        {/* Side panel */}
-        <Paper
-          elevation={0}
-          sx={{
-            width: 260,
-            flexShrink: 0,
-            border: '1px solid #e2e8f0',
-            borderRadius: '10px',
-            p: 2,
-            background: '#fff',
-            overflow: 'auto',
-            boxSizing: 'border-box'
-          }}
-        >
-          {panelMode === 'idle' && (
-            <Stack
-              alignItems="center"
-              justifyContent="center"
-              sx={{ height: '100%', textAlign: 'center', gap: 1, opacity: 0.45 }}
-            >
-              <StorageOutlinedIcon sx={{ fontSize: 28, color: '#94a3b8' }} />
-              <Typography variant="caption" color="text.secondary">
-                Click a site on the map or use the estimation buttons above
+        <Paper variant="outlined" sx={{ width: 330, p: 2, flexShrink: 0 }}>
+          {loading ? (
+            <Stack gap={1}>
+              <LinearProgress />
+              <Typography variant="body2">
+                Loading local registration…
               </Typography>
             </Stack>
+          ) : state?.registered ? (
+            <Stack gap={1.5}>
+              <Stack direction="row" gap={1} alignItems="center">
+                <HubOutlinedIcon color="success" />
+                <Typography variant="subtitle1" fontWeight={700}>
+                  Demo federation joined
+                </Typography>
+              </Stack>
+              <Chip
+                label="GD-AS-DEMO · simulated membership"
+                color="success"
+                variant="outlined"
+              />
+              <Typography variant="body2">
+                <strong>Node:</strong> {state.registration?.node_name}
+              </Typography>
+              <Typography variant="body2">
+                <strong>Membership:</strong> {state.registration?.membership_id}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Persisted for {state.user_key} under the local m3l2 folder.
+              </Typography>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Available demo site</InputLabel>
+                <Select
+                  label="Available demo site"
+                  value={selectedSiteId}
+                  onChange={event => setSelectedSiteId(event.target.value)}
+                >
+                  {sites.map(site => (
+                    <MenuItem key={site.id} value={site.id}>
+                      {site.flag} {site.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {selectedSite && (
+                <Alert severity="info" icon={<LocationOnOutlinedIcon />}>
+                  {selectedSite.name}, {selectedSite.country}
+                  <br />
+                  PUE {selectedSite.pue}; demo carbon intensity{' '}
+                  {selectedSite.carbon_intensity_g_kwh} gCO₂/kWh.
+                </Alert>
+              )}
+            </Stack>
+          ) : (
+            <Stack gap={1.5}>
+              <Typography variant="subtitle1" fontWeight={700}>
+                Register this node
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Registration enters the node into mock VO GD-AS-DEMO. Other
+                sites and orchestration controls remain hidden until it
+                succeeds.
+              </Typography>
+              <TextField
+                size="small"
+                label="Node name"
+                value={form.node_name}
+                onChange={event =>
+                  setForm(value => ({
+                    ...value,
+                    node_name: event.target.value
+                  }))
+                }
+              />
+              <TextField
+                size="small"
+                label="Site / location"
+                value={form.site}
+                onChange={event =>
+                  setForm(value => ({ ...value, site: event.target.value }))
+                }
+              />
+              <TextField
+                size="small"
+                label="Operator"
+                value={form.operator}
+                onChange={event =>
+                  setForm(value => ({ ...value, operator: event.target.value }))
+                }
+              />
+              <TextField
+                size="small"
+                label="Contact"
+                value={form.contact}
+                onChange={event =>
+                  setForm(value => ({ ...value, contact: event.target.value }))
+                }
+              />
+              <Button
+                onClick={handleRegister}
+                disabled={registering || !form.node_name}
+                startIcon={
+                  registering ? <AutorenewIcon /> : <HubOutlinedIcon />
+                }
+              >
+                {registering ? 'Registering…' : 'Register this node'}
+              </Button>
+              {registering && (
+                <Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={(registrationStep / 3) * 100}
+                  />
+                  <FormHelperText>
+                    {
+                      [
+                        'Contacting mock endpoint…',
+                        'Validating demo node…',
+                        'Assigning GD-AS-DEMO membership…',
+                        'Confirming registration…'
+                      ][registrationStep]
+                    }
+                  </FormHelperText>
+                </Box>
+              )}
+            </Stack>
           )}
-          {(panelMode === 'site' || panelMode === 'single') && panelSite && (
-            <SiteDetail site={panelSite} />
-          )}
-          {panelMode === 'best' && (
-            <BestOptionsList
-              count={nSelect}
-              onSelect={site => { setSelectedSite(site); setPanelMode('site'); }}
-            />
+          {error && (
+            <Alert
+              severity="error"
+              sx={{ mt: 2 }}
+              action={
+                <Button onClick={state?.registered ? load : handleRegister}>
+                  Retry
+                </Button>
+              }
+            >
+              {error}
+            </Alert>
           )}
         </Paper>
       </Box>
 
-      {/* ── Legend ── */}
-      <Stack direction="row" gap={2} alignItems="center" sx={{ flexShrink: 0, px: 0.5 }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={600}>
-          Site carbon:
-        </Typography>
-        {[
-          { color: '#16a34a', label: '≥70% green energy' },
-          { color: '#ca8a04', label: '45–70% green' },
-          { color: '#dc2626', label: '<45% green' }
-        ].map(item => (
-          <Stack key={item.label} direction="row" gap={0.5} alignItems="center">
-            <Box sx={{ width: 9, height: 9, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
-            <Typography variant="caption" color="text.secondary">{item.label}</Typography>
-          </Stack>
-        ))}
-      </Stack>
-    </Box>
+      {state?.registered && (
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="subtitle2" fontWeight={700}>
+            Experiment prediction and simulated orchestration
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Select suitable local experiment metadata before these mock controls
+            become available.
+          </Typography>
+          <Button disabled sx={{ mt: 1 }}>
+            Select experiment to continue
+          </Button>
+        </Paper>
+      )}
+    </Stack>
   );
 }
