@@ -24,15 +24,19 @@ import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import {
   cancelPredictions,
+  getOrchestration,
   getRegistration,
   getPredictions,
   IExperimentMetadata,
   IPredictionState,
+  IOrchestrationState,
   IRegistrationState,
   ISite,
   registerNode,
   selectExperimentMetadata,
-  startPredictions
+  startOrchestration,
+  startPredictions,
+  orchestrationArtifactUrl
 } from '../api/orchestration';
 
 const MAP_STYLE =
@@ -102,6 +106,10 @@ export default function OrchestratorPanel({
     null
   );
   const [predictionError, setPredictionError] = React.useState('');
+  const [targetSiteId, setTargetSiteId] = React.useState('');
+  const [orchestration, setOrchestration] =
+    React.useState<IOrchestrationState | null>(null);
+  const [orchestrationError, setOrchestrationError] = React.useState('');
   const [form, setForm] = React.useState({
     node_name: '',
     site: 'Athens, Greece',
@@ -227,6 +235,53 @@ export default function OrchestratorPanel({
     } catch (cancelError) {
       setPredictionError(
         cancelError instanceof Error ? cancelError.message : String(cancelError)
+      );
+    }
+  }
+
+  const loadOrchestration = React.useCallback(async () => {
+    if (!experimentPath || !predictions?.results.length) {
+      setOrchestration(null);
+      return;
+    }
+    try {
+      const result = await getOrchestration(user, experimentPath);
+      setOrchestration(result);
+      setOrchestrationError('');
+      setTargetSiteId(value => value || predictions.results[0].site.id);
+    } catch (orchestrationLoadError) {
+      setOrchestrationError(
+        orchestrationLoadError instanceof Error
+          ? orchestrationLoadError.message
+          : String(orchestrationLoadError)
+      );
+    }
+  }, [experimentPath, predictions?.results, user]);
+
+  React.useEffect(() => {
+    void loadOrchestration();
+  }, [loadOrchestration]);
+
+  React.useEffect(() => {
+    if (orchestration?.status !== 'running') {
+      return;
+    }
+    const timer = window.setInterval(() => void loadOrchestration(), 1000);
+    return () => window.clearInterval(timer);
+  }, [loadOrchestration, orchestration?.status]);
+
+  async function handleStartOrchestration() {
+    if (!experimentPath || !targetSiteId) {
+      return;
+    }
+    setOrchestrationError('');
+    try {
+      setOrchestration(
+        await startOrchestration(user, experimentPath, targetSiteId)
+      );
+    } catch (startError) {
+      setOrchestrationError(
+        startError instanceof Error ? startError.message : String(startError)
       );
     }
   }
@@ -450,7 +505,7 @@ export default function OrchestratorPanel({
       </Box>
 
       {state?.registered && (
-        <Paper variant="outlined" sx={{ p: 2 }}>
+        <Paper variant="outlined" sx={{ p: 2, order: 2 }}>
           <Typography variant="subtitle2" fontWeight={700}>
             2. Select and synchronise experiment metadata
           </Typography>
@@ -530,7 +585,175 @@ export default function OrchestratorPanel({
       )}
 
       {state?.registered && (
-        <Paper variant="outlined" sx={{ p: 2 }}>
+        <Paper variant="outlined" sx={{ p: 2, order: 4 }}>
+          <Typography variant="subtitle2" fontWeight={700}>
+            4. Simulate orchestration and compare results
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            This creates no VM and never executes the notebook remotely. Target
+            outputs, logs and comparison files remain local under m3l2.
+          </Typography>
+          <Stack direction={{ xs: 'column', md: 'row' }} gap={1.5} mt={1.5}>
+            <FormControl size="small" sx={{ minWidth: 280 }}>
+              <InputLabel>Predicted target site</InputLabel>
+              <Select
+                label="Predicted target site"
+                value={targetSiteId}
+                disabled={
+                  !predictions?.results.length ||
+                  orchestration?.status === 'running'
+                }
+                onChange={event => setTargetSiteId(event.target.value)}
+              >
+                {(predictions?.results ?? []).map(result => (
+                  <MenuItem key={result.site.id} value={result.site.id}>
+                    {result.site.flag} {result.site.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
+              onClick={handleStartOrchestration}
+              disabled={!targetSiteId || orchestration?.status === 'running'}
+            >
+              {orchestration?.status === 'running'
+                ? 'Simulated rerun in progress…'
+                : orchestration?.status === 'failed'
+                  ? 'Retry simulated rerun'
+                  : 'Start simulated rerun'}
+            </Button>
+          </Stack>
+          {!predictions?.results.length && (
+            <FormHelperText>
+              Complete at least one site estimate first.
+            </FormHelperText>
+          )}
+          {orchestration && orchestration.status !== 'idle' && (
+            <Stack gap={1.25} mt={2}>
+              <Alert severity="warning" icon={false}>
+                <strong>Simulated execution:</strong>{' '}
+                {orchestration.current_stage}
+              </Alert>
+              <LinearProgress
+                variant="determinate"
+                value={orchestration.progress}
+              />
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 1.5,
+                  maxHeight: 240,
+                  overflow: 'auto',
+                  background: '#0f172a',
+                  color: '#e2e8f0'
+                }}
+              >
+                {orchestration.log.map((entry, index) => (
+                  <Typography
+                    key={`${entry.stage}-${index}`}
+                    variant="caption"
+                    display="block"
+                    sx={{ fontFamily: 'monospace' }}
+                  >
+                    {entry.started_at} · {entry.stage} · planned demo delay{' '}
+                    {entry.planned_demo_delay_s}s
+                    {entry.actual_elapsed_s === undefined
+                      ? ' …'
+                      : ` · actual ${entry.actual_elapsed_s}s · complete`}
+                  </Typography>
+                ))}
+              </Paper>
+              {orchestration.result && (
+                <Alert severity="success" icon={false}>
+                  <Typography variant="body2" fontWeight={700}>
+                    Deterministic simulated result for{' '}
+                    {orchestration.result.site.name}
+                  </Typography>
+                  <Typography variant="body2">
+                    Actual demonstration elapsed:{' '}
+                    {orchestration.actual_demo_elapsed_s?.toFixed(3)} s ·
+                    modelled workload:{' '}
+                    {orchestration.result.modelled_workload_duration_s.toFixed(
+                      3
+                    )}{' '}
+                    s
+                  </Typography>
+                  <Typography variant="body2">
+                    Training: IT{' '}
+                    {orchestration.result.training.it_energy_kwh.toFixed(6)} kWh
+                    · facility{' '}
+                    {orchestration.result.training.facility_energy_kwh.toFixed(
+                      6
+                    )}{' '}
+                    kWh ·{' '}
+                    {orchestration.result.training.operational_emissions_gco2e.toFixed(
+                      3
+                    )}{' '}
+                    gCO₂e
+                  </Typography>
+                  <Typography variant="body2">
+                    Inference: IT{' '}
+                    {orchestration.result.inference.it_energy_kwh.toFixed(6)}{' '}
+                    kWh · facility{' '}
+                    {orchestration.result.inference.facility_energy_kwh.toFixed(
+                      6
+                    )}{' '}
+                    kWh ·{' '}
+                    {orchestration.result.inference.operational_emissions_gco2e.toFixed(
+                      3
+                    )}{' '}
+                    gCO₂e
+                  </Typography>
+                  <Typography variant="caption">
+                    {orchestration.result.result_location}
+                  </Typography>
+                </Alert>
+              )}
+              {orchestration.comparison && (
+                <Stack direction="row" gap={1} flexWrap="wrap">
+                  <Alert severity="info" icon={false} sx={{ flex: 1 }}>
+                    {orchestration.comparison.notice}
+                  </Alert>
+                  {orchestration.comparison_path && (
+                    <Button
+                      component="a"
+                      target="_blank"
+                      rel="noreferrer"
+                      href={orchestrationArtifactUrl(
+                        orchestration.comparison_path
+                      )}
+                    >
+                      Open/download comparison JSON
+                    </Button>
+                  )}
+                  {orchestration.log_path && (
+                    <Button
+                      component="a"
+                      target="_blank"
+                      rel="noreferrer"
+                      href={orchestrationArtifactUrl(orchestration.log_path)}
+                    >
+                      Open/download log JSON
+                    </Button>
+                  )}
+                </Stack>
+              )}
+            </Stack>
+          )}
+          {orchestrationError && (
+            <Alert
+              severity="error"
+              sx={{ mt: 1.5 }}
+              action={<Button onClick={handleStartOrchestration}>Retry</Button>}
+            >
+              Simulated rerun failed: {orchestrationError}
+            </Alert>
+          )}
+        </Paper>
+      )}
+
+      {state?.registered && (
+        <Paper variant="outlined" sx={{ p: 2, order: 3 }}>
           <Typography variant="subtitle2" fontWeight={700}>
             3. Predict training and inference across demo sites
           </Typography>

@@ -389,6 +389,29 @@ class OrchestrationPredictionHandler(APIHandler):
             raise web.HTTPError(400, reason=str(error)) from error
 
 
+class OrchestrationRunHandler(APIHandler):
+    def initialize(self, manager):
+        self.manager = manager
+
+    @web.authenticated
+    async def get(self):
+        try:
+            self.finish(self.manager.get_orchestration(
+                self.get_argument("user", ""), self.get_argument("path")
+            ))
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+
+    @web.authenticated
+    async def post(self):
+        body = self.get_json_body() or {}
+        try:
+            self.finish(self.manager.start_orchestration(
+                body.get("user", ""), body.get("path"), body.get("target_site_id")
+            ))
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+
 class MetricsInstallHandler(APIHandler):
     @web.authenticated
     async def get(self):
@@ -519,6 +542,11 @@ def setup_handlers(web_app):
             (
                 url_path_join(namespace, "orchestration", "predictions"),
                 OrchestrationPredictionHandler,
+                {"manager": orchestration_manager},
+            ),
+            (
+                url_path_join(namespace, "orchestration", "runs"),
+                OrchestrationRunHandler,
                 {"manager": orchestration_manager},
             ),
             (url_path_join(namespace, "run-install"), MetricsInstallHandler),

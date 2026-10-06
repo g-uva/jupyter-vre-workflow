@@ -6,6 +6,7 @@ import json
 import os
 import re
 import asyncio
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import URLError
@@ -102,7 +103,7 @@ class CatalogueDemoClient:
 
 class OrchestrationManager:
     def __init__(self, root, federation_client=None, catalogue_client=None,
-                 prediction_site_seconds=None):
+                 prediction_site_seconds=None, orchestration_stage_seconds=None):
         self.root = Path(root).resolve()
         self.federation_client = federation_client or FederationDemoClient()
         self.catalogue_client = catalogue_client or CatalogueDemoClient()
@@ -113,6 +114,12 @@ class OrchestrationManager:
         )
         self.prediction_tasks = {}
         self.prediction_cancellations = {}
+        self.orchestration_stage_seconds = (
+            float(orchestration_stage_seconds)
+            if orchestration_stage_seconds is not None
+            else float(os.environ.get("JUVRE_ORCHESTRATION_STAGE_SECONDS", "4"))
+        )
+        self.orchestration_tasks = {}
 
     @staticmethod
     def user_key(user):
@@ -453,6 +460,162 @@ class OrchestrationManager:
             "assumptions": assumptions,
             "training": self._workload_result(training_duration, power, site),
             "inference": self._workload_result(inference_duration, power * 0.65, site),
+        }
+
+    def orchestration_path(self, user, experiment_id):
+        return self.experiment_folder(user, experiment_id) / "orchestration.json"
+
+    def get_orchestration(self, user, relative):
+        local = self.select_metadata(user, relative)
+        path = self.orchestration_path(user, local["experiment"]["id"])
+        if path.is_file():
+            return json.loads(path.read_text())
+        return {
+            "status": "idle", "target_site_id": None, "current_stage": None,
+            "progress": 0, "log": [], "result": None, "comparison": None,
+            "comparison_path": None, "log_path": None,
+            "error": None, "simulated": True,
+        }
+
+    def start_orchestration(self, user, relative, target_site_id):
+        local = self.select_metadata(user, relative)
+        predictions_path = self.prediction_path(user, local["experiment"]["id"])
+        if not predictions_path.is_file():
+            raise ValueError("Generate site predictions before simulating orchestration")
+        predictions = json.loads(predictions_path.read_text())
+        prediction = next(
+            (item for item in predictions.get("results", []) if item["site"]["id"] == target_site_id),
+            None,
+        )
+        if prediction is None:
+            raise ValueError("Select one site with a completed prediction")
+        key = (self.user_key(user), local["experiment"]["id"])
+        task = self.orchestration_tasks.get(key)
+        if task is not None and not task.done():
+            raise ValueError("A simulated rerun is already active")
+        state = {
+            "status": "running", "target_site_id": target_site_id,
+            "current_stage": "Queued", "progress": 0, "log": [],
+            "result": None, "comparison": None, "error": None,
+            "comparison_path": None, "log_path": None,
+            "simulated": True, "started_at": utc_now(), "completed_at": None,
+            "actual_demo_elapsed_s": 0,
+        }
+        path = self.orchestration_path(user, local["experiment"]["id"])
+        self._write_json(path, state)
+        task = asyncio.create_task(
+            self._run_orchestration(user, local, prediction, path)
+        )
+        self.orchestration_tasks[key] = task
+        task.add_done_callback(lambda _task: self.orchestration_tasks.pop(key, None))
+        return state
+
+    async def _run_orchestration(self, user, local, prediction, path):
+        state = json.loads(path.read_text())
+        stages = [
+            ("Preparing the local package", 1),
+            ("Sending metadata to the mock target", 3),
+            ("Requesting simulated resources", 2),
+            ("Spawning a mock VM", 4),
+            ("Starting simulated training", 1),
+            ("Running simulated inference", 1),
+            ("Collecting simulated outputs", 2),
+            ("Saving results locally", 1),
+        ]
+        total_weight = sum(weight for _, weight in stages)
+        completed_weight = 0
+        demo_start = time.monotonic()
+        try:
+            for label, weight in stages:
+                state["current_stage"] = label
+                entry = {
+                    "stage": label, "started_at": utc_now(),
+                    "relative_duration_weight": weight,
+                    "planned_demo_delay_s": self.orchestration_stage_seconds * weight,
+                    "simulated": True,
+                }
+                state["log"].append(entry)
+                self._write_json(path, state)
+                stage_start = time.monotonic()
+                await asyncio.sleep(max(0, self.orchestration_stage_seconds * weight))
+                entry["completed_at"] = utc_now()
+                entry["actual_elapsed_s"] = round(time.monotonic() - stage_start, 6)
+                completed_weight += weight
+                state["progress"] = round(100 * completed_weight / total_weight)
+                self._write_json(path, state)
+            state["result"] = self._simulated_target_result(local, prediction)
+            state["comparison"] = self._comparison(local, prediction, state["result"])
+            state["status"] = "completed"
+            state["current_stage"] = "Simulation complete; all results remain local"
+            state["completed_at"] = utc_now()
+            state["actual_demo_elapsed_s"] = round(time.monotonic() - demo_start, 6)
+            folder = path.parent
+            self._write_json(folder / "orchestration-log.json", {
+                "experiment": local["experiment"], "target_site_id": prediction["site"]["id"],
+                "simulated": True, "actual_demo_elapsed_s": state["actual_demo_elapsed_s"],
+                "log": state["log"],
+            })
+            self._write_json(folder / "comparison.json", state["comparison"])
+            state["log_path"] = str((folder / "orchestration-log.json").relative_to(self.root))
+            state["comparison_path"] = str((folder / "comparison.json").relative_to(self.root))
+        except Exception as error:
+            state["status"] = "failed"
+            state["error"] = str(error)
+            state["completed_at"] = utc_now()
+            state["actual_demo_elapsed_s"] = round(time.monotonic() - demo_start, 6)
+        finally:
+            self._write_json(path, state)
+
+    @staticmethod
+    def _simulated_target_result(local, prediction):
+        seed = int(hashlib.sha256(
+            f"{local['experiment']['id']}:{prediction['site']['id']}".encode()
+        ).hexdigest()[:8], 16)
+        duration_factor = 0.97 + (seed % 7) / 100
+        power_factor = 0.98 + ((seed // 7) % 6) / 100
+        site = prediction["site"]
+        power = prediction["inputs"]["base_it_power_w"] * power_factor
+        training = OrchestrationManager._workload_result(
+            prediction["training"]["duration_s"] * duration_factor, power, site
+        )
+        inference = OrchestrationManager._workload_result(
+            prediction["inference"]["duration_s"] * duration_factor, power * 0.65, site
+        )
+        return {
+            "site": site, "training": training, "inference": inference,
+            "modelled_workload_duration_s": round(training["duration_s"] + inference["duration_s"], 6),
+            "deterministic_factors": {
+                "duration_factor": duration_factor, "power_factor": power_factor,
+            },
+            "assumptions": prediction["assumptions"],
+            "simulated": True,
+            "result_location": "local m3l2 folder; no remote outputs were retrieved",
+        }
+
+    @staticmethod
+    def _comparison(local, prediction, target):
+        runtime = local["experiment"]["runtime_s"]
+        energy_j = local["measurements"]["energy_j"]
+        power = local["measurements"]["average_power_w"]
+        if energy_j is not None:
+            original_it = energy_j / 3_600_000
+        elif power is not None and runtime:
+            original_it = power * runtime / 3_600_000
+        else:
+            original_it = None
+        return {
+            "schema_version": 1, "generated_at": utc_now(), "simulated": True,
+            "experiment_id": local["experiment"]["id"],
+            "original": {
+                "site": "local source node", "training_duration_s": runtime,
+                "inference_duration_s": None, "it_energy_kwh": original_it,
+                "facility_energy_kwh": None, "operational_emissions_gco2e": None,
+                "pue": None, "carbon_intensity_g_kwh": None,
+                "assumptions": ["Original run does not distinguish training from inference", "Facility overhead and operational emissions unavailable without source-site PUE and carbon intensity"],
+            },
+            "prediction": {"site": prediction["site"], "training": prediction["training"], "inference": prediction["inference"], "assumptions": prediction["assumptions"]},
+            "simulated_target_run": target,
+            "notice": "Local comparison of an original run, stable prediction and deterministic simulated target run; no remote execution or result retrieval occurred.",
         }
 
     @staticmethod

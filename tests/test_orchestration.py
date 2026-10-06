@@ -161,5 +161,53 @@ class PredictionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.manager.get_prediction("alice", self.relative)["status"], "cancelled")
 
 
+class SimulatedOrchestrationTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.manager = OrchestrationManager(
+            self.root, prediction_site_seconds=0, orchestration_stage_seconds=0
+        )
+        self.manager.register("alice", {
+            "node_name": "GD-DEMO-001", "site": "Athens",
+            "operator": "Alice", "contact": "alice@example.org"
+        })
+        helper = RegistrationTests()
+        helper.root = self.root
+        self.relative = helper.make_experiment()
+        self.manager.start_prediction("alice", self.relative, ["GRNET", "NIKHEF"])
+        await asyncio.gather(*list(self.manager.prediction_tasks.values()))
+
+    async def asyncTearDown(self):
+        if self.manager.orchestration_tasks:
+            await asyncio.gather(*self.manager.orchestration_tasks.values(), return_exceptions=True)
+        self.temporary.cleanup()
+
+    async def test_simulated_run_saves_timeline_result_and_comparison(self):
+        self.manager.start_orchestration("alice", self.relative, "NIKHEF")
+        await asyncio.gather(*list(self.manager.orchestration_tasks.values()))
+        state = self.manager.get_orchestration("alice", self.relative)
+        self.assertEqual(state["status"], "completed")
+        self.assertEqual(len(state["log"]), 8)
+        self.assertGreater(state["log"][1]["relative_duration_weight"], state["log"][0]["relative_duration_weight"])
+        self.assertEqual(state["result"]["site"]["id"], "NIKHEF")
+        self.assertNotEqual(state["actual_demo_elapsed_s"], state["result"]["modelled_workload_duration_s"])
+        folder = self.manager.experiment_folder("alice", "run-1")
+        self.assertTrue((folder / "orchestration-log.json").is_file())
+        self.assertTrue((folder / "comparison.json").is_file())
+        comparison = json.loads((folder / "comparison.json").read_text())
+        self.assertIsNone(comparison["original"]["facility_energy_kwh"])
+        self.assertIn("no remote execution", comparison["notice"])
+
+    async def test_target_result_is_deterministic_and_requires_prediction(self):
+        prediction = self.manager.get_prediction("alice", self.relative)["results"][0]
+        local = self.manager.select_metadata("alice", self.relative)
+        first = self.manager._simulated_target_result(local, prediction)
+        second = self.manager._simulated_target_result(local, prediction)
+        self.assertEqual(first, second)
+        with self.assertRaisesRegex(ValueError, "completed prediction"):
+            self.manager.start_orchestration("alice", self.relative, "KIT")
+
+
 if __name__ == "__main__":
     unittest.main()

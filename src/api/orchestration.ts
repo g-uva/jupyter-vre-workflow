@@ -89,6 +89,40 @@ export interface IPredictionState {
   assumptions: Record<string, string | number>;
 }
 
+export interface IOrchestrationState {
+  status: 'idle' | 'running' | 'completed' | 'failed';
+  target_site_id: string | null;
+  current_stage: string | null;
+  progress: number;
+  log: {
+    stage: string;
+    started_at: string;
+    completed_at?: string;
+    relative_duration_weight: number;
+    planned_demo_delay_s: number;
+    actual_elapsed_s?: number;
+    simulated: true;
+  }[];
+  result: null | {
+    site: ISite;
+    training: IWorkloadEstimate;
+    inference: IWorkloadEstimate;
+    modelled_workload_duration_s: number;
+    result_location: string;
+  };
+  comparison: null | {
+    original: Record<string, unknown>;
+    prediction: Record<string, unknown>;
+    simulated_target_run: Record<string, unknown>;
+    notice: string;
+  };
+  comparison_path?: string | null;
+  log_path?: string | null;
+  actual_demo_elapsed_s?: number;
+  error: string | null;
+  simulated: true;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const settings = ServerConnection.makeSettings();
   const url = new URL(
@@ -170,4 +204,34 @@ export function cancelPredictions(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user, path })
   });
+}
+
+export function getOrchestration(
+  user: string,
+  path: string
+): Promise<IOrchestrationState> {
+  return request(
+    `orchestration/runs?user=${encodeURIComponent(user)}&path=${encodeURIComponent(path)}`
+  );
+}
+
+export function startOrchestration(
+  user: string,
+  path: string,
+  targetSiteId: string
+): Promise<IOrchestrationState> {
+  return request('orchestration/runs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user, path, target_site_id: targetSiteId })
+  });
+}
+
+export function orchestrationArtifactUrl(path: string): string {
+  const settings = ServerConnection.makeSettings();
+  const encoded = path.split('/').map(encodeURIComponent).join('/');
+  return new URL(
+    `${settings.baseUrl.replace(/\/?$/, '/')}files/${encoded}`,
+    window.location.origin
+  ).toString();
 }

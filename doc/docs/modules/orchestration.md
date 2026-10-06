@@ -1,71 +1,71 @@
 ---
 id: orchestration
-title: Module 3 — Orchestration & Replay
+title: Module 3 — Orchestration demonstration
 sidebar_position: 3
 ---
 
-# Module 3: Orchestration & Replay
+# Module 3: Orchestration demonstration
 
-This module connects Jupyter VRE Workflow to a T6.3 Orchestrator and the T6.2 module, enabling cross-site workflow replay and energy-aware placement.
+This Autumn School module is a local, repeatable simulation. It does not use a
+live EGI federation, T6.2/T6.3 service, grid-carbon feed, VM, remote notebook
+runner or remote output store.
 
-:::note Mock endpoints
-The T6.3 Orchestrator and T6.2 module endpoints are currently mock services. The configuration and UI flow are identical to what a production deployment will use.
-:::
+## Workshop flow
 
-## The flow
+1. The initial map is centred on Greece and exposes only the local GRNET demo
+   node. Register the pre-filled, per-user `GD-DEMO-…` node with mock VO
+   `GD-AS-DEMO` to reveal the other stable demo sites.
+2. Select an existing successful experiment using the page controls. JuVRE
+   reads local `run.json`, `metrics.csv` and `ro-crate-metadata.json` when
+   available. RO-Crate and FDMI publication are not required.
+3. Optionally synchronise metadata to the mock `GD-AS-DEMO` catalogue. “Online”
+   refers only to that mock catalogue; failed synchronisation preserves the
+   local record.
+4. Choose one or more sites. They are processed sequentially through metadata,
+   training, inference and result stages. Workshop defaults take about 75
+   seconds per site; tests can set `JUVRE_PREDICTION_SITE_SECONDS=0`.
+5. Choose one predicted site and start the simulated rerun. The timeline shows
+   package preparation, metadata sending, resource request, mock VM startup,
+   training, inference, output collection and local saving. No VM is created.
+6. Open or download the saved log and comparison JSON.
 
+## Calculation boundaries
+
+The model starts with the experiment runtime and measured average IT power. If
+average power is absent but energy is present, it derives power as joules ÷
+seconds. If neither is usable, it explicitly assumes 120 W IT power. Training
+duration is runtime divided by a stable site performance factor. Inference is
+15% of training duration (minimum five seconds) at 65% of training power.
+
+For training and inference independently:
+
+```text
+IT energy (kWh)       = IT power (W) × duration (s) / 3,600,000
+facility energy (kWh) = IT energy × site PUE
+emissions (gCO2e)     = facility energy × demo carbon intensity (gCO2e/kWh)
 ```
-Notebook
-  └── Jupyter VRE Workflow (Jupyter VRE Workflow)
-        └── Context + metadata ──► T6.3 Orchestrator
-                                        └── Placement + execution ──► Site Runtime
+
+PUE is applied exactly once. Source telemetry is treated as IT/component
+energy, not facility energy. Carbon intensity and performance factors are
+stable demo values, not live readings. Results are operational estimates, not
+a full SCI assessment.
+
+## Local artefacts
+
+Files are scoped by a sanitised username and experiment ID:
+
+```text
+m3l2/<user>/
+  registration.json
+  experiments/<experiment-id>/
+    metadata.json
+    catalogue.json
+    predictions.json
+    orchestration.json
+    orchestration-log.json
+    comparison.json
 ```
 
-1. Jupyter VRE Workflow captures the workflow context from the active notebook session
-2. It sends the context and metadata to the T6.3 Orchestrator
-3. The Orchestrator returns a placement decision (intra-site or inter-site)
-4. The workflow is replayed or scheduled on the target site
-
-## Configuring the connection
-
-1. Open the **Orchestration** tab in Jupyter VRE Workflow
-2. Click **"Install module"**
-3. Enter the T6.3 Orchestrator endpoint URL
-4. Enter the T6.2 module endpoint URL
-5. Save — both connections are validated on save
-
-> **Screenshot placeholder** — Jupyter VRE Workflow Orchestration tab with endpoint fields and status indicators
-
-## Getting a placement prediction
-
-1. With the module active, open a notebook that has been run at least once (so context exists)
-2. Click **"Get placement prediction"** in the Orchestration tab
-3. Jupyter VRE Workflow sends the workflow trace to the Orchestrator
-4. The predicted placement (node, site, energy estimate) is displayed in the panel
-
-> **Screenshot placeholder** — node map or placement result panel showing inter/intra-site assignment
-
-## Replay a workflow
-
-1. Select a previous experiment from the history list in the Orchestration tab
-2. Click **"Replay"**
-3. Jupyter VRE Workflow packages the workflow trace and submits it to the Orchestrator
-4. Monitor execution status in the panel
-
-## Connecting to an EGI Virtual Organisation (VO)
-
-For inter-site federation:
-
-1. Register your node with the VO endpoint (provided by your infrastructure operator)
-2. Supply node ID, site metadata, and resource capacity
-3. Set the placement policy in Jupyter VRE Workflow settings: `energy-aware` (default) or `latency-aware`
-
-> **Screenshot placeholder** — VO registration screen or config file with fields highlighted
-
-## Troubleshooting
-
-| Symptom | Fix |
-|---------|-----|
-| Orchestration status stays pending | Verify endpoint URL and network access to the T6.3 host |
-| Placement prediction fails | Ensure a completed notebook session with metadata exists before requesting a prediction |
-| VO registration rejected | Check node ID format and that credentials match the VO's expected schema |
+The comparison records the original local experiment, selected-site
+prediction and deterministic simulated target run. Missing original facility
+energy, emissions or inference boundaries remain explicitly unavailable.

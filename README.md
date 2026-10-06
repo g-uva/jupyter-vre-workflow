@@ -114,6 +114,15 @@ contract-equivalent embedded services. The workflow simulates EGI Check-in as
 `gd-super-user`; it does not verify an EGI account, contact an external FDMI,
 register compliance, use Zenodo, or mint a DOI.
 
+### Autumn School orchestration demo
+
+The Orchestration tab uses mock-only federation, catalogue, prediction and
+execution behaviour. Register a per-user node in `GD-AS-DEMO`, select and
+optionally synchronise a local experiment, predict one or more stable demo
+sites, then simulate a rerun at one predicted target. Registration, metadata,
+predictions, logs and comparison JSON are stored below `m3l2/<user>/`. No VM is
+created and no notebook or output is sent to or retrieved from a remote site.
+
 ### Folder Structure
 
 ```txt
