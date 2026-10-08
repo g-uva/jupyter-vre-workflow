@@ -267,9 +267,21 @@ class OrchestrationManager:
 
     def catalogue(self):
         records = []
+        submissions_path = self.root / "juvre" / "fdmi" / "orchestration-submissions.json"
+        submissions = (
+            json.loads(submissions_path.read_text())
+            if submissions_path.is_file()
+            else []
+        )
         for path in self.catalogue_folder().glob("*/manifest.json"):
             try:
-                records.append(json.loads(path.read_text()))
+                record = json.loads(path.read_text())
+                record["site_results"] = [
+                    item for item in submissions
+                    if item["original_experiment_id"] == record["run_id"]
+                    and not item.get("stale")
+                ]
+                records.append(record)
             except (OSError, ValueError):
                 continue
         return sorted(records, key=lambda item: item.get("shared_at", ""), reverse=True)
@@ -288,6 +300,23 @@ class OrchestrationManager:
             for item in manifest["files"]:
                 archive.write(folder / item["name"], item["name"])
         return bundle
+
+    def shared_result_bundle(self, attempt_id):
+        result = next(
+            (
+                item
+                for record in self.catalogue()
+                for item in record.get("site_results", [])
+                if item["attempt_id"] == attempt_id
+            ),
+            None,
+        )
+        if result is None:
+            raise ValueError("Shared site result does not exist")
+        path = (self.root / result["bundle_path"]).resolve()
+        if self.root not in path.parents or not path.is_file():
+            raise ValueError("Shared site result bundle is unavailable")
+        return path
 
     def import_shared(self, user, catalogue_id):
         folder = self.catalogue_folder() / str(catalogue_id)
@@ -585,6 +614,243 @@ class OrchestrationManager:
 
     def orchestration_path(self, user, experiment_id):
         return self.experiment_folder(user, experiment_id) / "orchestration.json"
+
+    def _attempt(self, user, relative, attempt_id):
+        local = self.select_metadata(user, relative)
+        path = self.orchestration_path(user, local["experiment"]["id"])
+        if not path.is_file():
+            raise ValueError("No orchestration attempts exist for this experiment")
+        state = json.loads(path.read_text())
+        attempt = next(
+            (item for item in state.get("attempts", []) if item["attempt_id"] == attempt_id),
+            None,
+        )
+        if attempt is None:
+            raise ValueError("Site attempt does not exist")
+        if attempt["status"] != "completed":
+            raise ValueError("Only completed site attempts can be packaged")
+        return local, path, state, attempt
+
+    def prepare_result_bundle(self, user, relative, attempt_id, downloaded=False):
+        local, state_path, state, attempt = self._attempt(
+            user, relative, attempt_id
+        )
+        source_folder = self.resolve_experiment(relative)
+        prediction_state = json.loads(
+            self.prediction_path(user, local["experiment"]["id"]).read_text()
+        )
+        prediction = next(
+            item
+            for item in prediction_state["results"]
+            if item["site"]["id"] == attempt["site_id"]
+        )
+        source_records = {}
+        for name in ("cim-record.json", "eimps-cloud.json"):
+            path = source_folder / name
+            if path.is_file():
+                source_records[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        source_revision = hashlib.sha256(
+            json.dumps(
+                {
+                    "result": attempt["result"],
+                    "log": attempt["log"],
+                    "prediction": prediction,
+                    "source_records": source_records,
+                },
+                sort_keys=True,
+            ).encode()
+        ).hexdigest()
+        existing = attempt.get("bundle") or {}
+        bundle_path = self.root / existing.get("path", "missing")
+        if existing.get("source_revision") == source_revision and bundle_path.is_file():
+            if downloaded:
+                attempt["bundle"]["downloaded_at"] = utc_now()
+                self._write_json(state_path, state)
+            return attempt["bundle"]
+
+        safe_attempt = re.sub(r"[^a-zA-Z0-9._-]+", "-", attempt_id)
+        folder = state_path.parent / "attempts" / safe_attempt
+        folder.mkdir(parents=True, exist_ok=True)
+        values = {
+            "result.json": attempt["result"],
+            "site.json": attempt["result"]["site"],
+            "prediction.json": prediction,
+            "execution-log.json": {
+                "attempt_id": attempt_id,
+                "simulated": True,
+                "entries": attempt["log"],
+            },
+            "provenance.json": {
+                "schema_version": 1,
+                "attempt_id": attempt_id,
+                "original_experiment_id": local["experiment"]["id"],
+                "original_experiment_path": relative,
+                "selected_site_id": attempt["site_id"],
+                "prediction_source": "predictions.json",
+                "cim_record": "cim-record.json" if "cim-record.json" in source_records else None,
+                "eimps_record": "eimps-cloud.json" if "eimps-cloud.json" in source_records else None,
+                "mode": "simulated",
+                "statement": "No VM, remote notebook execution, or remote scientific output was produced.",
+            },
+        }
+        for name, value in values.items():
+            self._write_json(folder / name, value)
+        for name in source_records:
+            shutil.copy2(source_folder / name, folder / name)
+        payload_names = [*values, *source_records]
+        checksums = {
+            name: hashlib.sha256((folder / name).read_bytes()).hexdigest()
+            for name in payload_names
+        }
+        crate_name = "ro-crate-metadata.json"
+        generated = utc_now()
+        crate = {
+            "@context": "https://w3id.org/ro/crate/1.1/context",
+            "@graph": [
+                {
+                    "@id": crate_name,
+                    "@type": "CreativeWork",
+                    "about": {"@id": "./"},
+                    "conformsTo": {"@id": "https://w3id.org/ro/crate/1.1"},
+                },
+                {
+                    "@id": "./",
+                    "@type": "Dataset",
+                    "name": f"Simulated JuVRE result for {attempt['site_id']}",
+                    "description": "A simulated orchestration result bundle; no remote notebook was executed.",
+                    "datePublished": generated,
+                    "identifier": attempt_id,
+                    "hasPart": [{"@id": name} for name in payload_names],
+                    "mentions": {"@id": "#attempt"},
+                },
+                {
+                    "@id": "#attempt",
+                    "@type": "CreateAction",
+                    "identifier": attempt_id,
+                    "name": "Simulated multi-site orchestration attempt",
+                    "actionStatus": {"@id": "https://schema.org/CompletedActionStatus"},
+                    "object": {"@id": "prediction.json"},
+                    "result": {"@id": "result.json"},
+                    "location": {"@id": "site.json"},
+                    "isBasedOn": [
+                        {"@id": f"urn:juvre:experiment:{local['experiment']['id']}"},
+                        *({"@id": name} for name in source_records),
+                    ],
+                },
+                *[
+                    {
+                        "@id": name,
+                        "@type": "File",
+                        "encodingFormat": "application/json",
+                        "sha256": checksums[name],
+                    }
+                    for name in payload_names
+                ],
+            ],
+        }
+        self._write_json(folder / crate_name, crate)
+        checksums[crate_name] = hashlib.sha256(
+            (folder / crate_name).read_bytes()
+        ).hexdigest()
+        manifest = {
+            "schema_version": 1,
+            "attempt_id": attempt_id,
+            "original_experiment_id": local["experiment"]["id"],
+            "site_id": attempt["site_id"],
+            "simulated": True,
+            "source_revision": source_revision,
+            "files": [
+                {"name": name, "sha256": digest}
+                for name, digest in sorted(checksums.items())
+            ],
+            "omitted": [
+                "executed notebook: no remote execution occurred",
+                "scientific outputs: none were produced by the simulation",
+            ],
+        }
+        self._write_json(folder / "manifest.json", manifest)
+        bundle_hash = hashlib.sha256(
+            json.dumps(manifest, sort_keys=True).encode()
+        ).hexdigest()
+        archive_path = folder / f"{safe_attempt}.zip"
+        with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.write(folder / "manifest.json", "manifest.json")
+            for name in checksums:
+                archive.write(folder / name, name)
+        attempt["bundle"] = {
+            "status": "ready",
+            "path": str(archive_path.relative_to(self.root)),
+            "sha256": bundle_hash,
+            "source_revision": source_revision,
+            "generated_at": generated,
+            "downloaded_at": utc_now() if downloaded else None,
+            "simulated": True,
+        }
+        if attempt.get("fdmi") and attempt["fdmi"].get("bundle_sha256") != bundle_hash:
+            attempt["fdmi"]["stale"] = True
+        self._write_json(state_path, state)
+        return attempt["bundle"]
+
+    def submit_result_fdmi(self, user, relative, attempt_id):
+        bundle = self.prepare_result_bundle(user, relative, attempt_id)
+        local, state_path, state, attempt = self._attempt(user, relative, attempt_id)
+        store_path = self.root / "juvre" / "fdmi" / "orchestration-submissions.json"
+        store_path.parent.mkdir(parents=True, exist_ok=True)
+        records = json.loads(store_path.read_text()) if store_path.is_file() else []
+        existing = next(
+            (
+                item for item in records
+                if item["attempt_id"] == attempt_id
+                and item["bundle_sha256"] == bundle["sha256"]
+            ),
+            None,
+        )
+        if existing is None:
+            versions = [item["version"] for item in records if item["attempt_id"] == attempt_id]
+            for item in records:
+                if item["attempt_id"] == attempt_id:
+                    item["stale"] = True
+            version = max(versions, default=0) + 1
+            key = hashlib.sha256(f"{attempt_id}:{bundle['sha256']}".encode()).hexdigest()
+            existing = {
+                "attempt_id": attempt_id,
+                "original_experiment_id": local["experiment"]["id"],
+                "site_id": attempt["site_id"],
+                "prediction_record": f"{bundle['path']}#prediction.json",
+                "cim_record": f"{relative}/cim-record.json" if (self.resolve_experiment(relative) / "cim-record.json").is_file() else None,
+                "eimps_record": f"{relative}/eimps-cloud.json" if (self.resolve_experiment(relative) / "eimps-cloud.json").is_file() else None,
+                "bundle_sha256": bundle["sha256"],
+                "bundle_path": bundle["path"],
+                "version": version,
+                "receipt": f"FDMI-SIM-{key[:16].upper()}",
+                "submitted_at": utc_now(),
+                "simulated": True,
+                "stale": False,
+            }
+            records.append(existing)
+            self._write_json(store_path, records)
+        attempt["fdmi"] = dict(existing)
+        self._write_json(state_path, state)
+        return attempt["fdmi"]
+
+    def result_bundle_path(self, user, relative, attempt_id):
+        bundle = self.prepare_result_bundle(
+            user, relative, attempt_id, downloaded=True
+        )
+        return self.root / bundle["path"]
+
+    def result_review(self, user, relative, attempt_id):
+        bundle = self.prepare_result_bundle(user, relative, attempt_id)
+        local, _, _, attempt = self._attempt(user, relative, attempt_id)
+        return {
+            "attempt_id": attempt_id,
+            "original_experiment_id": local["experiment"]["id"],
+            "site_id": attempt["site_id"],
+            "bundle_sha256": bundle["sha256"],
+            "bundle_path": bundle["path"],
+            "simulated": True,
+            "fdmi": attempt.get("fdmi"),
+        }
 
     def get_orchestration(self, user, relative):
         local = self.select_metadata(user, relative)

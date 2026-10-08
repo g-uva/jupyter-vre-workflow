@@ -32,8 +32,9 @@ runner or remote output store.
    failure does not discard successful attempts. The timeline shows
    package preparation, metadata sending, resource request, virtual environment preparation,
    training, inference, output collection and local saving. No VM is created.
-7. Open or download per-site or combined results. These are explicitly labelled
-   mock bundles and never claim that a remote notebook or VM exists.
+7. For each completed site attempt, independently download its result bundle or
+   review and submit it to mock FDMI. Downloading is not required for submission,
+   and submission is not required for download. Both statuses remain visible.
 8. Sharing is opt-in per experiment. The lab catalogue shows the owner, run,
    date, site, files and crate availability. Downloads contain allow-listed
    evidence only. Imports are hash-verified below `juvre/imports`, and replay
@@ -83,6 +84,18 @@ The comparison records the original local experiment, selected-site
 prediction and deterministic simulated target run. Missing original facility
 energy, emissions or inference boundaries remain explicitly unavailable.
 
+Each completed attempt also has an `attempts/<attempt-id>/` package containing
+the simulated result, site metadata, prediction, execution log, provenance,
+checksums, relevant CIM/EIMPS records when present, and an RO-Crate 1.1
+descriptor. The ZIP deliberately omits an executed notebook and scientific
+outputs because the mock never produced them. Every mock-FDMI submission is
+keyed by attempt ID and bundle hash, persisted below
+`juvre/fdmi/orchestration-submissions.json`, and returns its own receipt and
+version. Repeating an unchanged submission is idempotent; changing a result
+creates a new version and makes the earlier record stale.
+
 Shared bundles live below `juvre/lab-catalogue/<catalogue-id>` and imports below
 `juvre/imports/<user>/<catalogue-id>`. Credentials, tokens, private source paths,
-reproducibility state and unrelated files are excluded.
+reproducibility state and unrelated files are excluded. Once the original
+experiment is explicitly shared, its current simulated site records and result
+bundles also appear in the lab catalogue under the same access rule.

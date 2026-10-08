@@ -7,6 +7,10 @@ import {
   Button,
   Checkbox,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   FormHelperText,
   InputLabel,
@@ -27,6 +31,7 @@ import {
   getOrchestration,
   getWorkshopCatalogue,
   ISharedExperiment,
+  IResultReview,
   importSharedExperiment,
   getRegistration,
   getPredictions,
@@ -40,8 +45,12 @@ import {
   startOrchestration,
   shareExperiment,
   catalogueBundleUrl,
+  catalogueResultBundleUrl,
   startPredictions,
-  orchestrationArtifactUrl
+  orchestrationArtifactUrl,
+  resultBundleUrl,
+  reviewResultSubmission,
+  submitResultToFdmi
 } from '../api/orchestration';
 
 const MAP_STYLE =
@@ -117,6 +126,11 @@ export default function OrchestratorPanel({
   const [orchestrationError, setOrchestrationError] = React.useState('');
   const [catalogue, setCatalogue] = React.useState<ISharedExperiment[]>([]);
   const [catalogueMessage, setCatalogueMessage] = React.useState('');
+  const [resultReview, setResultReview] = React.useState<IResultReview | null>(
+    null
+  );
+  const [submittingAttempt, setSubmittingAttempt] = React.useState(false);
+  const [resultActionError, setResultActionError] = React.useState('');
   const [form, setForm] = React.useState({
     node_name: '',
     site: 'Athens, Greece',
@@ -687,6 +701,25 @@ export default function OrchestratorPanel({
                     Run locally as new experiment
                   </Button>
                 </Stack>
+                {item.site_results?.map(result => (
+                  <Alert
+                    key={result.attempt_id}
+                    severity="info"
+                    icon={false}
+                    sx={{ mt: 1 }}
+                    action={
+                      <Button
+                        component="a"
+                        href={catalogueResultBundleUrl(result.attempt_id)}
+                      >
+                        Download result
+                      </Button>
+                    }
+                  >
+                    Simulated {result.site_id} result · FDMI {result.receipt} ·
+                    version {result.version}
+                  </Alert>
+                ))}
               </Paper>
             ))}
           </Stack>
@@ -779,7 +812,58 @@ export default function OrchestratorPanel({
                       ? 'Mock result only; no VM or remote notebook exists.'
                       : 'Real adapter result.'}
                   </Typography>
+                  <Typography variant="caption" display="block">
+                    Download:{' '}
+                    {attempt.bundle?.downloaded_at
+                      ? `downloaded ${new Date(attempt.bundle.downloaded_at).toLocaleString()}`
+                      : 'not downloaded'}{' '}
+                    · mock FDMI:{' '}
+                    {attempt.fdmi
+                      ? `${attempt.fdmi.receipt} · version ${attempt.fdmi.version}${attempt.fdmi.stale ? ' · stale' : ''}`
+                      : 'not submitted'}
+                  </Typography>
                   <Stack direction="row" gap={1} flexWrap="wrap">
+                    {experimentPath && (
+                      <Button
+                        size="small"
+                        component="a"
+                        href={resultBundleUrl(
+                          user,
+                          experimentPath,
+                          attempt.attempt_id
+                        )}
+                        onClick={() =>
+                          window.setTimeout(() => void loadOrchestration(), 750)
+                        }
+                      >
+                        Download result bundle
+                      </Button>
+                    )}
+                    {experimentPath && (
+                      <Button
+                        size="small"
+                        onClick={async () => {
+                          setResultActionError('');
+                          try {
+                            setResultReview(
+                              await reviewResultSubmission(
+                                user,
+                                experimentPath,
+                                attempt.attempt_id
+                              )
+                            );
+                          } catch (reviewError) {
+                            setResultActionError(
+                              reviewError instanceof Error
+                                ? reviewError.message
+                                : String(reviewError)
+                            );
+                          }
+                        }}
+                      >
+                        Submit to mock FDMI
+                      </Button>
+                    )}
                     {[
                       attempt.result_path,
                       attempt.comparison_path,
@@ -814,6 +898,11 @@ export default function OrchestratorPanel({
                   </Stack>
                 </Alert>
               ))}
+              {resultActionError && (
+                <Alert severity="error">
+                  Result action failed: {resultActionError}
+                </Alert>
+              )}
               <Paper
                 variant="outlined"
                 sx={{
@@ -927,6 +1016,66 @@ export default function OrchestratorPanel({
           )}
         </Paper>
       )}
+      <Dialog
+        open={Boolean(resultReview)}
+        onClose={() => setResultReview(null)}
+        fullWidth
+      >
+        <DialogTitle>Review simulated result submission</DialogTitle>
+        <DialogContent dividers>
+          <Stack gap={1}>
+            <Typography variant="body2">
+              Attempt: {resultReview?.attempt_id}
+            </Typography>
+            <Typography variant="body2">
+              Original experiment: {resultReview?.original_experiment_id}
+            </Typography>
+            <Typography variant="body2">
+              Site: {resultReview?.site_id}
+            </Typography>
+            <Typography variant="caption" sx={{ wordBreak: 'break-all' }}>
+              Bundle SHA-256: {resultReview?.bundle_sha256}
+            </Typography>
+            <Alert severity="warning">
+              Simulated record only. No remote notebook or scientific output was
+              produced.
+            </Alert>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setResultReview(null)}>Cancel</Button>
+          <Button
+            disabled={submittingAttempt}
+            onClick={async () => {
+              if (!experimentPath || !resultReview) {
+                return;
+              }
+              setSubmittingAttempt(true);
+              setResultActionError('');
+              try {
+                await submitResultToFdmi(
+                  user,
+                  experimentPath,
+                  resultReview.attempt_id
+                );
+                setResultReview(null);
+                await loadOrchestration();
+                await refreshCatalogue();
+              } catch (submitError) {
+                setResultActionError(
+                  submitError instanceof Error
+                    ? submitError.message
+                    : String(submitError)
+                );
+              } finally {
+                setSubmittingAttempt(false);
+              }
+            }}
+          >
+            Submit simulated bundle
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {state?.registered && (
         <Paper variant="outlined" sx={{ p: 2, order: 3 }}>

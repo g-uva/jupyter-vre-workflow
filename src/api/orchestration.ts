@@ -104,6 +104,22 @@ export interface IOrchestrationState {
     result_path?: string;
     comparison_path?: string;
     log_path?: string;
+    bundle?: {
+      status: 'ready';
+      path: string;
+      sha256: string;
+      generated_at: string;
+      downloaded_at: string | null;
+      simulated: true;
+    };
+    fdmi?: {
+      receipt: string;
+      version: number;
+      submitted_at: string;
+      bundle_sha256: string;
+      simulated: true;
+      stale: boolean;
+    };
   }[];
   current_stage: string | null;
   progress: number;
@@ -145,6 +161,22 @@ export interface ISharedExperiment {
   source_site: string;
   crate_valid: boolean;
   files: { name: string; sha256: string; size: number }[];
+  site_results?: {
+    attempt_id: string;
+    site_id: string;
+    receipt: string;
+    version: number;
+    simulated: true;
+  }[];
+}
+
+export interface IResultReview {
+  attempt_id: string;
+  original_experiment_id: string;
+  site_id: string;
+  bundle_sha256: string;
+  bundle_path: string;
+  simulated: true;
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -299,4 +331,59 @@ export function catalogueBundleUrl(catalogueId: string): string {
     `${settings.baseUrl.replace(/\/?$/, '/')}api/jupyter-vre-workflow/orchestration/catalogue?catalogue_id=${encodeURIComponent(catalogueId)}`,
     window.location.origin
   ).toString();
+}
+
+export function catalogueResultBundleUrl(attemptId: string): string {
+  const settings = ServerConnection.makeSettings();
+  return new URL(
+    `${settings.baseUrl.replace(/\/?$/, '/')}api/jupyter-vre-workflow/orchestration/catalogue?attempt_id=${encodeURIComponent(attemptId)}`,
+    window.location.origin
+  ).toString();
+}
+
+export function resultBundleUrl(
+  user: string,
+  path: string,
+  attemptId: string
+): string {
+  const settings = ServerConnection.makeSettings();
+  const query = new URLSearchParams({ user, path, attempt_id: attemptId });
+  return new URL(
+    `${settings.baseUrl.replace(/\/?$/, '/')}api/jupyter-vre-workflow/orchestration/results?${query}`,
+    window.location.origin
+  ).toString();
+}
+
+export function reviewResultSubmission(
+  user: string,
+  path: string,
+  attemptId: string
+): Promise<IResultReview> {
+  return request('orchestration/results', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'review',
+      user,
+      path,
+      attempt_id: attemptId
+    })
+  });
+}
+
+export function submitResultToFdmi(
+  user: string,
+  path: string,
+  attemptId: string
+): Promise<Record<string, unknown>> {
+  return request('orchestration/results', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'submit',
+      user,
+      path,
+      attempt_id: attemptId
+    })
+  });
 }

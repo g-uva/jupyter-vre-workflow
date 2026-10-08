@@ -122,8 +122,10 @@ optionally synchronise a local experiment, predict one or more stable demo
 sites, then simulate concurrent attempts at up to three predicted targets.
 Participants may explicitly share safe portable bundles in the lab catalogue,
 verify imports, and start a linked local replay. Registration, metadata,
-predictions, per-site logs and comparisons are stored locally. No VM is created
-and no notebook or output is sent to or retrieved from a remote site.
+predictions, per-site logs and comparisons are stored locally. Each completed
+site has independent result-bundle download and persistent, idempotent mock-FDMI
+submission actions. No VM is created and no notebook or output is sent to or
+retrieved from a remote site.
 
 ### Folder Structure
 

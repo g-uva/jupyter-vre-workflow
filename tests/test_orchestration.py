@@ -267,6 +267,72 @@ class SimulatedOrchestrationTests(unittest.IsolatedAsyncioTestCase):
             ["completed", "failed"],
         )
 
+    async def test_two_site_bundles_and_fdmi_records_are_independent_persistent_and_idempotent(self):
+        source = self.root / self.relative
+        (source / "cim-record.json").write_text('{"kind":"cim"}')
+        (source / "eimps-cloud.json").write_text('{"kind":"eimps"}')
+        self.manager.start_orchestration(
+            "alice", self.relative, ["GRNET", "NIKHEF"]
+        )
+        await asyncio.gather(*list(self.manager.orchestration_tasks.values()))
+        state = self.manager.get_orchestration("alice", self.relative)
+        attempt_ids = [item["attempt_id"] for item in state["attempts"]]
+
+        bundles = [
+            self.manager.result_bundle_path("alice", self.relative, attempt_id)
+            for attempt_id in attempt_ids
+        ]
+        self.assertNotEqual(bundles[0], bundles[1])
+        for attempt_id, bundle in zip(attempt_ids, bundles):
+            with zipfile.ZipFile(bundle) as archive:
+                names = set(archive.namelist())
+                self.assertIn("ro-crate-metadata.json", names)
+                self.assertIn("prediction.json", names)
+                self.assertIn("cim-record.json", names)
+                self.assertIn("eimps-cloud.json", names)
+                self.assertNotIn("executed.ipynb", names)
+                provenance = json.loads(archive.read("provenance.json"))
+                self.assertEqual(provenance["attempt_id"], attempt_id)
+                self.assertEqual(provenance["original_experiment_id"], "run-1")
+                self.assertEqual(provenance["mode"], "simulated")
+
+        receipts = [
+            self.manager.submit_result_fdmi("alice", self.relative, attempt_id)
+            for attempt_id in attempt_ids
+        ]
+        self.assertNotEqual(receipts[0]["receipt"], receipts[1]["receipt"])
+        self.assertEqual(receipts[0]["version"], 1)
+        self.assertEqual(receipts[0]["original_experiment_id"], "run-1")
+        self.assertEqual(receipts[0]["cim_record"], f"{self.relative}/cim-record.json")
+        self.assertIn("prediction.json", receipts[0]["prediction_record"])
+        self.assertEqual(
+            self.manager.submit_result_fdmi("alice", self.relative, attempt_ids[0]),
+            receipts[0],
+        )
+
+        restarted = OrchestrationManager(
+            self.root, prediction_site_seconds=0, orchestration_stage_seconds=0
+        )
+        self.assertEqual(
+            restarted.submit_result_fdmi("alice", self.relative, attempt_ids[0]),
+            receipts[0],
+        )
+        shared = restarted.share_experiment("alice", self.relative)
+        catalogue = restarted.catalogue()
+        entry = next(item for item in catalogue if item["catalogue_id"] == shared["catalogue_id"])
+        self.assertEqual(len(entry["site_results"]), 2)
+        self.assertTrue(restarted.shared_result_bundle(attempt_ids[0]).is_file())
+
+        orchestration_path = restarted.orchestration_path("alice", "run-1")
+        changed = json.loads(orchestration_path.read_text())
+        changed["attempts"][0]["result"]["training"]["duration_s"] += 1
+        restarted._write_json(orchestration_path, changed)
+        version_two = restarted.submit_result_fdmi(
+            "alice", self.relative, attempt_ids[0]
+        )
+        self.assertEqual(version_two["version"], 2)
+        self.assertNotEqual(version_two["receipt"], receipts[0]["receipt"])
+
 
 if __name__ == "__main__":
     unittest.main()

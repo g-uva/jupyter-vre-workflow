@@ -465,6 +465,17 @@ class OrchestrationRunHandler(APIHandler):
         except (ValueError, OSError, json.JSONDecodeError) as error:
             raise web.HTTPError(400, reason=str(error)) from error
 
+    @web.authenticated
+    async def post(self):
+        body = self.get_json_body() or {}
+        try:
+            self.finish(self.manager.start_orchestration(
+                body.get("user", ""), body.get("path"),
+                body.get("site_ids", body.get("target_site_id"))
+            ))
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+
 
 class WorkshopCatalogueHandler(APIHandler):
     def initialize(self, manager, experiment_manager):
@@ -473,7 +484,19 @@ class WorkshopCatalogueHandler(APIHandler):
 
     @web.authenticated
     async def get(self):
+        attempt_id = self.get_argument("attempt_id", None)
         catalogue_id = self.get_argument("catalogue_id", None)
+        if attempt_id:
+            try:
+                path = self.manager.shared_result_bundle(attempt_id)
+            except (ValueError, OSError, json.JSONDecodeError) as error:
+                raise web.HTTPError(404, reason=str(error)) from error
+            self.set_header("Content-Type", "application/zip")
+            self.set_header(
+                "Content-Disposition", f'attachment; filename="{path.name}"'
+            )
+            self.finish(path.read_bytes())
+            return
         if catalogue_id:
             try:
                 path = self.manager.bundle_path(catalogue_id)
@@ -520,16 +543,44 @@ class WorkshopCatalogueHandler(APIHandler):
             raise web.HTTPError(400, reason=str(error)) from error
         self.finish(result)
 
+
+class OrchestrationResultHandler(APIHandler):
+    def initialize(self, manager):
+        self.manager = manager
+
+    @web.authenticated
+    async def get(self):
+        try:
+            path = self.manager.result_bundle_path(
+                self.get_argument("user", ""),
+                self.get_argument("path"),
+                self.get_argument("attempt_id"),
+            )
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+        self.set_header("Content-Type", "application/zip")
+        self.set_header(
+            "Content-Disposition", f'attachment; filename="{path.name}"'
+        )
+        self.finish(path.read_bytes())
+
     @web.authenticated
     async def post(self):
         body = self.get_json_body() or {}
         try:
-            self.finish(self.manager.start_orchestration(
-                body.get("user", ""), body.get("path"),
-                body.get("site_ids", body.get("target_site_id"))
-            ))
+            if body.get("action") == "review":
+                result = self.manager.result_review(
+                    body.get("user", ""), body.get("path"), body.get("attempt_id")
+                )
+            elif body.get("action") == "submit":
+                result = self.manager.submit_result_fdmi(
+                    body.get("user", ""), body.get("path"), body.get("attempt_id")
+                )
+            else:
+                raise ValueError("Unsupported result action")
         except (ValueError, OSError, json.JSONDecodeError) as error:
             raise web.HTTPError(400, reason=str(error)) from error
+        self.finish(result)
 
 class MetricsInstallHandler(APIHandler):
     @web.authenticated
@@ -676,6 +727,11 @@ def setup_handlers(web_app):
             (
                 url_path_join(namespace, "orchestration", "runs"),
                 OrchestrationRunHandler,
+                {"manager": orchestration_manager},
+            ),
+            (
+                url_path_join(namespace, "orchestration", "results"),
+                OrchestrationResultHandler,
                 {"manager": orchestration_manager},
             ),
             (
