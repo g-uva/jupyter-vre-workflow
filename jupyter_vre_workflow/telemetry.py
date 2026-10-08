@@ -1,12 +1,30 @@
 """Read experiment telemetry from RAPL and Scaphandre/Prometheus."""
 
+import asyncio
+import csv
 import json
+import logging
 import os
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import urlopen
+
+from tornado.ioloop import IOLoop
+
+from .paths import TELEMETRY_DIRECTORY
+
+
+CSV_COLUMNS = [
+    "timestamp_utc",
+    "timestamp_unix",
+    "metric",
+    "labels",
+    "value",
+    "unit",
+]
 
 
 def utc_now():
@@ -70,6 +88,86 @@ class PrometheusReader:
                     "unit": metric_unit(name),
                 })
         return rows
+
+
+class ScaphandreCsvExporter:
+    """Continuously append every Scaphandre Prometheus series to metric CSVs."""
+
+    def __init__(self, root, reader_factory=None, interval=5.0, logger=None):
+        self.directory = Path(root).resolve() / TELEMETRY_DIRECTORY
+        self.directory.mkdir(parents=True, exist_ok=True)
+        self.reader_factory = reader_factory or PrometheusReader
+        self.interval = interval
+        self.log = logger or logging.getLogger(__name__)
+        self.running = False
+        self._seen = {}
+
+    @staticmethod
+    def _filename(metric):
+        safe_metric = re.sub(r"[^a-zA-Z0-9._-]+", "-", metric).strip("-")
+        if not safe_metric or not metric.startswith("scaph_"):
+            raise ValueError("Expected a Scaphandre metric name")
+        return f"{safe_metric}.csv"
+
+    def export(self, start, end):
+        rows = self.reader_factory().samples(start, end)
+        files = {}
+        written = 0
+        try:
+            for row in rows:
+                labels = json.dumps(row["labels"], sort_keys=True)
+                key = (row["metric"], labels, row["timestamp"])
+                if key in self._seen:
+                    continue
+                filename = self._filename(row["metric"])
+                if filename not in files:
+                    path = self.directory / filename
+                    stream = path.open("a", newline="")
+                    writer = csv.writer(stream)
+                    if path.stat().st_size == 0:
+                        writer.writerow(CSV_COLUMNS)
+                    files[filename] = (stream, writer)
+                files[filename][1].writerow([
+                    row["timestamp_utc"],
+                    row["timestamp"],
+                    row["metric"],
+                    labels,
+                    row["value"],
+                    row["unit"],
+                ])
+                self._seen[key] = row["timestamp"]
+                written += 1
+        finally:
+            for stream, _ in files.values():
+                stream.close()
+
+        oldest = end - max(self.interval * 3, 30)
+        self._seen = {
+            key: timestamp
+            for key, timestamp in self._seen.items()
+            if timestamp >= oldest
+        }
+        return written
+
+    async def run(self):
+        cursor = time.time()
+        while self.running:
+            end = time.time()
+            try:
+                await asyncio.to_thread(self.export, cursor, end)
+                cursor = end
+            except Exception as error:
+                self.log.warning("Could not export Scaphandre metrics: %s", error)
+            await asyncio.sleep(self.interval)
+
+    def start(self):
+        if self.running:
+            return
+        self.running = True
+        IOLoop.current().spawn_callback(self.run)
+
+    def stop(self):
+        self.running = False
 
 
 class RaplReader:

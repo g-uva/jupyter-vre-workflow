@@ -71,6 +71,10 @@ class ServerExtensionTests(unittest.TestCase):
         self.assertIs(handlers[8][1], OrchestrationPredictionHandler)
         self.assertIs(handlers[9][1], OrchestrationRunHandler)
         self.assertIs(handlers[10][1], MetricsInstallHandler)
+        exporter = web_app.settings["jupyter_vre_workflow_telemetry_exporter"]
+        self.assertEqual(
+            exporter.directory, Path(root_dir) / "juvre" / "telemetry"
+        )
 
     def test_loader_registers_all_handlers(self):
         with TemporaryDirectory() as root_dir:

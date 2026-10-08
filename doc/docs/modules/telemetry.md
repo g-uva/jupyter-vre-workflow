@@ -30,8 +30,14 @@ Prometheus URL defaults to `http://127.0.0.1:9090` and can be changed with
 `JUPYTER_VRE_PROMETHEUS_URL`. Direct RAPL rows remain available when the server
 can read the host counters.
 
+The Jupyter server also exports every available `scaph_*` series continuously,
+whether or not an experiment is running. Each metric is appended to its own
+long-form CSV at `juvre/telemetry/<metric-name>.csv`. Files use the same
+`timestamp_utc,timestamp_unix,metric,labels,value,unit` columns as experiment
+metrics and retain distinct Prometheus label sets.
+
 ## Viewing and saving
 
 Open a notebook and choose **Run notebook as experiment**. Select its run to view live totals and power. Starting an experiment enables automatic refresh with a five-second default interval. The chart shows up to the latest 300 samples; `metrics.csv` preserves the complete series, including raw counters and domain labels.
 
-See [Reproducibility & Storage](./reproducibility.md) for artifact paths and run status.
+See [Reproducibility & Storage](./reproducibility.md) for experiment paths and run status.

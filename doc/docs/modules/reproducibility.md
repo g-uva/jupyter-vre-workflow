@@ -19,18 +19,19 @@ A run starts before kernel startup and finishes after completion, failure or can
 
 ## Artifact layout
 
-Files are saved next to the source notebook:
+Files are saved below the Jupyter root in the JuVRE data directory:
 
 ```text
-experiments/
-  <notebook-stem>/
-    <UTC-date>T<time-with-microseconds>Z-<random-id>/
-      notebook.ipynb
-      executed.ipynb
-      metrics.csv
-      run.json
-      reproducibility.json
-      ro-crate-metadata.json
+juvre/
+  experiments/
+    <notebook-stem>/
+      <UTC-date>T<time-with-microseconds>Z-<random-id>/
+        notebook.ipynb
+        executed.ipynb
+        metrics.csv
+        run.json
+        reproducibility.json
+        ro-crate-metadata.json
 ```
 
 - `notebook.ipynb`: code, markdown, attachments and metadata at start, with old outputs and execution counts cleared.
@@ -44,9 +45,9 @@ experiments/
   referencing the input notebook, executed notebook and raw metrics. It also
   records the run action, status, metric summary, chosen standard and mapping.
 
-UUID suffixes prevent collisions between runs started at the same time. The notebook's parent directory distinguishes equally named notebooks in different folders. The source notebook's outputs are not replaced with the background run's outputs: open `executed.ipynb` to inspect them. External datasets and files written by notebook code remain in the original working directory; they are not automatically copied into the artifact bundle.
+UUID suffixes prevent collisions between runs started at the same time. The source notebook's outputs are not replaced with the background run's outputs: open `executed.ipynb` to inspect them. External datasets and files written by notebook code remain in the original working directory; they are not automatically copied into the artifact bundle.
 
-The old `.lib/experiments` files are left untouched. The new history selector reads the `experiments` layout; old files remain accessible through Jupyter's file browser.
+The history selector reads `juvre/experiments`. Older experiment directories are left untouched and remain accessible through Jupyter's file browser.
 
 ## API and command line
 

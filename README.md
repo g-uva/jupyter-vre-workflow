@@ -10,7 +10,8 @@ This code is open-source, so feel free to copy/paste it into your machine. Pleas
 
 - Run an entire notebook as a tracked experiment in a fresh kernel.
 - Read real RAPL energy, current power and average power, with explicit unavailable status when hardware counters cannot be read.
-- Save input/output notebooks, labelled raw metrics and precise run metadata in one experiment directory.
+- Save input/output notebooks, labelled raw metrics and precise run metadata under `juvre/experiments`.
+- Continuously export every Scaphandre series to per-metric CSV files under `juvre/telemetry`.
 - Autumn School reproducibility demo: configure a CIM standard mapping,
   generate RO-Crate 1.1 metadata, and submit it idempotently to an FDMI
   target. It does not publish externally or mint a DOI.

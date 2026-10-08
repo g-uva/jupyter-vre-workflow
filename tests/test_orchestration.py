@@ -17,7 +17,7 @@ class RegistrationTests(unittest.TestCase):
         self.manager = OrchestrationManager(self.root)
 
     def make_experiment(self, experiment_id="run-1", status="succeeded"):
-        folder = self.root / "experiments" / "demo" / experiment_id
+        folder = self.root / "juvre" / "experiments" / "demo" / experiment_id
         folder.mkdir(parents=True)
         (folder / "notebook.ipynb").write_text("{}")
         (folder / "executed.ipynb").write_text("{}")
@@ -31,7 +31,7 @@ class RegistrationTests(unittest.TestCase):
             "start_time": "2026-10-06T10:00:00Z", "end_time": "2026-10-06T10:00:06Z",
             "artifacts": {"input": "notebook.ipynb", "output": "executed.ipynb", "metrics": "metrics.csv"}
         }))
-        return f"experiments/demo/{experiment_id}"
+        return f"juvre/experiments/demo/{experiment_id}"
 
     def register_alice(self):
         return self.manager.register("alice", {

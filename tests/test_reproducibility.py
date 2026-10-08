@@ -40,7 +40,7 @@ class ReproducibilityStateTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
-        self.folder = self.root / "experiments" / "demo" / "run-1"
+        self.folder = self.root / "juvre" / "experiments" / "demo" / "run-1"
         self.folder.mkdir(parents=True)
         (self.folder / "run.json").write_text(json.dumps({
             "id": "run-1", "workflow_id": "demo", "status": "succeeded",
@@ -54,7 +54,7 @@ class ReproducibilityStateTests(unittest.TestCase):
             writer = csv.writer(stream)
             writer.writerow(["timestamp_utc", "timestamp_unix", "metric", "labels", "value", "unit"])
             writer.writerow(["now", "1", "energy_j", "{}", "4.2", "joules"])
-        self.relative = "experiments/demo/run-1"
+        self.relative = "juvre/experiments/demo/run-1"
         self.manager = ReproducibilityManager(self.root)
 
     def tearDown(self):

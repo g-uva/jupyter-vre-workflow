@@ -1,10 +1,13 @@
 import { NotebookPanel } from '@jupyterlab/notebook';
 import {
+  joinPath,
   listDirectoryNames,
   readJsonFile,
   readTextFile,
   resolveNotebookPath
 } from './jupyterContents';
+
+const EXPERIMENTS_DIRECTORY = 'juvre/experiments';
 
 export async function getSavedUsername(panel: NotebookPanel): Promise<string> {
   return (
@@ -16,9 +19,7 @@ export async function getSavedUsername(panel: NotebookPanel): Promise<string> {
 export async function handleLoadWorkflowList(
   panel: NotebookPanel
 ): Promise<string[]> {
-  return (
-    await listDirectoryNames(panel, resolveNotebookPath(panel, 'experiments'))
-  ).sort();
+  return (await listDirectoryNames(panel, EXPERIMENTS_DIRECTORY)).sort();
 }
 
 export async function handleLoadExperimentList(
@@ -26,24 +27,18 @@ export async function handleLoadExperimentList(
   panel: NotebookPanel
 ): Promise<string[]> {
   return (
-    await listDirectoryNames(
-      panel,
-      resolveNotebookPath(panel, `experiments/${workflowId}`)
-    )
+    await listDirectoryNames(panel, joinPath(EXPERIMENTS_DIRECTORY, workflowId))
   )
     .sort()
     .reverse();
 }
 
 export function experimentPath(
-  panel: NotebookPanel,
+  _panel: NotebookPanel,
   workflowId: string,
   experimentId: string
 ): string {
-  return resolveNotebookPath(
-    panel,
-    `experiments/${workflowId}/${experimentId}`
-  );
+  return joinPath(EXPERIMENTS_DIRECTORY, workflowId, experimentId);
 }
 
 export async function getHandleSessionMetrics(

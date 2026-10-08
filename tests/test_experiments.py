@@ -12,7 +12,11 @@ import nbformat
 from jupyter_client.kernelspec import KernelSpecManager
 
 from jupyter_vre_workflow.experiments import ExperimentManager
-from jupyter_vre_workflow.telemetry import PrometheusReader, RaplReader
+from jupyter_vre_workflow.telemetry import (
+    PrometheusReader,
+    RaplReader,
+    ScaphandreCsvExporter,
+)
 
 
 def zone(root, path, name, energy, maximum=100000000):
@@ -79,6 +83,52 @@ class PrometheusTests(unittest.TestCase):
         self.assertEqual(rows[0]["unit"], "microwatts")
         self.assertEqual(rows[0]["timestamp"], 100.5)
 
+    def test_continuous_exporter_writes_one_csv_per_metric_without_duplicates(self):
+        rows = [
+            {
+                "timestamp_utc": "2026-10-08T12:00:00.000000Z",
+                "timestamp": 100.0,
+                "metric": "scaph_host_power_microwatts",
+                "labels": {"instance": "localhost:8081"},
+                "value": "2500000",
+                "unit": "microwatts",
+            },
+            {
+                "timestamp_utc": "2026-10-08T12:00:00.000000Z",
+                "timestamp": 100.0,
+                "metric": "scaph_host_energy_microjoules",
+                "labels": {"instance": "localhost:8081"},
+                "value": "9000000",
+                "unit": "microjoules",
+            },
+        ]
+
+        class FakeReader:
+            def samples(self, start, end):
+                return rows
+
+        with tempfile.TemporaryDirectory() as temporary:
+            exporter = ScaphandreCsvExporter(
+                temporary, reader_factory=FakeReader, interval=5
+            )
+            self.assertEqual(exporter.export(99, 101), 2)
+            self.assertEqual(exporter.export(99, 101), 0)
+            directory = Path(temporary) / "juvre" / "telemetry"
+            self.assertEqual(
+                {path.name for path in directory.iterdir()},
+                {
+                    "scaph_host_energy_microjoules.csv",
+                    "scaph_host_power_microwatts.csv",
+                },
+            )
+            with (directory / "scaph_host_power_microwatts.csv").open() as stream:
+                saved = list(csv.DictReader(stream))
+            self.assertEqual(len(saved), 1)
+            self.assertEqual(saved[0]["metric"], "scaph_host_power_microwatts")
+            self.assertEqual(
+                json.loads(saved[0]["labels"]), {"instance": "localhost:8081"}
+            )
+
 
 class ExperimentTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -136,6 +186,7 @@ class ExperimentTests(unittest.IsolatedAsyncioTestCase):
         self.assertLess(result['start_time'], result['end_time'])
         self.assertNotIn(':', result['id'])
         folder = self.root / result['path']
+        self.assertEqual(folder.parts[-4:-2], ('juvre', 'experiments'))
         self.assertEqual(folder.parent.name, 'Ice test')
         self.assertEqual(set(p.name for p in folder.iterdir()), {'notebook.ipynb', 'executed.ipynb', 'metrics.csv', 'run.json'})
         saved_input = nbformat.read(folder / 'notebook.ipynb', as_version=4)

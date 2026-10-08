@@ -21,5 +21,7 @@ def _jupyter_server_extension_points():
 def _load_jupyter_server_extension(server_app):
     from .handlers import setup_handlers
 
-    setup_handlers(server_app.web_app)
+    telemetry_exporter = setup_handlers(server_app.web_app)
+    telemetry_exporter.log = server_app.log
+    telemetry_exporter.start()
     server_app.log.info("Registered Jupyter VRE Workflow server extension")

@@ -14,7 +14,8 @@ from pathlib import Path
 import nbformat
 from nbclient import NotebookClient
 
-from .telemetry import PrometheusReader, RaplReader, utc_now
+from .paths import EXPERIMENTS_DIRECTORY
+from .telemetry import CSV_COLUMNS, PrometheusReader, RaplReader, utc_now
 
 
 def write_json(path, value):
@@ -68,7 +69,7 @@ class ExperimentManager:
         # The notebook's parent already distinguishes equally named notebooks.
         started = utc_now()
         run_id = started.replace(":", "") + "-" + uuid.uuid4().hex[:12]
-        folder = source.parent / "experiments" / slug / run_id
+        folder = self.root / EXPERIMENTS_DIRECTORY / slug / run_id
         self.resolve(str(folder.relative_to(self.root)))
         folder.mkdir(parents=True, exist_ok=False)
         input_text = nbformat.writes(notebook)
@@ -156,7 +157,7 @@ class ExperimentManager:
 
         # Do not leave empty workflow/experiments directories in the selectors.
         for parent in (folder.parent, folder.parent.parent):
-            if parent == self.root:
+            if parent == self.root / "juvre":
                 break
             try:
                 parent.rmdir()
@@ -195,7 +196,7 @@ class ExperimentManager:
             record["execution_started"] = utc_now()
             metrics_file = (folder / "metrics.csv").open("w", newline="")
             writer = csv.writer(metrics_file)
-            writer.writerow(["timestamp_utc", "timestamp_unix", "metric", "labels", "value", "unit"])
+            writer.writerow(CSV_COLUMNS)
             metrics_file.flush()
             if record.get("cancel_requested"):
                 raise asyncio.CancelledError()

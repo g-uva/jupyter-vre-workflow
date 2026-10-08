@@ -12,6 +12,7 @@ from jupyter_server.utils import url_path_join
 from tornado import web
 
 from .experiments import ExperimentManager
+from .telemetry import ScaphandreCsvExporter
 from .reproducibility import CimDemoClient, FdmiDemoClient, ReproducibilityManager
 from .orchestration import CatalogueDemoClient, FederationDemoClient, OrchestrationManager
 
@@ -494,6 +495,7 @@ def setup_handlers(web_app):
     base_url = web_app.settings.get("base_url", "/")
     root_dir = web_app.settings["contents_manager"].root_dir
     manager = ExperimentManager(root_dir)
+    telemetry_exporter = ScaphandreCsvExporter(root_dir)
     cim_client = CimDemoClient()
     reproducibility_manager = ReproducibilityManager(root_dir, FdmiDemoClient())
     orchestration_manager = OrchestrationManager(
@@ -552,3 +554,5 @@ def setup_handlers(web_app):
             (url_path_join(namespace, "run-install"), MetricsInstallHandler),
         ],
     )
+    web_app.settings["jupyter_vre_workflow_telemetry_exporter"] = telemetry_exporter
+    return telemetry_exporter
