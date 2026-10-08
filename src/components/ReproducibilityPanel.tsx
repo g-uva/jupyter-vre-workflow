@@ -4,6 +4,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   FormControlLabel,
   FormHelperText,
@@ -27,10 +31,12 @@ import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import {
   artifactUrl,
   connectCim,
+  connectFdmi,
   configureReproducibility,
   generateRoCrate,
   getReproducibilityState,
   ICloudConfiguration,
+  ICrateConfiguration,
   ICimConnection,
   ICimMetadataProfile,
   ICimStandard,
@@ -98,12 +104,25 @@ export default function ReproducibilityPanel({
       cloud_compute_service: '',
       owner: ''
     });
+  const [crateConfiguration, setCrateConfiguration] =
+    React.useState<ICrateConfiguration>({
+      title: '',
+      description: '',
+      creator: '',
+      organization: '',
+      license: '',
+      publication_reference: '',
+      environment_information: '',
+      notebook_role: 'https://schema.org/SoftwareSourceCode',
+      output_role: 'https://schema.org/SoftwareSourceCode'
+    });
   const [savingMapping, setSavingMapping] = React.useState(false);
   const [configurationError, setConfigurationError] = React.useState('');
   const [generating, setGenerating] = React.useState(false);
   const [generationError, setGenerationError] = React.useState('');
   const [publishing, setPublishing] = React.useState(false);
   const [publicationError, setPublicationError] = React.useState('');
+  const [reviewOpen, setReviewOpen] = React.useState(false);
 
   const standard: ICimStandard | undefined = connection?.standards.find(
     item => item.key === selectedStandardKey
@@ -132,6 +151,7 @@ export default function ReproducibilityPanel({
           setState(result);
           setDraftMapping(result.mapping);
           setCloudConfiguration(result.cloud_configuration);
+          setCrateConfiguration(result.crate_configuration);
           if (result.standard_key) {
             setSelectedStandardKey(result.standard_key);
           }
@@ -154,7 +174,8 @@ export default function ReproducibilityPanel({
     standardKey: string,
     mapping: Partial<IReproducibilityState['mapping']> = {},
     metadataProfileKey = selectedMetadataProfileKey,
-    cloud = cloudConfiguration
+    cloud = cloudConfiguration,
+    crate = crateConfiguration
   ) {
     if (!experimentPath) {
       return;
@@ -167,11 +188,13 @@ export default function ReproducibilityPanel({
         standardKey,
         mapping,
         metadataProfileKey,
-        cloud
+        cloud,
+        crate
       );
       setState(result);
       setDraftMapping(result.mapping);
       setCloudConfiguration(result.cloud_configuration);
+      setCrateConfiguration(result.crate_configuration);
     } catch (error) {
       setConfigurationError(
         error instanceof Error ? error.message : String(error)
@@ -214,7 +237,8 @@ export default function ReproducibilityPanel({
           selected,
           {},
           selectedProfile,
-          cloudConfiguration
+          cloudConfiguration,
+          crateConfiguration
         );
       }
     } catch (error) {
@@ -259,6 +283,20 @@ export default function ReproducibilityPanel({
       );
     } finally {
       setPublishing(false);
+    }
+  }
+
+  async function handleConnectFdmi() {
+    if (!experimentPath) {
+      return;
+    }
+    setPublicationError('');
+    try {
+      setState(await connectFdmi(experimentPath));
+    } catch (error) {
+      setPublicationError(
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 
@@ -541,6 +579,40 @@ export default function ReproducibilityPanel({
                         {field.measurement_boundary}. Provenance:{' '}
                         {field.provenance_requirements}.
                       </Typography>
+                      <Typography
+                        variant="caption"
+                        color={
+                          field.eimps_target
+                            .split(', ')
+                            .some(target =>
+                              state.crate?.missing_required_fields?.includes(
+                                target
+                              )
+                            )
+                            ? 'warning.main'
+                            : 'success.main'
+                        }
+                        display="block"
+                      >
+                        Availability:{' '}
+                        {!state.crate
+                          ? 'pending export validation'
+                          : field.eimps_target
+                                .split(', ')
+                                .some(target =>
+                                  state.crate?.missing_required_fields?.includes(
+                                    target
+                                  )
+                                )
+                            ? 'missing or unavailable'
+                            : 'available'}{' '}
+                        · validation:{' '}
+                        {state.crate
+                          ? state.crate.eimps_ready
+                            ? 'EIMPS-ready'
+                            : 'draft'
+                          : 'not run'}
+                      </Typography>
                     </Box>
                   ))}
                 </Stack>
@@ -564,6 +636,61 @@ export default function ReproducibilityPanel({
       </WorkflowCard>
 
       <WorkflowCard title="3. Generate RO-Crate metadata">
+        <Typography variant="subtitle2" gutterBottom>
+          Permitted descriptive metadata
+        </Typography>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          gap={1.25}
+          flexWrap="wrap"
+          mb={2}
+        >
+          {(
+            [
+              ['title', 'Title'],
+              ['description', 'Description'],
+              ['creator', 'Creator'],
+              ['organization', 'Organisation'],
+              ['license', 'Licence URL'],
+              ['publication_reference', 'Publication URL'],
+              ['environment_information', 'Environment information']
+            ] as [keyof ICrateConfiguration, string][]
+          ).map(([key, label]) => (
+            <TextField
+              key={key}
+              size="small"
+              label={label}
+              value={crateConfiguration[key]}
+              multiline={key === 'description'}
+              onChange={event =>
+                setCrateConfiguration(value => ({
+                  ...value,
+                  [key]: event.target.value
+                }))
+              }
+              helperText={
+                state?.crate_configuration_preview.find(
+                  item => item.field === key
+                )?.jsonld_location
+              }
+              sx={{ flex: '1 1 250px' }}
+            />
+          ))}
+          <Button
+            onClick={() =>
+              saveConfiguration(
+                selectedStandardKey,
+                draftMapping,
+                selectedMetadataProfileKey,
+                cloudConfiguration,
+                crateConfiguration
+              )
+            }
+            disabled={savingMapping}
+          >
+            Apply RO-Crate configuration
+          </Button>
+        </Stack>
         <Button
           onClick={handleGenerate}
           disabled={generating || !connection?.connected || !state?.configured}
@@ -643,9 +770,23 @@ export default function ReproducibilityPanel({
             </Stack>
           </Alert>
         )}
+        {state?.export_comparison && (
+          <Alert severity="info" sx={{ mt: 1.5 }} icon={false}>
+            <Typography variant="subtitle2">Compare exports</Typography>
+            <Typography variant="body2">
+              Mapping revision changed:{' '}
+              {state.export_comparison.mapping_changed ? 'yes' : 'no'} · run
+              measurements changed:{' '}
+              {state.export_comparison.measurements_changed ? 'yes' : 'no'}.
+            </Typography>
+            <Typography variant="caption">
+              Immutable snapshot: {state.export_comparison.current_revision}
+            </Typography>
+          </Alert>
+        )}
       </WorkflowCard>
 
-      <WorkflowCard title="4. Publish experiment metadata">
+      <WorkflowCard title="4. Connect and synchronise mock FDMI">
         {state?.fdmi_target && (
           <Alert severity="info" icon={false} sx={{ mb: 1.5 }}>
             <Typography variant="body2" fontWeight={700}>
@@ -671,9 +812,22 @@ export default function ReproducibilityPanel({
           </Alert>
         )}
         <Button
-          onClick={handlePublish}
+          onClick={handleConnectFdmi}
+          disabled={
+            !experimentPath || Boolean(state?.fdmi_connection?.connected)
+          }
+          startIcon={<CloudOutlinedIcon />}
+          sx={{ mr: 1 }}
+        >
+          {state?.fdmi_connection?.connected
+            ? 'Connected to mock FDMI'
+            : 'Connect to mock FDMI'}
+        </Button>
+        <Button
+          onClick={() => setReviewOpen(true)}
           disabled={
             publishing ||
+            !state?.fdmi_connection?.connected ||
             !state?.crate_current ||
             Boolean(state.publication && !state.publication.stale)
           }
@@ -683,7 +837,7 @@ export default function ReproducibilityPanel({
             ? 'Submitting artefact…'
             : state?.publication && !state.publication.stale
               ? 'Already submitted'
-              : 'Publish to FDMI'}
+              : 'Review mock synchronisation'}
         </Button>
         <FormHelperText>
           {!state?.crate_current
@@ -696,7 +850,7 @@ export default function ReproducibilityPanel({
             sx={{ mt: 1.5 }}
             action={<Button onClick={handlePublish}>Retry</Button>}
           >
-            FDMI submission failed: {publicationError}
+            Mock FDMI synchronisation failed: {publicationError}
           </Alert>
         )}
         {state?.publication && (
@@ -707,7 +861,7 @@ export default function ReproducibilityPanel({
             <Typography variant="body2" fontWeight={700}>
               {state.publication.stale
                 ? 'Previous receipt is stale; publish the regenerated artefact.'
-                : 'FDMI submission accepted'}
+                : 'Mock FDMI synchronisation accepted'}
             </Typography>
             <Typography
               variant="caption"
@@ -717,12 +871,48 @@ export default function ReproducibilityPanel({
               Receipt: {state.publication.receipt}
             </Typography>
             <Typography variant="caption">
-              {state.publication.endpoint} ·{' '}
-              {new Date(state.publication.submitted_at).toLocaleString()} ·{' '}
+              Version {state.publication.version} · {state.publication.endpoint}{' '}
+              · {new Date(state.publication.submitted_at).toLocaleString()} ·{' '}
               {state.standard?.label}
             </Typography>
           </Alert>
         )}
+        <Dialog
+          open={reviewOpen}
+          onClose={() => setReviewOpen(false)}
+          fullWidth
+        >
+          <DialogTitle>Review mock FDMI synchronisation</DialogTitle>
+          <DialogContent dividers>
+            <Stack gap={1}>
+              <Typography variant="body2">
+                Run: {state?.preview.experiment_id ?? 'unavailable'}
+              </Typography>
+              <Typography variant="body2">
+                Crate: {state?.crate?.name ?? 'unavailable'} · generation{' '}
+                {state?.crate?.generation ?? '—'}
+              </Typography>
+              <Typography variant="body2">
+                Profile: {state?.metadata_profile?.label ?? 'unavailable'}
+              </Typography>
+              <Alert severity="info">
+                This writes to the persistent local workshop catalogue only. It
+                is not a production EIMPS submission.
+              </Alert>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setReviewOpen(false)}>Cancel</Button>
+            <Button
+              onClick={async () => {
+                setReviewOpen(false);
+                await handlePublish();
+              }}
+            >
+              Synchronise mock metadata
+            </Button>
+          </DialogActions>
+        </Dialog>
       </WorkflowCard>
     </Stack>
   );

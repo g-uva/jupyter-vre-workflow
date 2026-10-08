@@ -25,6 +25,9 @@ import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import {
   cancelPredictions,
   getOrchestration,
+  getWorkshopCatalogue,
+  ISharedExperiment,
+  importSharedExperiment,
   getRegistration,
   getPredictions,
   IExperimentMetadata,
@@ -35,6 +38,8 @@ import {
   registerNode,
   selectExperimentMetadata,
   startOrchestration,
+  shareExperiment,
+  catalogueBundleUrl,
   startPredictions,
   orchestrationArtifactUrl
 } from '../api/orchestration';
@@ -106,10 +111,12 @@ export default function OrchestratorPanel({
     null
   );
   const [predictionError, setPredictionError] = React.useState('');
-  const [targetSiteId, setTargetSiteId] = React.useState('');
+  const [targetSiteIds, setTargetSiteIds] = React.useState<string[]>([]);
   const [orchestration, setOrchestration] =
     React.useState<IOrchestrationState | null>(null);
   const [orchestrationError, setOrchestrationError] = React.useState('');
+  const [catalogue, setCatalogue] = React.useState<ISharedExperiment[]>([]);
+  const [catalogueMessage, setCatalogueMessage] = React.useState('');
   const [form, setForm] = React.useState({
     node_name: '',
     site: 'Athens, Greece',
@@ -248,7 +255,9 @@ export default function OrchestratorPanel({
       const result = await getOrchestration(user, experimentPath);
       setOrchestration(result);
       setOrchestrationError('');
-      setTargetSiteId(value => value || predictions.results[0].site.id);
+      setTargetSiteIds(value =>
+        value.length ? value : [predictions.results[0].site.id]
+      );
     } catch (orchestrationLoadError) {
       setOrchestrationError(
         orchestrationLoadError instanceof Error
@@ -271,13 +280,13 @@ export default function OrchestratorPanel({
   }, [loadOrchestration, orchestration?.status]);
 
   async function handleStartOrchestration() {
-    if (!experimentPath || !targetSiteId) {
+    if (!experimentPath || !targetSiteIds.length) {
       return;
     }
     setOrchestrationError('');
     try {
       setOrchestration(
-        await startOrchestration(user, experimentPath, targetSiteId)
+        await startOrchestration(user, experimentPath, targetSiteIds)
       );
     } catch (startError) {
       setOrchestrationError(
@@ -313,6 +322,22 @@ export default function OrchestratorPanel({
   const sites = state?.sites ?? [];
   const selectedSite =
     sites.find(site => site.id === selectedSiteId) ?? sites[0];
+
+  async function refreshCatalogue() {
+    try {
+      setCatalogue((await getWorkshopCatalogue()).experiments);
+    } catch (catalogueError) {
+      setCatalogueMessage(
+        catalogueError instanceof Error
+          ? catalogueError.message
+          : String(catalogueError)
+      );
+    }
+  }
+
+  React.useEffect(() => {
+    void refreshCatalogue();
+  }, []);
 
   return (
     <Stack gap={2}>
@@ -585,6 +610,90 @@ export default function OrchestratorPanel({
       )}
 
       {state?.registered && (
+        <Paper variant="outlined" sx={{ p: 2, order: 3 }}>
+          <Typography variant="subtitle2" fontWeight={700}>
+            Colleagues’ shared experiments
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Sharing is explicit. Portable bundles contain allow-listed evidence
+            only and imports are hash-verified in a separate workspace.
+          </Typography>
+          <Stack direction="row" gap={1} mt={1.5}>
+            <Button
+              disabled={!experimentPath}
+              onClick={async () => {
+                if (!experimentPath) {
+                  return;
+                }
+                await shareExperiment(user, experimentPath);
+                setCatalogueMessage('Experiment shared with the workshop lab.');
+                await refreshCatalogue();
+              }}
+            >
+              Share selected experiment
+            </Button>
+            <Button onClick={refreshCatalogue}>Refresh catalogue</Button>
+          </Stack>
+          {catalogueMessage && (
+            <Alert severity="info" sx={{ mt: 1 }}>
+              {catalogueMessage}
+            </Alert>
+          )}
+          <Stack gap={1} mt={1.5}>
+            {catalogue.map(item => (
+              <Paper key={item.catalogue_id} variant="outlined" sx={{ p: 1.5 }}>
+                <Typography variant="body2" fontWeight={700}>
+                  {item.title} · {item.owner_display_name}
+                </Typography>
+                <Typography variant="caption" display="block">
+                  Run {item.run_id} · {item.source_site} · {item.date} · crate{' '}
+                  {item.crate_valid ? 'valid' : 'unavailable'}
+                </Typography>
+                <Typography variant="caption" display="block">
+                  Artefacts: {item.files.map(file => file.name).join(', ')}
+                </Typography>
+                <Stack direction="row" gap={1} flexWrap="wrap" mt={0.5}>
+                  <Button
+                    component="a"
+                    href={catalogueBundleUrl(item.catalogue_id)}
+                  >
+                    Download portable bundle
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      const imported = await importSharedExperiment(
+                        user,
+                        item.catalogue_id
+                      );
+                      setCatalogueMessage(
+                        `Verified import: ${String(imported.path)}. Review missing inputs before replay.`
+                      );
+                    }}
+                  >
+                    Verify and import
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      await importSharedExperiment(
+                        user,
+                        item.catalogue_id,
+                        true
+                      );
+                      setCatalogueMessage(
+                        'Started a fresh tracked local run linked to the source run.'
+                      );
+                    }}
+                  >
+                    Run locally as new experiment
+                  </Button>
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        </Paper>
+      )}
+
+      {state?.registered && (
         <Paper variant="outlined" sx={{ p: 2, order: 4 }}>
           <Typography variant="subtitle2" fontWeight={700}>
             4. Simulate orchestration and compare results
@@ -595,15 +704,24 @@ export default function OrchestratorPanel({
           </Typography>
           <Stack direction={{ xs: 'column', md: 'row' }} gap={1.5} mt={1.5}>
             <FormControl size="small" sx={{ minWidth: 280 }}>
-              <InputLabel>Predicted target site</InputLabel>
+              <InputLabel>Predicted target sites (max 3)</InputLabel>
               <Select
-                label="Predicted target site"
-                value={targetSiteId}
+                multiple
+                label="Predicted target sites (max 3)"
+                value={targetSiteIds}
                 disabled={
                   !predictions?.results.length ||
                   orchestration?.status === 'running'
                 }
-                onChange={event => setTargetSiteId(event.target.value)}
+                onChange={event => {
+                  const value = event.target.value;
+                  setTargetSiteIds(
+                    (typeof value === 'string'
+                      ? value.split(',')
+                      : value
+                    ).slice(0, 3)
+                  );
+                }}
               >
                 {(predictions?.results ?? []).map(result => (
                   <MenuItem key={result.site.id} value={result.site.id}>
@@ -614,7 +732,9 @@ export default function OrchestratorPanel({
             </FormControl>
             <Button
               onClick={handleStartOrchestration}
-              disabled={!targetSiteId || orchestration?.status === 'running'}
+              disabled={
+                !targetSiteIds.length || orchestration?.status === 'running'
+              }
             >
               {orchestration?.status === 'running'
                 ? 'Simulated rerun in progress…'
@@ -638,6 +758,62 @@ export default function OrchestratorPanel({
                 variant="determinate"
                 value={orchestration.progress}
               />
+              {orchestration.attempts?.map(attempt => (
+                <Alert
+                  key={attempt.attempt_id}
+                  severity={
+                    attempt.status === 'completed'
+                      ? 'success'
+                      : attempt.status === 'failed'
+                        ? 'error'
+                        : 'info'
+                  }
+                  icon={false}
+                >
+                  <Typography variant="body2" fontWeight={700}>
+                    {attempt.site_id} · {attempt.status} · attempt{' '}
+                    {attempt.attempt_id}
+                  </Typography>
+                  <Typography variant="caption">
+                    {attempt.simulated
+                      ? 'Mock result only; no VM or remote notebook exists.'
+                      : 'Real adapter result.'}
+                  </Typography>
+                  <Stack direction="row" gap={1} flexWrap="wrap">
+                    {[
+                      attempt.result_path,
+                      attempt.comparison_path,
+                      attempt.log_path
+                    ]
+                      .filter((path): path is string => Boolean(path))
+                      .map(path => (
+                        <Button
+                          key={path}
+                          size="small"
+                          component="a"
+                          href={orchestrationArtifactUrl(path)}
+                          target="_blank"
+                        >
+                          Download {path.split('/').pop()}
+                        </Button>
+                      ))}
+                    {attempt.status === 'failed' && experimentPath && (
+                      <Button
+                        size="small"
+                        onClick={async () =>
+                          setOrchestration(
+                            await startOrchestration(user, experimentPath, [
+                              attempt.site_id
+                            ])
+                          )
+                        }
+                      >
+                        Retry this site
+                      </Button>
+                    )}
+                  </Stack>
+                </Alert>
+              ))}
               <Paper
                 variant="outlined"
                 sx={{

@@ -6,9 +6,11 @@ data:
   server.py: |
     import hashlib
     import json
+    from pathlib import Path
     from http.server import BaseHTTPRequestHandler, HTTPServer
 
-    receipts = {}
+    store = Path("/data/submissions.json")
+    submissions = json.loads(store.read_text()) if store.is_file() else {}
     class Handler(BaseHTTPRequestHandler):
       def do_GET(self):
         if self.path != "/healthz": self.send_error(404); return
@@ -21,8 +23,14 @@ data:
           key = payload["idempotency_key"]
           if not payload.get("experiment_id") or not payload.get("ro_crate_metadata"):
             raise ValueError("experiment_id and ro_crate_metadata are required")
-          receipt = receipts.setdefault(key, "FDMI-DEMO-" + key[:16].upper())
-          body = json.dumps({"accepted": True, "receipt": receipt, "idempotency_key": key, "message": "Accepted by the Autumn School FDMI target."}).encode()
+          existing = submissions.get(key)
+          receipt = existing["receipt"] if existing else "FDMI-DEMO-" + key[:16].upper()
+          if not existing:
+            versions = [item["version"] for item in submissions.values() if item["experiment_id"] == payload["experiment_id"]]
+            submissions[key] = {"receipt":receipt,"experiment_id":payload["experiment_id"],"version":max(versions, default=0)+1,"artifact_sha256":payload["artifact_sha256"]}
+            store.parent.mkdir(parents=True, exist_ok=True)
+            temporary = store.with_suffix(".tmp"); temporary.write_text(json.dumps(submissions)); temporary.replace(store)
+          body = json.dumps({"accepted": True, "receipt": receipt, "idempotency_key": key, "version": submissions[key]["version"], "message": "Accepted by the persistent Autumn School mock FDMI target."}).encode()
           self.send_response(200); self.send_header("Content-Type", "application/json")
           self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
         except (KeyError, ValueError, json.JSONDecodeError) as error:
@@ -52,8 +60,12 @@ spec:
               initialDelaySeconds: 1,
               periodSeconds: 5
             }
-          volumeMounts: [{ name: app, mountPath: /app }]
-      volumes: [{ name: app, configMap: { name: juvre-demo-fdmi } }]
+          volumeMounts:
+            - { name: app, mountPath: /app }
+            - { name: data, mountPath: /data }
+      volumes:
+        - { name: app, configMap: { name: juvre-demo-fdmi } }
+        - { name: data, persistentVolumeClaim: { claimName: juvre-demo-fdmi-data } }
 ---
 apiVersion: v1
 kind: Service
@@ -62,3 +74,13 @@ metadata:
 spec:
   selector: { app: juvre-demo-fdmi }
   ports: [{ name: http, port: 8080, targetPort: http }]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: juvre-demo-fdmi-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 100Mi

@@ -42,6 +42,18 @@ export interface ICloudConfiguration {
   owner: string;
 }
 
+export interface ICrateConfiguration {
+  title: string;
+  description: string;
+  creator: string;
+  organization: string;
+  license: string;
+  publication_reference: string;
+  environment_information: string;
+  notebook_role: string;
+  output_role: string;
+}
+
 export interface ICimConnection {
   connected: boolean;
   endpoint: string;
@@ -67,6 +79,21 @@ export interface IReproducibilityState {
   metadata_profile_key: string;
   metadata_profile: ICimMetadataProfile | null;
   cloud_configuration: ICloudConfiguration;
+  crate_configuration: ICrateConfiguration;
+  crate_configuration_preview: {
+    field: keyof ICrateConfiguration;
+    value: string;
+    source: string;
+    jsonld_location: string;
+    valid: boolean;
+  }[];
+  export_comparison?: {
+    previous_revision: string | null;
+    current_revision: string;
+    mapping_changed: boolean;
+    measurements_changed: boolean;
+    artifacts: string[];
+  };
   mapping: { experiment_term: string; metric_term: string };
   configuration_revision: string | null;
   configured: boolean;
@@ -76,6 +103,13 @@ export interface IReproducibilityState {
     endpoint: string;
     identity: string;
     mode: 'demo';
+  } | null;
+  fdmi_connection: {
+    connected: boolean;
+    connected_at: string;
+    mode: string;
+    endpoint: string;
+    external_integration: false;
   } | null;
   crate: {
     name: string;
@@ -105,6 +139,7 @@ export interface IReproducibilityState {
     receipt: string;
     message?: string;
     submitted_at: string;
+    version: number;
     endpoint: string;
     stale: boolean;
   } | null;
@@ -184,6 +219,16 @@ export function publishToFdmi(
   });
 }
 
+export function connectFdmi(
+  experimentPath: string
+): Promise<IReproducibilityState> {
+  return request<IReproducibilityState>('reproducibility/fdmi/connect', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: experimentPath })
+  });
+}
+
 export function getReproducibilityState(
   experimentPath: string
 ): Promise<IReproducibilityState> {
@@ -197,7 +242,8 @@ export function configureReproducibility(
   standardKey: string,
   mapping: Partial<IReproducibilityState['mapping']> = {},
   metadataProfileKey?: string,
-  cloudConfiguration?: ICloudConfiguration
+  cloudConfiguration?: ICloudConfiguration,
+  crateConfiguration?: ICrateConfiguration
 ): Promise<IReproducibilityState> {
   return request<IReproducibilityState>('reproducibility/config', {
     method: 'PUT',
@@ -207,6 +253,7 @@ export function configureReproducibility(
       standard_key: standardKey,
       metadata_profile_key: metadataProfileKey,
       cloud_configuration: cloudConfiguration,
+      crate_configuration: crateConfiguration,
       mapping
     })
   });

@@ -90,8 +90,21 @@ export interface IPredictionState {
 }
 
 export interface IOrchestrationState {
-  status: 'idle' | 'running' | 'completed' | 'failed';
+  status: 'idle' | 'running' | 'completed' | 'partial' | 'failed';
   target_site_id: string | null;
+  target_site_ids?: string[];
+  concurrency_limit?: number;
+  attempts?: {
+    attempt_id: string;
+    site_id: string;
+    status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+    progress: number;
+    error: string | null;
+    simulated: true;
+    result_path?: string;
+    comparison_path?: string;
+    log_path?: string;
+  }[];
   current_stage: string | null;
   progress: number;
   log: {
@@ -121,6 +134,17 @@ export interface IOrchestrationState {
   actual_demo_elapsed_s?: number;
   error: string | null;
   simulated: true;
+}
+
+export interface ISharedExperiment {
+  catalogue_id: string;
+  owner_display_name: string;
+  run_id: string;
+  title: string;
+  date: string;
+  source_site: string;
+  crate_valid: boolean;
+  files: { name: string; sha256: string; size: number }[];
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -218,12 +242,12 @@ export function getOrchestration(
 export function startOrchestration(
   user: string,
   path: string,
-  targetSiteId: string
+  targetSiteIds: string[]
 ): Promise<IOrchestrationState> {
   return request('orchestration/runs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user, path, target_site_id: targetSiteId })
+    body: JSON.stringify({ user, path, site_ids: targetSiteIds })
   });
 }
 
@@ -232,6 +256,47 @@ export function orchestrationArtifactUrl(path: string): string {
   const encoded = path.split('/').map(encodeURIComponent).join('/');
   return new URL(
     `${settings.baseUrl.replace(/\/?$/, '/')}files/${encoded}`,
+    window.location.origin
+  ).toString();
+}
+
+export function getWorkshopCatalogue(): Promise<{
+  experiments: ISharedExperiment[];
+}> {
+  return request('orchestration/catalogue');
+}
+
+export function shareExperiment(
+  user: string,
+  path: string
+): Promise<ISharedExperiment> {
+  return request('orchestration/catalogue', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'share', user, path })
+  });
+}
+
+export function importSharedExperiment(
+  user: string,
+  catalogueId: string,
+  replay = false
+): Promise<Record<string, unknown>> {
+  return request('orchestration/catalogue', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: replay ? 'replay' : 'import',
+      user,
+      catalogue_id: catalogueId
+    })
+  });
+}
+
+export function catalogueBundleUrl(catalogueId: string): string {
+  const settings = ServerConnection.makeSettings();
+  return new URL(
+    `${settings.baseUrl.replace(/\/?$/, '/')}api/jupyter-vre-workflow/orchestration/catalogue?catalogue_id=${encodeURIComponent(catalogueId)}`,
     window.location.origin
   ).toString();
 }

@@ -5,8 +5,10 @@ import csv
 import json
 import os
 import re
+import shutil
 import asyncio
 import time
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import URLError
@@ -196,6 +198,125 @@ class OrchestrationManager:
         if not safe_id:
             raise ValueError("Experiment has no usable identifier")
         return self.user_folder(user) / "experiments" / safe_id
+
+    def catalogue_folder(self):
+        folder = self.root / "juvre" / "lab-catalogue"
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    def share_experiment(self, user, relative, display_name=None):
+        registration = self.get_registration(user)
+        if not registration["registered"]:
+            raise ValueError("Register this node before sharing an experiment")
+        source = self.resolve_experiment(relative)
+        run = json.loads((source / "run.json").read_text())
+        run_id = str(run.get("id") or "")
+        if not run_id:
+            raise ValueError("Experiment has no run ID")
+        catalogue_id = hashlib.sha256(
+            f"{registration['user_key']}:{run_id}".encode()
+        ).hexdigest()[:20]
+        target = self.catalogue_folder() / catalogue_id
+        target.mkdir(parents=True, exist_ok=True)
+        allowed = [
+            run.get("artifacts", {}).get("input", "notebook.ipynb"),
+            run.get("artifacts", {}).get("output", "executed.ipynb"),
+            run.get("artifacts", {}).get("metrics", "metrics.csv"),
+            "ro-crate-metadata.json", "cim-record.json", "eimps-cloud.json",
+        ]
+        files = []
+        for name in allowed:
+            candidate = source / name
+            if candidate.is_file() and candidate.parent == source:
+                shutil.copy2(candidate, target / name)
+                files.append({
+                    "name": name,
+                    "sha256": hashlib.sha256(candidate.read_bytes()).hexdigest(),
+                    "size": candidate.stat().st_size,
+                })
+        public_run = {
+            key: run.get(key)
+            for key in (
+                "schema_version", "id", "workflow_id", "status", "start_time",
+                "end_time", "kernel_name", "input_sha256", "output_sha256",
+                "artifacts", "telemetry",
+            )
+        }
+        self._write_json(target / "run.json", public_run)
+        files.append({
+            "name": "run.json",
+            "sha256": hashlib.sha256((target / "run.json").read_bytes()).hexdigest(),
+            "size": (target / "run.json").stat().st_size,
+        })
+        manifest = {
+            "schema_version": 1,
+            "catalogue_id": catalogue_id,
+            "shared": True,
+            "shared_at": utc_now(),
+            "owner_display_name": (display_name or registration["registration"]["operator"])[:160],
+            "owner_key": registration["user_key"],
+            "run_id": run_id,
+            "title": run.get("workflow_id") or run_id,
+            "date": run.get("end_time") or run.get("start_time"),
+            "source_site": registration["registration"]["site"],
+            "crate_valid": (target / "ro-crate-metadata.json").is_file(),
+            "files": files,
+        }
+        self._write_json(target / "manifest.json", manifest)
+        return manifest
+
+    def catalogue(self):
+        records = []
+        for path in self.catalogue_folder().glob("*/manifest.json"):
+            try:
+                records.append(json.loads(path.read_text()))
+            except (OSError, ValueError):
+                continue
+        return sorted(records, key=lambda item: item.get("shared_at", ""), reverse=True)
+
+    def bundle_path(self, catalogue_id):
+        if not re.fullmatch(r"[a-f0-9]{20}", str(catalogue_id)):
+            raise ValueError("Invalid catalogue identifier")
+        folder = self.catalogue_folder() / catalogue_id
+        manifest_path = folder / "manifest.json"
+        if not manifest_path.is_file():
+            raise ValueError("Shared experiment does not exist")
+        bundle = folder / f"{catalogue_id}.zip"
+        manifest = json.loads(manifest_path.read_text())
+        with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.write(manifest_path, "manifest.json")
+            for item in manifest["files"]:
+                archive.write(folder / item["name"], item["name"])
+        return bundle
+
+    def import_shared(self, user, catalogue_id):
+        folder = self.catalogue_folder() / str(catalogue_id)
+        manifest = json.loads((folder / "manifest.json").read_text())
+        for item in manifest["files"]:
+            source = folder / item["name"]
+            if hashlib.sha256(source.read_bytes()).hexdigest() != item["sha256"]:
+                raise ValueError(f"Hash verification failed for {item['name']}")
+        target = self.root / "juvre" / "imports" / self.user_key(user) / str(catalogue_id)
+        if not target.exists():
+            target.mkdir(parents=True)
+            for item in manifest["files"]:
+                shutil.copy2(folder / item["name"], target / item["name"])
+            self._write_json(target / "import.json", {
+                "source_catalogue_id": catalogue_id,
+                "source_run_id": manifest["run_id"],
+                "imported_at": utc_now(),
+                "verified": True,
+                "dependencies": ["Jupyter kernel declared by notebook metadata"],
+                "missing_inputs": ["External notebook inputs are not included unless listed in the manifest"],
+            })
+        return {
+            "path": str(target.relative_to(self.root)),
+            "notebook_path": str((target / "notebook.ipynb").relative_to(self.root)),
+            "verified": True,
+            "dependencies": ["Jupyter kernel declared by notebook metadata"],
+            "missing_inputs": ["External notebook inputs must be supplied separately"],
+            "source_run_id": manifest["run_id"],
+        }
 
     @staticmethod
     def _parse_time(value):
@@ -471,7 +592,8 @@ class OrchestrationManager:
         if path.is_file():
             return json.loads(path.read_text())
         return {
-            "status": "idle", "target_site_id": None, "current_stage": None,
+            "status": "idle", "target_site_id": None, "target_site_ids": [],
+            "attempts": [], "concurrency_limit": 3, "current_stage": None,
             "progress": 0, "log": [], "result": None, "comparison": None,
             "comparison_path": None, "log_path": None,
             "error": None, "simulated": True,
@@ -483,34 +605,52 @@ class OrchestrationManager:
         if not predictions_path.is_file():
             raise ValueError("Generate site predictions before simulating orchestration")
         predictions = json.loads(predictions_path.read_text())
-        prediction = next(
-            (item for item in predictions.get("results", []) if item["site"]["id"] == target_site_id),
-            None,
+        target_site_ids = (
+            target_site_id if isinstance(target_site_id, list) else [target_site_id]
         )
-        if prediction is None:
-            raise ValueError("Select one site with a completed prediction")
+        if not target_site_ids or len(target_site_ids) > 3:
+            raise ValueError("Select between one and three predicted sites")
+        available = {
+            item["site"]["id"]: item for item in predictions.get("results", [])
+        }
+        if len(set(target_site_ids)) != len(target_site_ids) or any(
+            site_id not in available for site_id in target_site_ids
+        ):
+            raise ValueError("Every target must have a completed prediction")
+        selected = [available[site_id] for site_id in target_site_ids]
         key = (self.user_key(user), local["experiment"]["id"])
         task = self.orchestration_tasks.get(key)
         if task is not None and not task.done():
             raise ValueError("A simulated rerun is already active")
         state = {
-            "status": "running", "target_site_id": target_site_id,
+            "status": "running", "target_site_id": target_site_ids[0],
+            "target_site_ids": target_site_ids, "concurrency_limit": 3,
             "current_stage": "Queued", "progress": 0, "log": [],
             "result": None, "comparison": None, "error": None,
             "comparison_path": None, "log_path": None,
             "simulated": True, "started_at": utc_now(), "completed_at": None,
             "actual_demo_elapsed_s": 0,
+            "attempts": [
+                {
+                    "attempt_id": f"{local['experiment']['id']}-{item['site']['id']}-{int(time.time() * 1000)}",
+                    "site_id": item["site"]["id"], "status": "queued",
+                    "progress": 0, "log": [], "result": None,
+                    "comparison": None, "error": None, "simulated": True,
+                    "started_at": None, "completed_at": None,
+                }
+                for item in selected
+            ],
         }
         path = self.orchestration_path(user, local["experiment"]["id"])
         self._write_json(path, state)
         task = asyncio.create_task(
-            self._run_orchestration(user, local, prediction, path)
+            self._run_orchestration(user, local, selected, path)
         )
         self.orchestration_tasks[key] = task
         task.add_done_callback(lambda _task: self.orchestration_tasks.pop(key, None))
         return state
 
-    async def _run_orchestration(self, user, local, prediction, path):
+    async def _run_orchestration(self, user, local, predictions, path):
         state = json.loads(path.read_text())
         stages = [
             ("Preparing the local package", 1),
@@ -522,42 +662,94 @@ class OrchestrationManager:
             ("Collecting simulated outputs", 2),
             ("Saving results locally", 1),
         ]
-        total_weight = sum(weight for _, weight in stages)
-        completed_weight = 0
         demo_start = time.monotonic()
-        try:
+        folder = path.parent
+
+        async def run_attempt(index, prediction):
+            attempt = state["attempts"][index]
+            attempt["status"] = "running"
+            attempt["started_at"] = utc_now()
+            completed_weight = 0
+            total_weight = sum(weight for _, weight in stages)
             for label, weight in stages:
-                state["current_stage"] = label
+                state["current_stage"] = f"{prediction['site']['id']}: {label}"
                 entry = {
                     "stage": label, "started_at": utc_now(),
                     "relative_duration_weight": weight,
                     "planned_demo_delay_s": self.orchestration_stage_seconds * weight,
                     "simulated": True,
                 }
-                state["log"].append(entry)
+                attempt["log"].append(entry)
                 self._write_json(path, state)
                 stage_start = time.monotonic()
                 await asyncio.sleep(max(0, self.orchestration_stage_seconds * weight))
                 entry["completed_at"] = utc_now()
                 entry["actual_elapsed_s"] = round(time.monotonic() - stage_start, 6)
                 completed_weight += weight
-                state["progress"] = round(100 * completed_weight / total_weight)
+                attempt["progress"] = round(100 * completed_weight / total_weight)
+                state["progress"] = round(
+                    sum(item["progress"] for item in state["attempts"])
+                    / len(state["attempts"])
+                )
                 self._write_json(path, state)
-            state["result"] = self._simulated_target_result(local, prediction)
-            state["comparison"] = self._comparison(local, prediction, state["result"])
+            attempt["result"] = self._simulated_target_result(local, prediction)
+            attempt["comparison"] = self._comparison(
+                local, prediction, attempt["result"]
+            )
+            attempt["status"] = "completed"
+            attempt["progress"] = 100
+            attempt["completed_at"] = utc_now()
+            prefix = prediction["site"]["id"].lower()
+            log_path = folder / f"{prefix}-simulation-log.json"
+            comparison_path = folder / f"{prefix}-comparison.json"
+            result_path = folder / f"{prefix}-simulation-result.json"
+            self._write_json(log_path, {"attempt": attempt["attempt_id"], "simulated": True, "log": attempt["log"]})
+            self._write_json(comparison_path, attempt["comparison"])
+            self._write_json(result_path, attempt["result"])
+            attempt["log_path"] = str(log_path.relative_to(self.root))
+            attempt["comparison_path"] = str(comparison_path.relative_to(self.root))
+            attempt["result_path"] = str(result_path.relative_to(self.root))
+
+        async def guarded(index, prediction):
+            try:
+                await run_attempt(index, prediction)
+            except asyncio.CancelledError:
+                state["attempts"][index]["status"] = "cancelled"
+                raise
+            except Exception as error:
+                state["attempts"][index]["status"] = "failed"
+                state["attempts"][index]["error"] = str(error)
+                state["attempts"][index]["completed_at"] = utc_now()
+
+        try:
+            await asyncio.gather(
+                *(guarded(index, prediction) for index, prediction in enumerate(predictions))
+            )
+            completed = [
+                item for item in state["attempts"] if item["status"] == "completed"
+            ]
+            failed = [item for item in state["attempts"] if item["status"] == "failed"]
+            if completed:
+                state["result"] = completed[0]["result"]
+                state["comparison"] = completed[0]["comparison"]
+                state["log"] = completed[0]["log"]
+                self._write_json(folder / "orchestration-log.json", {
+                    "experiment": local["experiment"],
+                    "target_site_id": completed[0]["site_id"],
+                    "simulated": True,
+                    "log": completed[0]["log"],
+                })
+                self._write_json(folder / "comparison.json", completed[0]["comparison"])
+                state["log_path"] = str((folder / "orchestration-log.json").relative_to(self.root))
+                state["comparison_path"] = str((folder / "comparison.json").relative_to(self.root))
             state["status"] = "completed"
-            state["current_stage"] = "Simulation complete; all results remain local"
+            if failed:
+                state["status"] = "partial"
+            state["current_stage"] = "Simulations complete; all results remain local"
             state["completed_at"] = utc_now()
+            state["progress"] = 100
             state["actual_demo_elapsed_s"] = round(time.monotonic() - demo_start, 6)
-            folder = path.parent
-            self._write_json(folder / "orchestration-log.json", {
-                "experiment": local["experiment"], "target_site_id": prediction["site"]["id"],
-                "simulated": True, "actual_demo_elapsed_s": state["actual_demo_elapsed_s"],
-                "log": state["log"],
-            })
-            self._write_json(folder / "comparison.json", state["comparison"])
-            state["log_path"] = str((folder / "orchestration-log.json").relative_to(self.root))
-            state["comparison_path"] = str((folder / "comparison.json").relative_to(self.root))
+            state["bundle_path"] = str(path.relative_to(self.root))
         except Exception as error:
             state["status"] = "failed"
             state["error"] = str(error)

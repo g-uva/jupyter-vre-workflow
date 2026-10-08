@@ -44,9 +44,9 @@ import {
   InstalledModules,
   ITelemetryStatus,
   WorkflowModuleKey,
-  getTelemetryStatus,
-  loadModuleStatus,
-  markModuleInstalled
+  activateModule,
+  getModuleStatus,
+  getTelemetryStatus
 } from '../api/moduleStatus';
 import {
   experimentPath,
@@ -536,8 +536,9 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
       return;
     }
 
-    const updatedStatus = markModuleInstalled(moduleStatus, moduleKey);
-    setModuleStatus(updatedStatus);
+    setModuleStatus(
+      await activateModule(moduleKey as 'reproducibility' | 'orchestration')
+    );
   }
 
   // Just run it once the component mounts.
@@ -546,7 +547,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   }, []);
 
   React.useEffect(() => {
-    setModuleStatus(loadModuleStatus());
+    void getModuleStatus().then(setModuleStatus);
     void refreshTelemetryStatus();
   }, []);
 
@@ -1009,7 +1010,19 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                     MODULE_DETAILS[WorkflowModule.Reproducibility]
                       .prerequisiteText
                   }
-                  installed={moduleStatus.reproducibility.installed}
+                  installed={Boolean(moduleStatus.reproducibility.activated)}
+                  activationOnly
+                  statusDetails={
+                    <Stack gap={0.5} textAlign="left">
+                      <Typography variant="caption">
+                        Mode: {moduleStatus.reproducibility.endpoint_mode}
+                      </Typography>
+                      <Typography variant="caption">
+                        Bundled: yes · service connections are checked in the
+                        workflow.
+                      </Typography>
+                    </Stack>
+                  }
                   onInstall={() => handleInstallModule('reproducibility')}
                 >
                   <ReproducibilityPanel
@@ -1045,7 +1058,19 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                     MODULE_DETAILS[WorkflowModule.Orchestration]
                       .prerequisiteText
                   }
-                  installed={moduleStatus.orchestration.installed}
+                  installed={Boolean(moduleStatus.orchestration.activated)}
+                  activationOnly
+                  statusDetails={
+                    <Stack gap={0.5} textAlign="left">
+                      <Typography variant="caption">
+                        Mode: {moduleStatus.orchestration.endpoint_mode}
+                      </Typography>
+                      <Typography variant="caption">
+                        Bundled: yes · federation registration remains a
+                        separate mock action.
+                      </Typography>
+                    </Stack>
+                  }
                   onInstall={() => handleInstallModule('orchestration')}
                 >
                   <OrchestratorPanel

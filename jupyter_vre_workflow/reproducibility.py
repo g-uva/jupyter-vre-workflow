@@ -4,6 +4,7 @@ import csv
 import hashlib
 import json
 import os
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import URLError
@@ -220,6 +221,18 @@ DEFAULT_CLOUD_CONFIGURATION = {
     "owner": "",
 }
 
+DEFAULT_CRATE_CONFIGURATION = {
+    "title": "",
+    "description": "",
+    "creator": "",
+    "organization": "",
+    "license": "",
+    "publication_reference": "",
+    "environment_information": "",
+    "notebook_role": "https://schema.org/SoftwareSourceCode",
+    "output_role": "https://schema.org/SoftwareSourceCode",
+}
+
 
 def demo_cim_response():
     """Return the contract exposed by the in-cluster CIM demonstration service."""
@@ -355,12 +368,14 @@ class ReproducibilityManager:
             "standard_key": None,
             "metadata_profile_key": "default",
             "cloud_configuration": dict(DEFAULT_CLOUD_CONFIGURATION),
+            "crate_configuration": dict(DEFAULT_CRATE_CONFIGURATION),
             "mapping": {
                 "experiment_term": "schema:Dataset",
                 "metric_term": "sosa:Observation",
             },
             "configuration_revision": None,
             "cim_connection": None,
+            "fdmi_connection": None,
             "crate": None,
             "publication": None,
         }
@@ -379,18 +394,23 @@ class ReproducibilityManager:
         cloud_configuration = dict(DEFAULT_CLOUD_CONFIGURATION)
         cloud_configuration.update(saved.get("cloud_configuration", {}))
         state["cloud_configuration"] = cloud_configuration
+        crate_configuration = dict(DEFAULT_CRATE_CONFIGURATION)
+        crate_configuration.update(saved.get("crate_configuration", {}))
+        state["crate_configuration"] = crate_configuration
         if state.get("standard_key"):
             state["configuration_revision"] = self._revision(
                 state["standard_key"],
                 state["mapping"],
                 state["metadata_profile_key"],
                 state["cloud_configuration"],
+                state["crate_configuration"],
             )
         return state
 
     @staticmethod
     def _revision(
-        standard_key, mapping, metadata_profile_key, cloud_configuration
+        standard_key, mapping, metadata_profile_key, cloud_configuration,
+        crate_configuration
     ):
         source = json.dumps(
             {
@@ -398,6 +418,7 @@ class ReproducibilityManager:
                 "metadata_profile_key": metadata_profile_key,
                 "mapping": mapping,
                 "cloud_configuration": cloud_configuration,
+                "crate_configuration": crate_configuration,
             },
             sort_keys=True,
         ).encode()
@@ -446,6 +467,28 @@ class ReproducibilityManager:
             "metadata_profile": metadata_profile["label"] if metadata_profile else None,
             "metrics": metrics,
         }
+        locations = {
+            "title": "@graph[./].name",
+            "description": "@graph[./].description",
+            "creator": "@graph[./].creator",
+            "organization": "@graph[#creator].affiliation",
+            "license": "@graph[./].license",
+            "publication_reference": "@graph[./].citation",
+            "environment_information": "@graph[#run].environment",
+            "notebook_role": "@graph[notebook.ipynb].additionalType",
+            "output_role": "@graph[executed.ipynb].additionalType",
+        }
+        state["crate_configuration_preview"] = [
+            {
+                "field": key,
+                "value": value,
+                "source": "participant configuration" if value else "run default",
+                "jsonld_location": locations[key],
+                "valid": not value or key not in {"license", "publication_reference"}
+                or value.startswith(("http://", "https://")),
+            }
+            for key, value in state["crate_configuration"].items()
+        ]
         state["configured"] = standard is not None and metadata_profile is not None
         state["fdmi_target"] = self.fdmi_client.describe()
         source_revision = self._source_revision(folder, run)
@@ -465,6 +508,7 @@ class ReproducibilityManager:
         mapping,
         metadata_profile_key=None,
         cloud_configuration=None,
+        crate_configuration=None,
     ):
         folder = self.resolve_experiment(relative)
         if standard_key not in {item["key"] for item in CIM_STANDARDS}:
@@ -504,7 +548,22 @@ class ReproducibilityManager:
                 if not isinstance(value, str) or len(value.strip()) > 160:
                     raise ValueError(f"Invalid cloud configuration value for {key}")
                 cloud[key] = value.strip()
-        revision = self._revision(standard_key, merged, profile_key, cloud)
+        crate_config = dict(previous["crate_configuration"])
+        if crate_configuration is not None:
+            if not isinstance(crate_configuration, dict):
+                raise ValueError("RO-Crate configuration must be an object")
+            if set(crate_configuration) - set(DEFAULT_CRATE_CONFIGURATION):
+                raise ValueError("RO-Crate configuration contains unsupported fields")
+            for key, value in crate_configuration.items():
+                if not isinstance(value, str) or len(value.strip()) > 500:
+                    raise ValueError(f"Invalid RO-Crate configuration value for {key}")
+                value = value.strip()
+                if key in {"license", "publication_reference", "notebook_role", "output_role"} and value and not value.startswith(("http://", "https://")):
+                    raise ValueError(f"{key} must be an absolute HTTP(S) identifier")
+                crate_config[key] = value
+        revision = self._revision(
+            standard_key, merged, profile_key, cloud, crate_config
+        )
         changed = revision != previous.get("configuration_revision")
         previous.update(
             {
@@ -512,6 +571,7 @@ class ReproducibilityManager:
                 "metadata_profile_key": profile_key,
                 "mapping": merged,
                 "cloud_configuration": cloud,
+                "crate_configuration": crate_config,
                 "configuration_revision": revision,
             }
         )
@@ -532,6 +592,8 @@ class ReproducibilityManager:
             or crate.get("source_revision") != self._source_revision(folder)
         ):
             raise ValueError("Generate an up-to-date RO-Crate artefact first")
+        if not (state.get("fdmi_connection") or {}).get("connected"):
+            raise ValueError("Connect to the mock FDMI service before synchronising")
         crate_path = folder / crate.get("name", "ro-crate-metadata.json")
         if not crate_path.is_file():
             raise ValueError("Generated RO-Crate artefact is missing")
@@ -558,6 +620,40 @@ class ReproducibilityManager:
         }
         result = self.fdmi_client.submit(payload)
         submitted = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        catalogue_path = self.root / "juvre" / "fdmi" / "submissions.json"
+        catalogue_path.parent.mkdir(parents=True, exist_ok=True)
+        catalogue = (
+            json.loads(catalogue_path.read_text()) if catalogue_path.is_file() else []
+        )
+        matching = next(
+            (
+                item
+                for item in catalogue
+                if item["experiment_id"] == run.get("id")
+                and item["artifact_sha256"] == artifact_sha256
+            ),
+            None,
+        )
+        versions = [
+            item["version"]
+            for item in catalogue
+            if item["experiment_id"] == run.get("id")
+        ]
+        version = matching["version"] if matching else max(versions, default=0) + 1
+        if matching is None:
+            catalogue.append(
+                {
+                    "experiment_id": run.get("id"),
+                    "workflow_id": run.get("workflow_id"),
+                    "artifact_sha256": artifact_sha256,
+                    "receipt": result["receipt"],
+                    "version": version,
+                    "submitted_at": submitted,
+                    "metadata_profile_key": state.get("metadata_profile_key"),
+                    "eimps_ready": crate.get("eimps_ready", False),
+                }
+            )
+            self._write_json_artifact(catalogue_path, catalogue)
         state["publication"] = {
             "status": "accepted",
             "receipt": result["receipt"],
@@ -565,11 +661,32 @@ class ReproducibilityManager:
             "idempotency_key": payload["idempotency_key"],
             "artifact_sha256": artifact_sha256,
             "submitted_at": submitted,
+            "version": version,
             "endpoint": self.fdmi_client.describe()["endpoint"],
             "stale": False,
         }
         self._write_state(folder, state)
         return self.get(relative)
+
+    def connect_fdmi(self, relative):
+        folder = self.resolve_experiment(relative)
+        state = self._load(folder)
+        target = self.fdmi_client.describe()
+        state["fdmi_connection"] = {
+            "connected": True,
+            "connected_at": datetime.now(timezone.utc).isoformat().replace(
+                "+00:00", "Z"
+            ),
+            "mode": target["mode"],
+            "endpoint": target["endpoint"],
+            "external_integration": False,
+        }
+        self._write_state(folder, state)
+        return self.get(relative)
+
+    def fdmi_catalogue(self):
+        path = self.root / "juvre" / "fdmi" / "submissions.json"
+        return json.loads(path.read_text()) if path.is_file() else []
 
     def mark_cim_connected(self, relative, connection):
         folder = self.resolve_experiment(relative)
@@ -856,6 +973,7 @@ class ReproducibilityManager:
                 "telemetry_source": (run.get("telemetry") or {}).get("source"),
                 "telemetry_scope": (run.get("telemetry") or {}).get("scope"),
             },
+            "descriptive_metadata": dict(state["crate_configuration"]),
             "measurements": summaries,
             "measurement_collection": metadata_profile["metric_summary_name"],
             "eimps_cloud": payload,
@@ -892,6 +1010,17 @@ class ReproducibilityManager:
         if standard is None or metadata_profile is None or not state.get("configuration_revision"):
             raise ValueError("Configure a supported CIM standard and metadata profile first")
         run = json.loads((folder / "run.json").read_text())
+        source_revision = self._source_revision(folder, run)
+        current = state.get("crate") or {}
+        if (
+            current.get("configuration_revision") == state["configuration_revision"]
+            and current.get("source_revision") == source_revision
+            and all(
+                (folder / name).is_file()
+                for name in ("eimps-cloud.json", "cim-record.json", "ro-crate-metadata.json")
+            )
+        ):
+            return self.get(relative)
         artifacts = run.get("artifacts", {})
         names = {
             "input": artifacts.get("input", "notebook.ipynb"),
@@ -923,6 +1052,7 @@ class ReproducibilityManager:
             names["cim"]: ("Versioned CIM harmonised record", "File"),
         }
         file_entities = []
+        crate_config = state["crate_configuration"]
         for name, (label, kind) in file_labels.items():
             entity = {
                 "@id": name,
@@ -933,6 +1063,10 @@ class ReproducibilityManager:
                 ),
                 "sha256": hashlib.sha256((folder / name).read_bytes()).hexdigest(),
             }
+            if name == names["input"]:
+                entity["additionalType"] = crate_config["notebook_role"]
+            elif name == names["output"]:
+                entity["additionalType"] = crate_config["output_role"]
             if name in {names["eimps"], names["cim"]}:
                 entity.update({
                     "about": {"@id": action_id},
@@ -955,6 +1089,45 @@ class ReproducibilityManager:
             "interrupted": "https://schema.org/FailedActionStatus",
             "running": "https://schema.org/ActiveActionStatus",
         }.get(run.get("status"), "https://schema.org/PotentialActionStatus")
+        root = {
+            "@id": "./",
+            "@type": "Dataset",
+            "name": crate_config["title"] or f"JuVRE Cloud experiment {run.get('workflow_id')} / {run.get('id')}",
+            "description": crate_config["description"] or "Tracked notebook execution with source telemetry, CIM provenance and a local EIMPS Cloud export.",
+            "datePublished": generated,
+            "hasPart": [{"@id": name} for name in file_labels],
+            "mentions": [
+                {"@id": action_id},
+                {"@id": standard_id},
+                {"@id": profile_id},
+            ],
+        }
+        contextual_entities = []
+        if crate_config["license"]:
+            root["license"] = {"@id": crate_config["license"]}
+        if crate_config["publication_reference"]:
+            root["citation"] = {"@id": crate_config["publication_reference"]}
+            contextual_entities.append({
+                "@id": crate_config["publication_reference"],
+                "@type": "CreativeWork",
+            })
+        if crate_config["creator"] or crate_config["organization"]:
+            root["creator"] = {"@id": "#creator"}
+            creator = {
+                "@id": "#creator",
+                "@type": "Person" if crate_config["creator"] else "Organization",
+                "name": crate_config["creator"] or crate_config["organization"],
+            }
+            if crate_config["organization"] and crate_config["creator"]:
+                creator["affiliation"] = {
+                    "@id": "#creator-organization"
+                }
+                contextual_entities.append({
+                    "@id": "#creator-organization",
+                    "@type": "Organization",
+                    "name": crate_config["organization"],
+                })
+            contextual_entities.append(creator)
         graph = [
             {
                 "@id": crate_name,
@@ -962,19 +1135,7 @@ class ReproducibilityManager:
                 "about": {"@id": "./"},
                 "conformsTo": {"@id": "https://w3id.org/ro/crate/1.1"},
             },
-            {
-                "@id": "./",
-                "@type": "Dataset",
-                "name": f"JuVRE Cloud experiment {run.get('workflow_id')} / {run.get('id')}",
-                "description": "Tracked notebook execution with source telemetry, CIM provenance and a local EIMPS Cloud export.",
-                "datePublished": generated,
-                "hasPart": [{"@id": name} for name in file_labels],
-                "mentions": [
-                    {"@id": action_id},
-                    {"@id": standard_id},
-                    {"@id": profile_id},
-                ],
-            },
+            root,
             {
                 "@id": action_id,
                 "@type": "CreateAction",
@@ -989,6 +1150,11 @@ class ReproducibilityManager:
                     {"@id": names["eimps"]}, {"@id": names["cim"]},
                 ],
                 "instrument": {"@id": names["input"]},
+                "additionalProperty": {
+                    "@type": "PropertyValue",
+                    "name": "execution environment",
+                    "value": crate_config["environment_information"] or run.get("kernel_name") or "not recorded",
+                },
             },
             {
                 "@id": standard_id,
@@ -1015,11 +1181,18 @@ class ReproducibilityManager:
                 },
             },
             *file_entities,
+            *contextual_entities,
         ]
         crate = {"@context": "https://w3id.org/ro/crate/1.1/context", "@graph": graph}
         crate_path = folder / crate_name
         self._write_json_artifact(crate_path, crate)
+        revision_name = f"{state['configuration_revision']}-{source_revision}"
+        revision_folder = folder / "export-revisions" / revision_name
+        revision_folder.mkdir(parents=True, exist_ok=True)
+        for name in (names["eimps"], names["cim"], crate_name):
+            shutil.copy2(folder / name, revision_folder / name)
         previous_generation = (state.get("crate") or {}).get("generation", 0)
+        previous_crate = state.get("crate") or {}
         state["crate"] = {
             "name": crate_name,
             "path": str(crate_path.relative_to(self.root)),
@@ -1036,6 +1209,14 @@ class ReproducibilityManager:
                 "eimps_cloud": str((folder / names["eimps"]).relative_to(self.root)),
                 "cim_record": str((folder / names["cim"]).relative_to(self.root)),
             },
+            "revision_path": str(revision_folder.relative_to(self.root)),
+        }
+        state["export_comparison"] = {
+            "previous_revision": previous_crate.get("revision_path"),
+            "current_revision": str(revision_folder.relative_to(self.root)),
+            "mapping_changed": bool(previous_crate) and previous_crate.get("configuration_revision") != state["configuration_revision"],
+            "measurements_changed": bool(previous_crate) and previous_crate.get("source_revision") != source_revision,
+            "artifacts": ["cim-record.json", "eimps-cloud.json", "ro-crate-metadata.json"],
         }
         if state.get("publication"):
             state["publication"]["stale"] = True

@@ -337,6 +337,51 @@ class ReproducibilityStateTests(unittest.TestCase):
             first["crate"]["source_revision"], regenerated["crate"]["source_revision"]
         )
 
+    def test_descriptive_editor_maps_to_exact_ro_crate_locations(self):
+        self.manager.configure(
+            self.relative,
+            "greendigit-commons",
+            {},
+            "default",
+            None,
+            {
+                "title": "Workshop result",
+                "description": "A participant-controlled description.",
+                "creator": "Example Researcher",
+                "organization": "Example Lab",
+                "license": "https://spdx.org/licenses/CC-BY-4.0.html",
+                "environment_information": "Python training kernel",
+            },
+        )
+        self.manager.mark_cim_connected(
+            self.relative,
+            {"endpoint": "embedded://demo-cim", "identity": "gd-super-user"},
+        )
+        state = self.manager.generate_crate(self.relative)
+        crate = json.loads((self.folder / "ro-crate-metadata.json").read_text())
+        graph = {item["@id"]: item for item in crate["@graph"]}
+        self.assertEqual(graph["./"]["name"], "Workshop result")
+        self.assertEqual(graph["./"]["creator"], {"@id": "#creator"})
+        self.assertEqual(graph["#creator"]["affiliation"], {
+            "@id": "#creator-organization"
+        })
+        self.assertEqual(
+            graph["notebook.ipynb"]["additionalType"],
+            "https://schema.org/SoftwareSourceCode",
+        )
+        self.assertTrue(state["export_comparison"]["current_revision"])
+
+    def test_invalid_publication_identifier_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "absolute HTTP"):
+            self.manager.configure(
+                self.relative,
+                "greendigit-commons",
+                {},
+                "default",
+                None,
+                {"publication_reference": "not-a-uri"},
+            )
+
     def test_publish_requires_current_crate_and_is_idempotent(self):
         calls = []
 
@@ -353,6 +398,7 @@ class ReproducibilityStateTests(unittest.TestCase):
             "endpoint": "embedded://demo-cim", "identity": "gd-super-user"
         })
         self.manager.generate_crate(self.relative)
+        self.manager.connect_fdmi(self.relative)
         first = self.manager.publish(self.relative)
         second = self.manager.publish(self.relative)
         self.assertEqual(first["publication"]["receipt"], "FDMI-DEMO-RECEIPT")
@@ -367,9 +413,31 @@ class ReproducibilityStateTests(unittest.TestCase):
             "endpoint": "embedded://demo-cim", "identity": "gd-super-user"
         })
         self.manager.generate_crate(self.relative)
+        self.manager.connect_fdmi(self.relative)
         self.manager.publish(self.relative)
-        regenerated = self.manager.generate_crate(self.relative)
+        regenerated = self.manager.configure(
+            self.relative,
+            "greendigit-commons",
+            {},
+            "default",
+            None,
+            {"title": "Changed title"},
+        )
         self.assertTrue(regenerated["publication"]["stale"])
+
+    def test_fdmi_catalogue_persists_idempotent_versions(self):
+        self.manager.configure(self.relative, "greendigit-commons", {})
+        self.manager.mark_cim_connected(
+            self.relative,
+            {"endpoint": "embedded://demo-cim", "identity": "gd-super-user"},
+        )
+        self.manager.generate_crate(self.relative)
+        self.manager.connect_fdmi(self.relative)
+        first = self.manager.publish(self.relative)
+        second = ReproducibilityManager(self.root).fdmi_catalogue()
+        self.assertEqual(first["publication"]["version"], 1)
+        self.assertEqual(len(second), 1)
+        self.assertEqual(second[0]["version"], 1)
 
 
 if __name__ == "__main__":

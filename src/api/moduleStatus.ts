@@ -7,6 +7,10 @@ export type WorkflowModuleKey =
 
 export interface IInstalledModule {
   installed: boolean;
+  bundled?: boolean;
+  activated?: boolean;
+  endpoint_mode?: string;
+  prerequisites?: string[];
   version?: string;
   installedAt?: string;
 }
@@ -52,12 +56,14 @@ function mergeModuleStatus(
   };
 }
 
-export async function getTelemetryStatus(): Promise<ITelemetryStatus> {
+async function moduleStatusRequest(
+  init?: RequestInit
+): Promise<InstalledModules> {
   const settings = ServerConnection.makeSettings();
   const requestUrl = `${settings.baseUrl.replace(/\/?$/, '/')}api/jupyter-vre-workflow/module-status`;
   const response = await ServerConnection.makeRequest(
     requestUrl,
-    { method: 'GET' },
+    init ?? { method: 'GET' },
     settings
   );
   if (!response.ok) {
@@ -68,8 +74,25 @@ export async function getTelemetryStatus(): Promise<ITelemetryStatus> {
     }
     throw new Error(`Unable to check telemetry services (${response.status}).`);
   }
-  const result = (await response.json()) as { telemetry: ITelemetryStatus };
-  return result.telemetry;
+  return response.json() as Promise<InstalledModules>;
+}
+
+export async function getTelemetryStatus(): Promise<ITelemetryStatus> {
+  return (await moduleStatusRequest()).telemetry as ITelemetryStatus;
+}
+
+export function getModuleStatus(): Promise<InstalledModules> {
+  return moduleStatusRequest();
+}
+
+export function activateModule(
+  moduleKey: 'reproducibility' | 'orchestration'
+): Promise<InstalledModules> {
+  return moduleStatusRequest({
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ module: moduleKey })
+  });
 }
 
 export function loadModuleStatus(): InstalledModules {

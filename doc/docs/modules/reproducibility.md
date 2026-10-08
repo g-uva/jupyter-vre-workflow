@@ -77,7 +77,9 @@ Use an environment where the notebook's kernelspec and dependencies are availabl
 
 ## Configure and export Cloud metadata
 
-Connect the mock CIM service, select a Cloud metadata profile, and explicitly
+Activate the already bundled module, then connect the mock CIM service. The
+activation is stored server-side and does not imply that an endpoint is
+reachable. Select a Cloud metadata profile and explicitly
 configure the authorised publication group, registered site name, actual cloud
 type, compute-service identifier, and VO/workload owner. Applying a changed
 configuration regenerates all three JSON outputs when CIM is connected. A
@@ -104,9 +106,21 @@ local draft. The UI and `cim-record.json` list missing requirements and quality
 flags, while the output is marked not EIMPS-ready. Syntax validity, downstream
 Cloud compatibility, and endpoint acceptance are separate statuses.
 
+The RO-Crate editor permits title, description, creator/organisation, absolute
+licence and publication identifiers, environment information, and the fixed
+notebook/output roles. Each field shows its JSON-LD location and source. These
+values feed the same harmonized record as the CIM and EIMPS exports. Generated
+sets are also snapshotted below `export-revisions/<configuration>-<source>` so
+the comparison can distinguish mapping changes from measurement changes.
+
 ## Mock publishing
 
 The Autumn School workflow uses internal CIM and FDMI demonstration services.
+Connect to mock FDMI explicitly and review the run, crate generation and profile
+before synchronising. Embedded submissions persist under
+`juvre/fdmi/submissions.json`; the Kubernetes mock uses a persistent volume.
+The same run and artifact hash is idempotent, while a changed crate receives a
+new version and makes its previous receipt stale.
 The detailed and compact configurations are mock variants of the same Cloud
 profile and shared harmonized record. Submission is unavailable while the
 crate is absent or stale. Regeneration marks an earlier receipt stale, and

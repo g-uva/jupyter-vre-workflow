@@ -3,6 +3,7 @@ import json
 import nbformat
 import os
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from shlex import quote
 from typing import Dict, List
@@ -219,9 +220,16 @@ def _installed_executable(configured_path: str, command: str):
     }
 
 
-def get_module_status():
+def get_module_status(root_dir=None):
     scaphandre = _installed_executable(SCAPHANDRE_BIN, "scaphandre")
     prometheus = _installed_executable(PROMETHEUS_BIN, "prometheus")
+    activation_path = (
+        Path(root_dir).resolve() / "juvre" / "configuration" / "modules.json"
+        if root_dir else None
+    )
+    activated = {}
+    if activation_path and activation_path.is_file():
+        activated = json.loads(activation_path.read_text())
     return {
         "telemetry": {
             "installed": scaphandre["installed"] and prometheus["installed"],
@@ -229,14 +237,46 @@ def get_module_status():
                 "prometheus": prometheus,
                 "scaphandre": scaphandre,
             },
-        }
+        },
+        "reproducibility": {
+            "installed": True,
+            "bundled": True,
+            "activated": bool(activated.get("reproducibility")),
+            "endpoint_mode": "embedded or configured Kubernetes mocks",
+            "prerequisites": ["A saved JuVRE experiment"],
+        },
+        "orchestration": {
+            "installed": True,
+            "bundled": True,
+            "activated": bool(activated.get("orchestration")),
+            "endpoint_mode": "embedded demonstration federation",
+            "prerequisites": ["A saved JuVRE experiment", "Demo node registration"],
+        },
     }
 
 
 class ModuleStatusHandler(APIHandler):
+    def initialize(self, root_dir):
+        self.root_dir = Path(root_dir).resolve()
+
     @web.authenticated
     async def get(self):
-        self.finish(get_module_status())
+        self.finish(get_module_status(self.root_dir))
+
+    @web.authenticated
+    async def post(self):
+        body = self.get_json_body() or {}
+        module = body.get("module")
+        if module not in {"reproducibility", "orchestration"}:
+            raise web.HTTPError(400, reason="Only bundled modules can be activated")
+        path = self.root_dir / "juvre" / "configuration" / "modules.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        saved = json.loads(path.read_text()) if path.is_file() else {}
+        saved[module] = {"activated": True, "activated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
+        temporary = path.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(saved, indent=2) + "\n")
+        temporary.replace(path)
+        self.finish(get_module_status(self.root_dir))
 
 
 class CimConnectionHandler(APIHandler):
@@ -281,6 +321,7 @@ class ReproducibilityConfigHandler(APIHandler):
                 body.get("mapping", {}),
                 body.get("metadata_profile_key"),
                 body.get("cloud_configuration"),
+                body.get("crate_configuration"),
             )
         except (ValueError, OSError, json.JSONDecodeError) as error:
             raise web.HTTPError(400, reason=str(error)) from error
@@ -316,6 +357,23 @@ class FdmiPublishHandler(APIHandler):
         except (ValueError, OSError, json.JSONDecodeError) as error:
             raise web.HTTPError(400, reason=str(error)) from error
         self.finish(result)
+
+
+class FdmiConnectionHandler(APIHandler):
+    def initialize(self, manager):
+        self.manager = manager
+
+    @web.authenticated
+    async def post(self):
+        body = self.get_json_body() or {}
+        try:
+            self.finish(self.manager.connect_fdmi(body.get("path")))
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+
+    @web.authenticated
+    async def get(self):
+        self.finish({"submissions": self.manager.fdmi_catalogue()})
 
 
 class OrchestrationRegistrationHandler(APIHandler):
@@ -407,12 +465,68 @@ class OrchestrationRunHandler(APIHandler):
         except (ValueError, OSError, json.JSONDecodeError) as error:
             raise web.HTTPError(400, reason=str(error)) from error
 
+
+class WorkshopCatalogueHandler(APIHandler):
+    def initialize(self, manager, experiment_manager):
+        self.manager = manager
+        self.experiment_manager = experiment_manager
+
+    @web.authenticated
+    async def get(self):
+        catalogue_id = self.get_argument("catalogue_id", None)
+        if catalogue_id:
+            try:
+                path = self.manager.bundle_path(catalogue_id)
+            except (ValueError, OSError, json.JSONDecodeError) as error:
+                raise web.HTTPError(404, reason=str(error)) from error
+            self.set_header("Content-Type", "application/zip")
+            self.set_header(
+                "Content-Disposition", f'attachment; filename="{path.name}"'
+            )
+            self.finish(path.read_bytes())
+            return
+        self.finish({"experiments": self.manager.catalogue()})
+
+    @web.authenticated
+    async def post(self):
+        body = self.get_json_body() or {}
+        action = body.get("action")
+        try:
+            if action == "share":
+                result = self.manager.share_experiment(
+                    body.get("user", ""), body.get("path"), body.get("display_name")
+                )
+            elif action == "import":
+                result = self.manager.import_shared(
+                    body.get("user", ""), body.get("catalogue_id")
+                )
+            elif action == "replay":
+                imported = self.manager.import_shared(
+                    body.get("user", ""), body.get("catalogue_id")
+                )
+                record = self.experiment_manager.start(imported["notebook_path"])
+                run_path = self.experiment_manager.resolve(record["path"]) / "run.json"
+                saved = json.loads(run_path.read_text())
+                saved["source_run_id"] = imported["source_run_id"]
+                saved["source_catalogue_id"] = body.get("catalogue_id")
+                temporary = run_path.with_suffix(".json.tmp")
+                temporary.write_text(json.dumps(saved, indent=2) + "\n")
+                temporary.replace(run_path)
+                self.experiment_manager.records[record["path"]].update(saved)
+                result = saved
+            else:
+                raise ValueError("Unsupported catalogue action")
+        except (ValueError, OSError, json.JSONDecodeError) as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+        self.finish(result)
+
     @web.authenticated
     async def post(self):
         body = self.get_json_body() or {}
         try:
             self.finish(self.manager.start_orchestration(
-                body.get("user", ""), body.get("path"), body.get("target_site_id")
+                body.get("user", ""), body.get("path"),
+                body.get("site_ids", body.get("target_site_id"))
             ))
         except (ValueError, OSError, json.JSONDecodeError) as error:
             raise web.HTTPError(400, reason=str(error)) from error
@@ -514,7 +628,11 @@ def setup_handlers(web_app):
                 ExperimentsHandler,
                 {"manager": manager},
             ),
-            (url_path_join(namespace, "module-status"), ModuleStatusHandler),
+            (
+                url_path_join(namespace, "module-status"),
+                ModuleStatusHandler,
+                {"root_dir": root_dir},
+            ),
             (
                 url_path_join(namespace, "reproducibility", "cim", "connect"),
                 CimConnectionHandler,
@@ -528,6 +646,11 @@ def setup_handlers(web_app):
             (
                 url_path_join(namespace, "reproducibility", "config"),
                 ReproducibilityConfigHandler,
+                {"manager": reproducibility_manager},
+            ),
+            (
+                url_path_join(namespace, "reproducibility", "fdmi", "connect"),
+                FdmiConnectionHandler,
                 {"manager": reproducibility_manager},
             ),
             (
@@ -554,6 +677,11 @@ def setup_handlers(web_app):
                 url_path_join(namespace, "orchestration", "runs"),
                 OrchestrationRunHandler,
                 {"manager": orchestration_manager},
+            ),
+            (
+                url_path_join(namespace, "orchestration", "catalogue"),
+                WorkshopCatalogueHandler,
+                {"manager": orchestration_manager, "experiment_manager": manager},
             ),
             (url_path_join(namespace, "run-install"), MetricsInstallHandler),
         ],

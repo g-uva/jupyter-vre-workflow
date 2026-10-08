@@ -2,6 +2,7 @@ import asyncio
 import json
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from jupyter_vre_workflow.orchestration import (
@@ -115,6 +116,27 @@ class RegistrationTests(unittest.TestCase):
         self.assertFalse(local["minimum_ready"])
         self.assertIn("a successful run status", local["missing"])
 
+    def test_two_users_share_download_and_hash_verify_safe_bundles(self):
+        self.register_alice()
+        self.manager.register("bob", {
+            "node_name": "GD-DEMO-002", "site": "Amsterdam",
+            "operator": "Bob", "contact": "bob@example.org"
+        })
+        relative = self.make_experiment()
+        shared = self.manager.share_experiment("alice", relative)
+        self.assertEqual(self.manager.catalogue()[0]["owner_display_name"], "Alice")
+        bundle = self.manager.bundle_path(shared["catalogue_id"])
+        with zipfile.ZipFile(bundle) as archive:
+            self.assertIn("manifest.json", archive.namelist())
+            self.assertNotIn("reproducibility.json", archive.namelist())
+        imported = self.manager.import_shared("bob", shared["catalogue_id"])
+        self.assertTrue(imported["verified"])
+        self.assertEqual(imported["source_run_id"], "run-1")
+        source = self.manager.catalogue_folder() / shared["catalogue_id"] / "metrics.csv"
+        source.write_text("tampered")
+        with self.assertRaisesRegex(ValueError, "Hash verification failed"):
+            self.manager.import_shared("bob", shared["catalogue_id"])
+
 
 class PredictionTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -207,6 +229,43 @@ class SimulatedOrchestrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(first, second)
         with self.assertRaisesRegex(ValueError, "completed prediction"):
             self.manager.start_orchestration("alice", self.relative, "KIT")
+
+    async def test_multi_site_attempts_have_separate_mock_results(self):
+        self.manager.start_orchestration(
+            "alice", self.relative, ["GRNET", "NIKHEF"]
+        )
+        await asyncio.gather(*list(self.manager.orchestration_tasks.values()))
+        state = self.manager.get_orchestration("alice", self.relative)
+        self.assertEqual(state["status"], "completed")
+        self.assertEqual(len(state["attempts"]), 2)
+        self.assertEqual(
+            {item["status"] for item in state["attempts"]}, {"completed"}
+        )
+        self.assertTrue(all(item["simulated"] for item in state["attempts"]))
+        self.assertNotEqual(
+            state["attempts"][0]["attempt_id"],
+            state["attempts"][1]["attempt_id"],
+        )
+
+    async def test_multi_site_partial_failure_preserves_success(self):
+        original = self.manager._simulated_target_result
+
+        def one_failure(local, prediction):
+            if prediction["site"]["id"] == "NIKHEF":
+                raise RuntimeError("demo site unavailable")
+            return original(local, prediction)
+
+        self.manager._simulated_target_result = one_failure
+        self.manager.start_orchestration(
+            "alice", self.relative, ["GRNET", "NIKHEF"]
+        )
+        await asyncio.gather(*list(self.manager.orchestration_tasks.values()))
+        state = self.manager.get_orchestration("alice", self.relative)
+        self.assertEqual(state["status"], "partial")
+        self.assertEqual(
+            [item["status"] for item in state["attempts"]],
+            ["completed", "failed"],
+        )
 
 
 if __name__ == "__main__":

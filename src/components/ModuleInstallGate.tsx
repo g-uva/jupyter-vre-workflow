@@ -10,6 +10,7 @@ import {
   Typography
 } from '@mui/material';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
+import PowerSettingsNewOutlinedIcon from '@mui/icons-material/PowerSettingsNewOutlined';
 
 interface IModuleInstallGateProps {
   moduleName: string;
@@ -21,6 +22,7 @@ interface IModuleInstallGateProps {
   installProgress?: number;
   installLogs?: string[];
   installDisabled?: boolean;
+  activationOnly?: boolean;
   statusDetails?: React.ReactNode;
   onInstall: () => void;
   children: React.ReactNode;
@@ -78,6 +80,7 @@ export default function ModuleInstallGate({
   installProgress = 0,
   installLogs = [],
   installDisabled = false,
+  activationOnly = false,
   statusDetails,
   onInstall,
   children
@@ -96,7 +99,9 @@ export default function ModuleInstallGate({
         <Box sx={styles.overlay}>
           <Paper elevation={0} sx={styles.dialog}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-              This module is not installed.
+              {activationOnly
+                ? 'This bundled module is not active.'
+                : 'This module is not installed.'}
             </Typography>
             {prerequisiteText && (
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -153,12 +158,14 @@ export default function ModuleInstallGate({
               startIcon={
                 installing ? (
                   <CircularProgress color="inherit" size={16} />
+                ) : activationOnly ? (
+                  <PowerSettingsNewOutlinedIcon />
                 ) : (
                   <DownloadOutlinedIcon />
                 )
               }
             >
-              Install {moduleName}
+              {activationOnly ? 'Activate' : 'Install'} {moduleName}
             </Button>
           </Paper>
         </Box>

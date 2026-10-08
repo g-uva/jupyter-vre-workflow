@@ -102,12 +102,11 @@ Run the backend tests with `python -m unittest discover -s tests -v` in an envir
 
 ### Autumn School reproducibility demo
 
-Select a successful tracked experiment, open **Reproducibility**, choose
-**Online**, and connect to the CIM service. GreenDIGIT Commons is selected
-by default as non-authoritative demonstration guidance. Review or change the
-two safe mapping terms, generate `ro-crate-metadata.json`, then publish it to
-the FDMI target and inspect the returned receipt. Changing the standard or
-mapping makes the generated artefact stale; regenerate before publishing.
+Select a successful tracked experiment, activate **Reproducibility**, and
+connect to the mock CIM service. Configure the Cloud and descriptive RO-Crate
+fields, inspect their exact mappings, and generate the CIM, EIMPS Cloud and
+RO-Crate records. Connect to mock FDMI separately, review the version, then
+synchronise to its persistent local catalogue.
 
 For Kubernetes deployment of the internal demonstration services, see
 [`deploy/kubernetes/README.md`](deploy/kubernetes/README.md). A local run uses
@@ -120,9 +119,11 @@ register compliance, use Zenodo, or mint a DOI.
 The Orchestration tab uses demonstration federation, catalogue, prediction and
 execution behaviour. Register a per-user node in `GD-AS-DEMO`, select and
 optionally synchronise a local experiment, predict one or more stable demo
-sites, then simulate a rerun at one predicted target. Registration, metadata,
-predictions, logs and comparison JSON are stored below `m3l2/<user>/`. No VM is
-created and no notebook or output is sent to or retrieved from a remote site.
+sites, then simulate concurrent attempts at up to three predicted targets.
+Participants may explicitly share safe portable bundles in the lab catalogue,
+verify imports, and start a linked local replay. Registration, metadata,
+predictions, per-site logs and comparisons are stored locally. No VM is created
+and no notebook or output is sent to or retrieved from a remote site.
 
 ### Folder Structure
 
