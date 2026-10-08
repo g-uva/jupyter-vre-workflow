@@ -29,7 +29,8 @@ interface IModuleInstallGateProps {
 const styles: Record<string, SxProps> = {
   root: {
     position: 'relative',
-    minHeight: 320
+    height: '100%',
+    minHeight: 0
   },
   content: {
     transition: 'filter 160ms ease, opacity 160ms ease'

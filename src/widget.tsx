@@ -43,9 +43,8 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
     height: '100%',
     minHeight: 0,
-    overflowX: 'hidden',
-    overflowY: 'auto',
-    scrollbarGutter: 'stable',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
     padding: '10px'
   }
 };
