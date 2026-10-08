@@ -12,11 +12,11 @@ The tool was developed for the [GreenDIGIT EU Project](https://greendigit-projec
 
 ## The three modules
 
-| Module | What it does |
-|--------|-------------|
-| **Telemetry & Observability** | Collects real-time energy metrics via Scaphandre + Prometheus and computes SCI/KPI indicators |
+| Module                        | What it does                                                                                             |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Telemetry & Observability** | Collects real-time energy metrics via Scaphandre + Prometheus and computes SCI/KPI indicators            |
 | **Reproducibility & Storage** | Captures notebook/session metadata, packages it as RO-Crate, and optionally exports to an FDMI catalogue |
-| **Orchestration & Replay** | Connects to a T6.3 Orchestration endpoint for workflow replay and cross-site placement |
+| **Orchestration & Replay**    | Connects to a T6.3 Orchestration endpoint for workflow replay and cross-site placement                   |
 
 ## Mental model
 

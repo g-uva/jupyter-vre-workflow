@@ -23,6 +23,7 @@ interface IModuleInstallGateProps {
   installLogs?: string[];
   installDisabled?: boolean;
   activationOnly?: boolean;
+  mockInstallation?: boolean;
   statusDetails?: React.ReactNode;
   onInstall: () => void;
   children: React.ReactNode;
@@ -81,6 +82,7 @@ export default function ModuleInstallGate({
   installLogs = [],
   installDisabled = false,
   activationOnly = false,
+  mockInstallation = false,
   statusDetails,
   onInstall,
   children
@@ -99,9 +101,11 @@ export default function ModuleInstallGate({
         <Box sx={styles.overlay}>
           <Paper elevation={0} sx={styles.dialog}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-              {activationOnly
-                ? 'This bundled module is not active.'
-                : 'This module is not installed.'}
+              {mockInstallation
+                ? 'This bundled module is not installed for the workshop.'
+                : activationOnly
+                  ? 'This bundled module is not active.'
+                  : 'This module is not installed.'}
             </Typography>
             {prerequisiteText && (
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -165,7 +169,9 @@ export default function ModuleInstallGate({
                 )
               }
             >
-              {activationOnly ? 'Activate' : 'Install'} {moduleName}
+              {mockInstallation
+                ? `Install ${moduleName} (mock)`
+                : `${activationOnly ? 'Activate' : 'Install'} ${moduleName}`}
             </Button>
           </Paper>
         </Box>

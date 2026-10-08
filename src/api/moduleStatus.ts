@@ -9,6 +9,7 @@ export interface IInstalledModule {
   installed: boolean;
   bundled?: boolean;
   activated?: boolean;
+  installation_mode?: 'mock-installation' | 'activation' | null;
   endpoint_mode?: string;
   prerequisites?: string[];
   version?: string;
@@ -92,6 +93,39 @@ export function activateModule(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ module: moduleKey })
+  });
+}
+
+export function runMockModuleInstaller(
+  moduleKey: 'reproducibility' | 'orchestration',
+  callbacks: {
+    onProgress?: (value: { label: string; progress: number }) => void;
+    onLog?: (value: { text: string }) => void;
+  } = {}
+): Promise<InstalledModules> {
+  const settings = ServerConnection.makeSettings();
+  const url = `${settings.baseUrl.replace(/\/?$/, '/')}api/jupyter-vre-workflow/module-install?module=${encodeURIComponent(moduleKey)}`;
+  return new Promise((resolve, reject) => {
+    const source = new EventSource(url);
+    let complete = false;
+    source.addEventListener('progress', event => {
+      callbacks.onProgress?.(JSON.parse((event as MessageEvent).data));
+    });
+    source.addEventListener('log', event => {
+      callbacks.onLog?.(JSON.parse((event as MessageEvent).data));
+    });
+    source.addEventListener('done', event => {
+      complete = true;
+      source.close();
+      resolve(JSON.parse((event as MessageEvent).data));
+    });
+    source.onerror = () => {
+      if (complete) {
+        return;
+      }
+      source.close();
+      reject(new Error('The mock module installation stream was interrupted.'));
+    };
   });
 }
 

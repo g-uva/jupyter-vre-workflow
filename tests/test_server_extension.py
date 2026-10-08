@@ -11,6 +11,8 @@ from jupyter_vre_workflow.handlers import (
     FdmiPublishHandler,
     FdmiConnectionHandler,
     MetricsInstallHandler,
+    MockModuleInstallHandler,
+    MOCK_MODULE_INSTALL_STEPS,
     ModuleStatusHandler,
     OrchestrationRegistrationHandler,
     OrchestrationMetadataHandler,
@@ -21,6 +23,7 @@ from jupyter_vre_workflow.handlers import (
     ReproducibilityConfigHandler,
     RoCrateHandler,
     get_module_status,
+    persist_module_activation,
     setup_handlers,
 )
 
@@ -51,6 +54,7 @@ class ServerExtensionTests(unittest.TestCase):
             [
                 "/services/notebooks/api/jupyter-vre-workflow/experiments",
                 "/services/notebooks/api/jupyter-vre-workflow/module-status",
+                "/services/notebooks/api/jupyter-vre-workflow/module-install",
                 "/services/notebooks/api/jupyter-vre-workflow/reproducibility/cim/connect",
                 "/services/notebooks/api/jupyter-vre-workflow/reproducibility/crate",
                 "/services/notebooks/api/jupyter-vre-workflow/reproducibility/config",
@@ -68,18 +72,19 @@ class ServerExtensionTests(unittest.TestCase):
         self.assertIs(handlers[0][1], ExperimentsHandler)
         self.assertEqual(Path(handlers[0][2]["manager"].root), Path(root_dir))
         self.assertIs(handlers[1][1], ModuleStatusHandler)
-        self.assertIs(handlers[2][1], CimConnectionHandler)
-        self.assertIs(handlers[3][1], RoCrateHandler)
-        self.assertIs(handlers[4][1], ReproducibilityConfigHandler)
-        self.assertIs(handlers[5][1], FdmiConnectionHandler)
-        self.assertIs(handlers[6][1], FdmiPublishHandler)
-        self.assertIs(handlers[7][1], OrchestrationRegistrationHandler)
-        self.assertIs(handlers[8][1], OrchestrationMetadataHandler)
-        self.assertIs(handlers[9][1], OrchestrationPredictionHandler)
-        self.assertIs(handlers[10][1], OrchestrationRunHandler)
-        self.assertIs(handlers[11][1], OrchestrationResultHandler)
-        self.assertIs(handlers[12][1], WorkshopCatalogueHandler)
-        self.assertIs(handlers[13][1], MetricsInstallHandler)
+        self.assertIs(handlers[2][1], MockModuleInstallHandler)
+        self.assertIs(handlers[3][1], CimConnectionHandler)
+        self.assertIs(handlers[4][1], RoCrateHandler)
+        self.assertIs(handlers[5][1], ReproducibilityConfigHandler)
+        self.assertIs(handlers[6][1], FdmiConnectionHandler)
+        self.assertIs(handlers[7][1], FdmiPublishHandler)
+        self.assertIs(handlers[8][1], OrchestrationRegistrationHandler)
+        self.assertIs(handlers[9][1], OrchestrationMetadataHandler)
+        self.assertIs(handlers[10][1], OrchestrationPredictionHandler)
+        self.assertIs(handlers[11][1], OrchestrationRunHandler)
+        self.assertIs(handlers[12][1], OrchestrationResultHandler)
+        self.assertIs(handlers[13][1], WorkshopCatalogueHandler)
+        self.assertIs(handlers[14][1], MetricsInstallHandler)
         exporter = web_app.settings["jupyter_vre_workflow_telemetry_exporter"]
         self.assertEqual(
             exporter.directory, Path(root_dir) / "juvre" / "telemetry"
@@ -96,7 +101,7 @@ class ServerExtensionTests(unittest.TestCase):
             )
             server_app = SimpleNamespace(web_app=web_app, log=Mock())
             jupyter_vre_workflow._load_jupyter_server_extension(server_app)
-        self.assertEqual(len(web_app.add_handlers.call_args.args[1]), 14)
+        self.assertEqual(len(web_app.add_handlers.call_args.args[1]), 15)
 
     def test_module_status_requires_both_telemetry_executables(self):
         with patch(
@@ -126,6 +131,30 @@ class ServerExtensionTests(unittest.TestCase):
             path.write_text('{"reproducibility":{"activated":true}}')
             self.assertTrue(
                 get_module_status(root_dir)["reproducibility"]["activated"]
+            )
+
+    def test_mock_module_install_plan_is_twenty_seconds_and_persists(self):
+        self.assertEqual(
+            sum(duration for _, _, duration in MOCK_MODULE_INSTALL_STEPS), 20
+        )
+        self.assertTrue(
+            all(
+                "simulated" in log.lower()
+                for _, log, _ in MOCK_MODULE_INSTALL_STEPS
+            )
+        )
+        with TemporaryDirectory() as root_dir:
+            status = persist_module_activation(root_dir, "reproducibility")
+            self.assertTrue(status["reproducibility"]["activated"])
+            self.assertEqual(
+                status["reproducibility"]["installation_mode"],
+                "mock-installation",
+            )
+            reloaded = get_module_status(root_dir)
+            self.assertTrue(reloaded["reproducibility"]["activated"])
+            self.assertEqual(
+                reloaded["reproducibility"]["installation_mode"],
+                "mock-installation",
             )
 
     def test_frontend_uses_canonical_experiments_url(self):

@@ -77,9 +77,12 @@ Use an environment where the notebook's kernelspec and dependencies are availabl
 
 ## Configure and export Cloud metadata
 
-Activate the already bundled module, then connect the mock CIM service. The
-activation is stored server-side and does not imply that an endpoint is
-reachable. Select a Cloud metadata profile and explicitly
+Run the approximately 20-second mock installer for the already bundled module,
+then connect the mock CIM service. The installer simulates manifest resolution,
+archive and dependency transfers, verification, unpacking, and activation. It
+does not download or install real packages. Completion is stored server-side so
+the workshop can demonstrate the future modular delivery flow. Select a Cloud
+metadata profile and explicitly
 configure the authorised publication group, registered site name, actual cloud
 type, compute-service identifier, and VO/workload owner. Applying a changed
 configuration regenerates all three JSON outputs when CIM is connected. A

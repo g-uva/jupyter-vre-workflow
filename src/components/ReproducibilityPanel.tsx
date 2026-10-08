@@ -57,6 +57,9 @@ const CONNECTION_STEPS = [
   'Selecting the demonstration standard'
 ];
 
+const CLOUD_SAVE_FEEDBACK_MS = 3500;
+const CLOUD_SAVED_CONFIRMATION_MS = 3000;
+
 function WorkflowCard({
   title,
   children
@@ -117,6 +120,10 @@ export default function ReproducibilityPanel({
       output_role: 'https://schema.org/SoftwareSourceCode'
     });
   const [savingMapping, setSavingMapping] = React.useState(false);
+  const [cloudSaveStatus, setCloudSaveStatus] = React.useState<
+    'idle' | 'saving' | 'saved'
+  >('idle');
+  const cloudSavedTimer = React.useRef<number | null>(null);
   const [configurationError, setConfigurationError] = React.useState('');
   const [generating, setGenerating] = React.useState(false);
   const [generationError, setGenerationError] = React.useState('');
@@ -140,6 +147,11 @@ export default function ReproducibilityPanel({
     let active = true;
     setState(null);
     setConfigurationError('');
+    setCloudSaveStatus('idle');
+    if (cloudSavedTimer.current !== null) {
+      window.clearTimeout(cloudSavedTimer.current);
+      cloudSavedTimer.current = null;
+    }
     if (!experimentPath) {
       return () => {
         active = false;
@@ -170,6 +182,15 @@ export default function ReproducibilityPanel({
     };
   }, [experimentPath]);
 
+  React.useEffect(
+    () => () => {
+      if (cloudSavedTimer.current !== null) {
+        window.clearTimeout(cloudSavedTimer.current);
+      }
+    },
+    []
+  );
+
   async function saveConfiguration(
     standardKey: string,
     mapping: Partial<IReproducibilityState['mapping']> = {},
@@ -178,7 +199,7 @@ export default function ReproducibilityPanel({
     crate = crateConfiguration
   ) {
     if (!experimentPath) {
-      return;
+      return false;
     }
     setSavingMapping(true);
     setConfigurationError('');
@@ -195,13 +216,56 @@ export default function ReproducibilityPanel({
       setDraftMapping(result.mapping);
       setCloudConfiguration(result.cloud_configuration);
       setCrateConfiguration(result.crate_configuration);
+      return true;
     } catch (error) {
       setConfigurationError(
         error instanceof Error ? error.message : String(error)
       );
+      return false;
     } finally {
       setSavingMapping(false);
     }
+  }
+
+  async function handleCloudConfigurationSave() {
+    if (cloudSavedTimer.current !== null) {
+      window.clearTimeout(cloudSavedTimer.current);
+      cloudSavedTimer.current = null;
+    }
+    setCloudSaveStatus('saving');
+    const [saved] = await Promise.all([
+      saveConfiguration(
+        selectedStandardKey,
+        draftMapping,
+        selectedMetadataProfileKey,
+        cloudConfiguration
+      ),
+      new Promise(resolve => window.setTimeout(resolve, CLOUD_SAVE_FEEDBACK_MS))
+    ]);
+    if (!saved) {
+      setCloudSaveStatus('idle');
+      return;
+    }
+    setCloudSaveStatus('saved');
+    cloudSavedTimer.current = window.setTimeout(() => {
+      setCloudSaveStatus('idle');
+      cloudSavedTimer.current = null;
+    }, CLOUD_SAVED_CONFIRMATION_MS);
+  }
+
+  function updateCloudConfiguration(
+    key: keyof ICloudConfiguration,
+    value: string
+  ) {
+    if (cloudSavedTimer.current !== null) {
+      window.clearTimeout(cloudSavedTimer.current);
+      cloudSavedTimer.current = null;
+    }
+    setCloudSaveStatus('idle');
+    setCloudConfiguration(configuration => ({
+      ...configuration,
+      [key]: value
+    }));
   }
 
   async function handleStandardChange(key: string) {
@@ -505,28 +569,26 @@ export default function ReproducibilityPanel({
                   label={label}
                   value={cloudConfiguration[key]}
                   onChange={event =>
-                    setCloudConfiguration(value => ({
-                      ...value,
-                      [key]: event.target.value
-                    }))
+                    updateCloudConfiguration(key, event.target.value)
                   }
+                  disabled={cloudSaveStatus === 'saving'}
                   sx={{ flex: '1 1 210px' }}
                 />
               ))}
               <Button
-                onClick={() =>
-                  saveConfiguration(
-                    selectedStandardKey,
-                    draftMapping,
-                    selectedMetadataProfileKey,
-                    cloudConfiguration
-                  )
-                }
-                disabled={savingMapping}
+                onClick={handleCloudConfigurationSave}
+                disabled={savingMapping || cloudSaveStatus === 'saving'}
               >
-                {savingMapping ? 'Saving…' : 'Apply Cloud configuration'}
+                {cloudSaveStatus === 'saving'
+                  ? 'Saving…'
+                  : 'Apply Cloud configuration'}
               </Button>
             </Stack>
+            {cloudSaveStatus === 'saved' && (
+              <Alert severity="success" sx={{ py: 0 }}>
+                Cloud configuration saved.
+              </Alert>
+            )}
             <Paper variant="outlined" sx={{ p: 1.5, background: '#f8fafc' }}>
               <Typography variant="caption" fontWeight={700}>
                 Run {state.preview.experiment_id} · {state.preview.run_status}

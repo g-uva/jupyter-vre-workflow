@@ -217,7 +217,10 @@ export default function TimeSeriesLineChart({
           numTicks={Math.max(3, Math.floor(innerWidth / 80))}
           tickFormat={date =>
             date instanceof Date
-              ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              ? date.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })
               : new Date(Number(date)).toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit'

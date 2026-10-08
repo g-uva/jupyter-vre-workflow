@@ -12,8 +12,10 @@ runner or remote output store.
 
 ## Workshop flow
 
-1. Activate the bundled module. Activation is persisted by the Jupyter server;
-   it is not an installation or a claim that an external service is reachable.
+1. Run the approximately 20-second mock installer for the bundled module. It
+   simulates manifest checks, transfers, verification, unpacking, and activation
+   without downloading or installing real packages. Completion is persisted by
+   the Jupyter server and is not a claim that an external service is reachable.
 2. The initial map is centred on Greece and exposes only the local GRNET demo
    node. Register the pre-filled, per-user `GD-DEMO-…` node with demonstration VO
    `GD-AS-DEMO` to reveal the other stable demo sites.

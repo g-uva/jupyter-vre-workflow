@@ -10,9 +10,7 @@ interface IDashboardChartView {
   children: React.ReactNode;
 }
 
-export default function DashboardChartView({
-  children
-}: IDashboardChartView) {
+export default function DashboardChartView({ children }: IDashboardChartView) {
   return (
     <Grid2
       sx={{

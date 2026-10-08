@@ -16,8 +16,7 @@ function generateSeries(
     const progress = i / Math.max(points - 1, 1);
     const trend = startValue + (endValue - startValue) * progress;
     // Deterministic noise using sine waves so it looks natural without randomness on re-render
-    const jitter =
-      trend * noiseRatio * Math.sin(i * 0.7) * Math.cos(i * 0.31);
+    const jitter = trend * noiseRatio * Math.sin(i * 0.7) * Math.cos(i * 0.31);
     return [t, String(Math.max(0, trend + jitter).toFixed(4))];
   });
 }

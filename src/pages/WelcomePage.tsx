@@ -44,9 +44,9 @@ import {
   InstalledModules,
   ITelemetryStatus,
   WorkflowModuleKey,
-  activateModule,
   getModuleStatus,
-  getTelemetryStatus
+  getTelemetryStatus,
+  runMockModuleInstaller
 } from '../api/moduleStatus';
 import {
   experimentPath,
@@ -276,6 +276,15 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   const [moduleStatus, setModuleStatus] = React.useState<InstalledModules>(
     DEFAULT_MODULE_STATUS
   );
+  const [installingWorkflowModule, setInstallingWorkflowModule] =
+    React.useState<WorkflowModuleKey | null>(null);
+  const [workflowInstallProgress, setWorkflowInstallProgress] =
+    React.useState(0);
+  const [workflowInstallLabel, setWorkflowInstallLabel] = React.useState('');
+  const [workflowInstallLogs, setWorkflowInstallLogs] = React.useState<
+    string[]
+  >([]);
+  const [workflowInstallError, setWorkflowInstallError] = React.useState('');
 
   const [activeModule, setActiveModule] = React.useState<WorkflowModule>(
     WorkflowModule.Telemetry
@@ -536,9 +545,35 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
       return;
     }
 
-    setModuleStatus(
-      await activateModule(moduleKey as 'reproducibility' | 'orchestration')
-    );
+    setInstallingWorkflowModule(moduleKey);
+    setWorkflowInstallProgress(0);
+    setWorkflowInstallLabel('Starting simulated installation…');
+    setWorkflowInstallLogs([]);
+    setWorkflowInstallError('');
+
+    try {
+      const status = await runMockModuleInstaller(
+        moduleKey as 'reproducibility' | 'orchestration',
+        {
+          onProgress: value => {
+            setWorkflowInstallLabel(`${value.label} (simulated)`);
+            setWorkflowInstallProgress(value.progress);
+          },
+          onLog: value => {
+            setWorkflowInstallLogs(logs => [...logs, value.text]);
+          }
+        }
+      );
+      setWorkflowInstallProgress(100);
+      setWorkflowInstallLabel('Mock installation complete');
+      setModuleStatus(status);
+    } catch (error) {
+      setWorkflowInstallError(
+        error instanceof Error ? error.message : String(error)
+      );
+    } finally {
+      setInstallingWorkflowModule(null);
+    }
   }
 
   // Just run it once the component mounts.
@@ -1011,15 +1046,22 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                       .prerequisiteText
                   }
                   installed={Boolean(moduleStatus.reproducibility.activated)}
-                  activationOnly
+                  mockInstallation
+                  installing={installingWorkflowModule === 'reproducibility'}
+                  installDisabled={installingWorkflowModule !== null}
+                  installProgress={workflowInstallProgress}
+                  installLabel={workflowInstallLabel}
+                  installLogs={workflowInstallLogs}
+                  installError={workflowInstallError}
                   statusDetails={
                     <Stack gap={0.5} textAlign="left">
                       <Typography variant="caption">
                         Mode: {moduleStatus.reproducibility.endpoint_mode}
                       </Typography>
                       <Typography variant="caption">
-                        Bundled: yes · service connections are checked in the
-                        workflow.
+                        Bundled today: yes · this 20-second installation is a
+                        workshop simulation for future modular delivery. Service
+                        connections are checked separately.
                       </Typography>
                     </Stack>
                   }
@@ -1059,15 +1101,22 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                       .prerequisiteText
                   }
                   installed={Boolean(moduleStatus.orchestration.activated)}
-                  activationOnly
+                  mockInstallation
+                  installing={installingWorkflowModule === 'orchestration'}
+                  installDisabled={installingWorkflowModule !== null}
+                  installProgress={workflowInstallProgress}
+                  installLabel={workflowInstallLabel}
+                  installLogs={workflowInstallLogs}
+                  installError={workflowInstallError}
                   statusDetails={
                     <Stack gap={0.5} textAlign="left">
                       <Typography variant="caption">
                         Mode: {moduleStatus.orchestration.endpoint_mode}
                       </Typography>
                       <Typography variant="caption">
-                        Bundled: yes · federation registration remains a
-                        separate mock action.
+                        Bundled today: yes · this 20-second installation is a
+                        workshop simulation for future modular delivery.
+                        Federation registration remains a separate mock action.
                       </Typography>
                     </Stack>
                   }

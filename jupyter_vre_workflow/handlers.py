@@ -230,6 +230,17 @@ def get_module_status(root_dir=None):
     activated = {}
     if activation_path and activation_path.is_file():
         activated = json.loads(activation_path.read_text())
+
+    def activation_details(module):
+        value = activated.get(module)
+        if isinstance(value, dict):
+            return bool(value.get("activated")), value.get("installation_mode")
+        return bool(value), None
+
+    reproducibility_active, reproducibility_mode = activation_details(
+        "reproducibility"
+    )
+    orchestration_active, orchestration_mode = activation_details("orchestration")
     return {
         "telemetry": {
             "installed": scaphandre["installed"] and prometheus["installed"],
@@ -241,18 +252,62 @@ def get_module_status(root_dir=None):
         "reproducibility": {
             "installed": True,
             "bundled": True,
-            "activated": bool(activated.get("reproducibility")),
+            "activated": reproducibility_active,
+            "installation_mode": reproducibility_mode,
             "endpoint_mode": "embedded or configured Kubernetes mocks",
             "prerequisites": ["A saved JuVRE experiment"],
         },
         "orchestration": {
             "installed": True,
             "bundled": True,
-            "activated": bool(activated.get("orchestration")),
+            "activated": orchestration_active,
+            "installation_mode": orchestration_mode,
             "endpoint_mode": "embedded demonstration federation",
             "prerequisites": ["A saved JuVRE experiment", "Demo node registration"],
         },
     }
+
+
+MOCK_MODULE_INSTALL_STEPS = [
+    ("Resolve module manifest", "Resolved bundled module manifest (simulated).", 4),
+    (
+        "Transfer module archive",
+        "Transferred 8.4 MB from mock registry (simulated).",
+        4,
+    ),
+    (
+        "Transfer dependency layer",
+        "Transferred 14.7 MB dependency layer (simulated).",
+        4,
+    ),
+    (
+        "Verify and unpack",
+        "Verified mock checksums and unpacked bundled assets (simulated).",
+        4,
+    ),
+    (
+        "Activate module",
+        "Registered routes and activated the bundled module (simulated).",
+        4,
+    ),
+]
+
+
+def persist_module_activation(root_dir, module, mode="mock-installation"):
+    if module not in {"reproducibility", "orchestration"}:
+        raise ValueError("Only bundled modules can be activated")
+    path = Path(root_dir).resolve() / "juvre" / "configuration" / "modules.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    saved = json.loads(path.read_text()) if path.is_file() else {}
+    saved[module] = {
+        "activated": True,
+        "activated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "installation_mode": mode,
+    }
+    temporary = path.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(saved, indent=2) + "\n")
+    temporary.replace(path)
+    return get_module_status(root_dir)
 
 
 class ModuleStatusHandler(APIHandler):
@@ -266,17 +321,52 @@ class ModuleStatusHandler(APIHandler):
     @web.authenticated
     async def post(self):
         body = self.get_json_body() or {}
-        module = body.get("module")
+        try:
+            self.finish(
+                persist_module_activation(
+                    self.root_dir, body.get("module"), "activation"
+                )
+            )
+        except ValueError as error:
+            raise web.HTTPError(400, reason=str(error)) from error
+
+
+class MockModuleInstallHandler(APIHandler):
+    """Stream a deliberately simulated future module installation."""
+
+    def initialize(self, root_dir):
+        self.root_dir = Path(root_dir).resolve()
+
+    @web.authenticated
+    async def get(self):
+        module = self.get_argument("module", "")
         if module not in {"reproducibility", "orchestration"}:
-            raise web.HTTPError(400, reason="Only bundled modules can be activated")
-        path = self.root_dir / "juvre" / "configuration" / "modules.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        saved = json.loads(path.read_text()) if path.is_file() else {}
-        saved[module] = {"activated": True, "activated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
-        temporary = path.with_suffix(".json.tmp")
-        temporary.write_text(json.dumps(saved, indent=2) + "\n")
-        temporary.replace(path)
-        self.finish(get_module_status(self.root_dir))
+            raise web.HTTPError(400, reason="Unsupported mock module")
+        self.set_header("Content-Type", "text/event-stream")
+        self.set_header("Cache-Control", "no-cache")
+        self.set_header("X-Accel-Buffering", "no")
+        for index, (label, log, duration) in enumerate(MOCK_MODULE_INSTALL_STEPS):
+            self.write("event: progress\n")
+            self.write(
+                "data: "
+                + json.dumps(
+                    {
+                        "step": index,
+                        "label": label,
+                        "progress": round(100 * index / len(MOCK_MODULE_INSTALL_STEPS)),
+                        "simulated": True,
+                    }
+                )
+                + "\n\n"
+            )
+            self.write("event: log\n")
+            self.write("data: " + json.dumps({"step": index, "text": log}) + "\n\n")
+            await self.flush()
+            await asyncio.sleep(duration)
+        status = persist_module_activation(self.root_dir, module)
+        self.write("event: done\n")
+        self.write("data: " + json.dumps(status) + "\n\n")
+        await self.flush()
 
 
 class CimConnectionHandler(APIHandler):
@@ -682,6 +772,11 @@ def setup_handlers(web_app):
             (
                 url_path_join(namespace, "module-status"),
                 ModuleStatusHandler,
+                {"root_dir": root_dir},
+            ),
+            (
+                url_path_join(namespace, "module-install"),
+                MockModuleInstallHandler,
                 {"root_dir": root_dir},
             ),
             (
