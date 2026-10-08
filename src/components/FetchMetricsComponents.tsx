@@ -10,6 +10,7 @@ import {
   LinearProgress,
   Menu,
   Stack,
+  Switch,
   TextField,
   Tooltip,
   Typography
@@ -23,8 +24,10 @@ import { ITelemetryStatus } from '../api/moduleStatus';
 
 interface IFetchMetricsComponent {
   fetchMetrics: () => void;
+  liveMetricsEnabled: boolean;
   automaticRefresh: boolean;
   refreshIntervalS: number;
+  setLiveMetricsEnabled: (value: boolean) => void;
   setAutomaticRefresh: (value: boolean) => void;
   setRefreshIntervalS: (value: number) => void;
   handleInstallMetrics: () => void;
@@ -43,8 +46,10 @@ interface IFetchMetricsComponent {
 
 export default function FetchMetricsComponent({
   fetchMetrics,
+  liveMetricsEnabled,
   automaticRefresh,
   refreshIntervalS,
+  setLiveMetricsEnabled,
   setAutomaticRefresh,
   setRefreshIntervalS,
   handleInstallMetrics,
@@ -238,6 +243,18 @@ export default function FetchMetricsComponent({
               )}
               <FormControlLabel
                 control={
+                  <Switch
+                    checked={liveMetricsEnabled}
+                    onChange={event =>
+                      setLiveMetricsEnabled(event.target.checked)
+                    }
+                    size="small"
+                  />
+                }
+                label="Live metrics"
+              />
+              <FormControlLabel
+                control={
                   <Checkbox
                     checked={automaticRefresh}
                     onChange={event =>
@@ -246,7 +263,7 @@ export default function FetchMetricsComponent({
                     size="small"
                   />
                 }
-                label="Automatic metrics refresh"
+                label="Automatic experiment refresh"
               />
               <TextField
                 label="Seconds"
@@ -256,7 +273,7 @@ export default function FetchMetricsComponent({
                 onChange={event =>
                   handleRefreshIntervalChange(event.target.value)
                 }
-                disabled={!automaticRefresh}
+                disabled={!automaticRefresh && !liveMetricsEnabled}
                 slotProps={{
                   htmlInput: {
                     min: 1,

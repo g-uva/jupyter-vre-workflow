@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Box,
+  Button,
   Chip,
   FormControl,
   Grid2,
@@ -16,6 +17,7 @@ import {
   Tooltip,
   Typography
 } from '@mui/material';
+import { keyframes } from '@mui/material/styles';
 import GeneralDashboard from './GeneralDashboard';
 import getScaphData from '../api/getScaphData';
 import { RawMetrics } from '../helpers/types';
@@ -36,6 +38,7 @@ import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import SensorsRoundedIcon from '@mui/icons-material/SensorsRounded';
 import {
   DEFAULT_MODULE_STATUS,
   InstalledModules,
@@ -198,6 +201,13 @@ enum WorkflowModule {
 }
 
 export const DEFAULT_EXPERIMENT_POLL_INTERVAL_SECONDS = 5;
+const LIVE_METRICS_WINDOW_SECONDS = 300;
+
+const livePulse = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.55); }
+  70% { box-shadow: 0 0 0 6px rgba(46, 125, 50, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0); }
+`;
 
 const MODULE_DETAILS: Record<
   WorkflowModule,
@@ -248,6 +258,8 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
 
   const [automaticRefresh, setAutomaticRefresh] =
     React.useState<boolean>(false);
+  const [liveMetricsEnabled, setLiveMetricsEnabled] =
+    React.useState<boolean>(true);
   const [refreshIntervalS, setRefreshIntervalS] = React.useState<number>(
     DEFAULT_EXPERIMENT_POLL_INTERVAL_SECONDS
   );
@@ -290,7 +302,11 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
 
   async function fetchMetrics() {
     const version = ++requestVersion.current;
-    if (!panel || !selectedWorkflow || !selectedExperiment) {
+    const useLiveMetrics = liveMetricsEnabled && !selectedExperiment;
+    if (
+      !useLiveMetrics &&
+      (!panel || !selectedWorkflow || !selectedExperiment)
+    ) {
       setRun(null);
       setDataMap(new Map());
       setMetrics([]);
@@ -299,14 +315,6 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
     }
     setLoading(true);
     try {
-      const result = await getExperiment(
-        experimentPath(panel, selectedWorkflow, selectedExperiment)
-      );
-      if (version !== requestVersion.current) {
-        return;
-      }
-      showRun(result);
-
       const baseUrl = ServerConnection.makeSettings().baseUrl.replace(
         /\/?$/,
         '/'
@@ -315,6 +323,31 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
         `${baseUrl}proxy/9090`,
         window.location.origin
       ).toString();
+      if (useLiveMetrics) {
+        const endTime = Date.now() / 1000;
+        const prometheusMetrics = await getScaphData({
+          url: prometheusUrl.replace(/\/$/, ''),
+          startTime: endTime - LIVE_METRICS_WINDOW_SECONDS,
+          endTime
+        });
+        if (version !== requestVersion.current) {
+          return;
+        }
+        setRun(null);
+        setDataMap(prometheusMetrics);
+        setMetrics(Array.from(prometheusMetrics.keys()));
+        setRunError('');
+        return;
+      }
+
+      const result = await getExperiment(
+        experimentPath(panel!, selectedWorkflow!, selectedExperiment!)
+      );
+      if (version !== requestVersion.current) {
+        return;
+      }
+      showRun(result);
+
       const prometheusMetrics = await getScaphData({
         url: prometheusUrl.replace(/\/$/, ''),
         startTime: Date.parse(result.start_time) / 1000,
@@ -406,7 +439,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
       if (currentWorkflow && newWorkflowList.includes(currentWorkflow)) {
         return currentWorkflow;
       }
-      return newWorkflowList[0] ?? null;
+      return null;
     });
   }
 
@@ -429,7 +462,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
         ) {
           return currentExperiment;
         }
-        return newExperimentList[0] ?? null;
+        return null;
       });
     } else {
       setExperimentList([]);
@@ -554,7 +587,10 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
     let timer: number | undefined;
     async function refresh() {
       await fetchMetrics();
-      if (!cancelled && automaticRefresh) {
+      const shouldRefresh = selectedExperiment
+        ? automaticRefresh
+        : liveMetricsEnabled;
+      if (!cancelled && shouldRefresh) {
         timer = window.setTimeout(
           refresh,
           Math.max(1, refreshIntervalS) * 1000
@@ -571,6 +607,7 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
     };
   }, [
     automaticRefresh,
+    liveMetricsEnabled,
     refreshIntervalS,
     selectedWorkflow,
     selectedExperiment,
@@ -621,11 +658,14 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
   const selectedContextFullLabel =
     selectedWorkflow && selectedExperiment
       ? `${selectedWorkflow} / ${selectedExperiment}`
-      : 'No experiment selected';
+      : liveMetricsEnabled
+        ? 'Live metrics'
+        : 'No experiment selected';
   const selectedContextLabel =
     selectedWorkflow && selectedExperiment
       ? `${selectedWorkflow} / ${shortExperimentId(selectedExperiment)}`
       : selectedContextFullLabel;
+  const showingLiveMetrics = liveMetricsEnabled && !selectedExperiment;
   const experimentStatus: IExperiment['status'] | 'starting' | undefined =
     startingRun ? 'starting' : run?.status;
   const experimentStatusColor = experimentStatus
@@ -717,16 +757,50 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
             <Tooltip title={selectedContextFullLabel} arrow>
               <Chip
                 label={selectedContextLabel}
+                icon={
+                  showingLiveMetrics ? (
+                    <Box
+                      component="span"
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: 'success.main',
+                        animation: `${livePulse} 1.8s ease-out infinite`
+                      }}
+                    />
+                  ) : undefined
+                }
                 size="small"
                 color={
-                  selectedWorkflow && selectedExperiment ? 'primary' : 'default'
+                  selectedWorkflow && selectedExperiment
+                    ? 'primary'
+                    : showingLiveMetrics
+                      ? 'success'
+                      : 'default'
                 }
                 variant={
-                  selectedWorkflow && selectedExperiment ? 'filled' : 'outlined'
+                  (selectedWorkflow && selectedExperiment) || showingLiveMetrics
+                    ? 'filled'
+                    : 'outlined'
                 }
                 sx={styles.contextChip}
               />
             </Tooltip>
+
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<SensorsRoundedIcon />}
+              disabled={!liveMetricsEnabled || !selectedExperiment}
+              onClick={() => {
+                setSelectedWorkflow(null);
+                setSelectedExperiment(null);
+              }}
+              sx={{ flexShrink: 0 }}
+            >
+              Use live metrics
+            </Button>
 
             <FormControl size="small" sx={styles.contextSelect}>
               <InputLabel sx={{ background: '#fff' }}>Workflow ID</InputLabel>
@@ -843,8 +917,10 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                 </Box>
                 <FetchMetricsComponent
                   fetchMetrics={handleSetMetrics}
+                  liveMetricsEnabled={liveMetricsEnabled}
                   automaticRefresh={automaticRefresh}
                   refreshIntervalS={refreshIntervalS}
+                  setLiveMetricsEnabled={setLiveMetricsEnabled}
                   setAutomaticRefresh={setAutomaticRefresh}
                   setRefreshIntervalS={setRefreshIntervalS}
                   handleInstallMetrics={handleInstallMetrics}
@@ -882,8 +958,10 @@ export default function WelcomePage({ username, panel }: IWelcomePage) {
                       <Grid2 sx={{ ...styles.topRibbon, mt: 2 }}>
                         <FetchMetricsComponent
                           fetchMetrics={handleSetMetrics}
+                          liveMetricsEnabled={liveMetricsEnabled}
                           automaticRefresh={automaticRefresh}
                           refreshIntervalS={refreshIntervalS}
+                          setLiveMetricsEnabled={setLiveMetricsEnabled}
                           setAutomaticRefresh={setAutomaticRefresh}
                           setRefreshIntervalS={setRefreshIntervalS}
                           handleInstallMetrics={handleInstallMetrics}
