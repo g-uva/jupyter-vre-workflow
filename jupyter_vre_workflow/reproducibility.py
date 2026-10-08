@@ -59,6 +59,31 @@ CIM_STANDARDS = [
     },
 ]
 
+CIM_METADATA_PROFILES = [
+    {
+        "key": "default",
+        "label": "Default experiment metadata",
+        "description": (
+            "Detailed experiment provenance with metric counts, units and value ranges."
+        ),
+        "experiment_term": "schema:Dataset",
+        "metric_term": "sosa:Observation",
+        "metric_summary_name": "JuVRE metric summary",
+        "include_metric_extrema": True,
+    },
+    {
+        "key": "compact-energy",
+        "label": "Compact energy metadata",
+        "description": (
+            "A mock alternative that emits a compact metric inventory and energy-oriented mappings."
+        ),
+        "experiment_term": "schema:CreativeWork",
+        "metric_term": "schema:PropertyValue",
+        "metric_summary_name": "JuVRE energy metric inventory",
+        "include_metric_extrema": False,
+    },
+]
+
 
 def demo_cim_response():
     """Return the contract exposed by the in-cluster CIM demonstration service."""
@@ -70,6 +95,8 @@ def demo_cim_response():
         "identity_note": "Simulated EGI Check-in identity; no real account was verified.",
         "standards": CIM_STANDARDS,
         "default_standard": "greendigit-commons",
+        "metadata_profiles": CIM_METADATA_PROFILES,
+        "default_metadata_profile": "default",
     }
 
 
@@ -148,6 +175,8 @@ class CimDemoClient:
         if not data["authenticated"]:
             raise RuntimeError("Demo authentication was not accepted")
         result = dict(data)
+        result.setdefault("metadata_profiles", CIM_METADATA_PROFILES)
+        result.setdefault("default_metadata_profile", "default")
         result["endpoint"] = self.endpoint or "embedded://demo-cim"
         result["connected"] = True
         return result
@@ -173,8 +202,9 @@ class ReproducibilityManager:
     @staticmethod
     def _default_state():
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "standard_key": None,
+            "metadata_profile_key": "default",
             "mapping": {
                 "experiment_term": "schema:Dataset",
                 "metric_term": "sosa:Observation",
@@ -193,14 +223,26 @@ class ReproducibilityManager:
         state = self._default_state()
         default_mapping = dict(state["mapping"])
         state.update(saved)
+        state["schema_version"] = 2
         default_mapping.update(saved.get("mapping", {}))
         state["mapping"] = default_mapping
+        if state.get("standard_key"):
+            state["configuration_revision"] = self._revision(
+                state["standard_key"],
+                state["mapping"],
+                state["metadata_profile_key"],
+            )
         return state
 
     @staticmethod
-    def _revision(standard_key, mapping):
+    def _revision(standard_key, mapping, metadata_profile_key):
         source = json.dumps(
-            {"standard_key": standard_key, "mapping": mapping}, sort_keys=True
+            {
+                "standard_key": standard_key,
+                "metadata_profile_key": metadata_profile_key,
+                "mapping": mapping,
+            },
+            sort_keys=True,
         ).encode()
         return hashlib.sha256(source).hexdigest()[:16]
 
@@ -230,14 +272,24 @@ class ReproducibilityManager:
             None,
         )
         state["standard"] = standard
+        metadata_profile = next(
+            (
+                item
+                for item in CIM_METADATA_PROFILES
+                if item["key"] == state["metadata_profile_key"]
+            ),
+            None,
+        )
+        state["metadata_profile"] = metadata_profile
         state["preview"] = {
             "experiment_id": run.get("id"),
             "workflow_id": run.get("workflow_id"),
             "run_status": run.get("status"),
             "run_type": state["mapping"]["experiment_term"],
+            "metadata_profile": metadata_profile["label"] if metadata_profile else None,
             "metrics": metrics,
         }
-        state["configured"] = standard is not None
+        state["configured"] = standard is not None and metadata_profile is not None
         state["fdmi_target"] = self.fdmi_client.describe()
         state["crate_current"] = bool(
             state.get("crate")
@@ -246,7 +298,9 @@ class ReproducibilityManager:
         )
         return state
 
-    def configure(self, relative, standard_key, mapping):
+    def configure(
+        self, relative, standard_key, mapping, metadata_profile_key=None
+    ):
         folder = self.resolve_experiment(relative)
         if standard_key not in {item["key"] for item in CIM_STANDARDS}:
             raise ValueError("Unsupported CIM standard")
@@ -256,16 +310,31 @@ class ReproducibilityManager:
         if set(mapping) - allowed:
             raise ValueError("Only the preview experiment and metric terms are editable")
         previous = self._load(folder)
+        profile_key = metadata_profile_key or previous["metadata_profile_key"]
+        profile = next(
+            (item for item in CIM_METADATA_PROFILES if item["key"] == profile_key),
+            None,
+        )
+        if profile is None:
+            raise ValueError("Unsupported CIM metadata profile")
         merged = dict(previous["mapping"])
+        if metadata_profile_key and metadata_profile_key != previous["metadata_profile_key"]:
+            merged.update(
+                {
+                    "experiment_term": profile["experiment_term"],
+                    "metric_term": profile["metric_term"],
+                }
+            )
         for key, value in mapping.items():
             if not isinstance(value, str) or not value.strip() or len(value) > 120:
                 raise ValueError(f"Invalid mapping value for {key}")
             merged[key] = value.strip()
-        revision = self._revision(standard_key, merged)
+        revision = self._revision(standard_key, merged, profile_key)
         changed = revision != previous.get("configuration_revision")
         previous.update(
             {
                 "standard_key": standard_key,
+                "metadata_profile_key": profile_key,
                 "mapping": merged,
                 "configuration_revision": revision,
             }
@@ -300,6 +369,7 @@ class ReproducibilityManager:
             "experiment_id": run.get("id"),
             "workflow_id": run.get("workflow_id"),
             "standard_key": state.get("standard_key"),
+            "metadata_profile_key": state.get("metadata_profile_key"),
             "artifact_name": crate_path.name,
             "artifact_sha256": artifact_sha256,
             "idempotency_key": hashlib.sha256(
@@ -350,8 +420,20 @@ class ReproducibilityManager:
             (item for item in CIM_STANDARDS if item["key"] == state["standard_key"]),
             None,
         )
-        if standard is None or not state.get("configuration_revision"):
-            raise ValueError("Configure a supported CIM standard first")
+        metadata_profile = next(
+            (
+                item
+                for item in CIM_METADATA_PROFILES
+                if item["key"] == state["metadata_profile_key"]
+            ),
+            None,
+        )
+        if (
+            standard is None
+            or metadata_profile is None
+            or not state.get("configuration_revision")
+        ):
+            raise ValueError("Configure a supported CIM standard and metadata profile first")
         run = json.loads((folder / "run.json").read_text())
         artifacts = run.get("artifacts", {})
         names = {
@@ -388,7 +470,7 @@ class ReproducibilityManager:
                     "units": sorted(item["units"]),
                     "mapped_type": state["mapping"]["metric_term"],
                 }
-                if item["values"]:
+                if item["values"] and metadata_profile["include_metric_extrema"]:
                     summary["minimum"] = min(item["values"])
                     summary["maximum"] = max(item["values"])
                 metric_summaries.append(summary)
@@ -396,6 +478,7 @@ class ReproducibilityManager:
         generated = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         crate_name = "ro-crate-metadata.json"
         standard_id = f"#standard-{standard['key']}"
+        profile_id = f"#metadata-profile-{metadata_profile['key']}"
         action_id = f"#run-{run['id']}"
         graph = [
             {
@@ -410,11 +493,16 @@ class ReproducibilityManager:
                 "name": f"JuVRE experiment {run.get('workflow_id')} / {run.get('id')}",
                 "datePublished": generated,
                 "hasPart": [{"@id": value} for value in names.values()],
-                "mentions": [{"@id": action_id}, {"@id": standard_id}],
+                "mentions": [
+                    {"@id": action_id},
+                    {"@id": standard_id},
+                    {"@id": profile_id},
+                ],
+                "additionalType": state["mapping"]["experiment_term"],
                 "additionalProperty": [
                     {
                         "@type": "PropertyValue",
-                        "name": "JuVRE metric summary",
+                        "name": metadata_profile["metric_summary_name"],
                         "value": metric_summaries,
                     },
                     {
@@ -444,6 +532,17 @@ class ReproducibilityManager:
                 "usageInfo": standard["compliance"],
             },
             {
+                "@id": profile_id,
+                "@type": "CreativeWork",
+                "name": metadata_profile["label"],
+                "description": metadata_profile["description"],
+                "additionalProperty": {
+                    "@type": "PropertyValue",
+                    "name": "CIM metadata profile key",
+                    "value": metadata_profile["key"],
+                },
+            },
+            {
                 "@id": names["input"],
                 "@type": ["File", "SoftwareSourceCode"],
                 "name": "Input notebook snapshot",
@@ -460,6 +559,7 @@ class ReproducibilityManager:
                 "@type": "File",
                 "name": "Experiment metrics",
                 "encodingFormat": "text/csv",
+                "additionalType": state["mapping"]["metric_term"],
             },
         ]
         crate = {
@@ -476,6 +576,7 @@ class ReproducibilityManager:
             "path": str(crate_path.relative_to(self.root)),
             "generated_at": generated,
             "configuration_revision": state["configuration_revision"],
+            "metadata_profile_key": state["metadata_profile_key"],
             "generation": previous_generation + 1,
         }
         if state.get("publication"):

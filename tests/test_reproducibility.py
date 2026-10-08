@@ -18,7 +18,9 @@ class CimDemoTests(unittest.TestCase):
         self.assertEqual(response["identity"], "gd-super-user")
         self.assertIn("Simulated", response["identity_note"])
         self.assertEqual(response["default_standard"], "greendigit-commons")
+        self.assertEqual(response["default_metadata_profile"], "default")
         self.assertEqual(len(response["standards"]), 5)
+        self.assertEqual(len(response["metadata_profiles"]), 2)
         self.assertIn("not an authoritative", response["standards"][0]["compliance"])
 
     def test_invalid_or_failed_service_is_not_connected(self):
@@ -90,6 +92,58 @@ class ReproducibilityStateTests(unittest.TestCase):
         self.assertIn("executed.ipynb", graph)
         self.assertEqual(graph["#run-run-1"]["actionStatus"], "succeeded")
         self.assertEqual(graph["#standard-greendigit-commons"]["name"], "GreenDIGIT Commons")
+        self.assertEqual(
+            graph["#metadata-profile-default"]["name"],
+            "Default experiment metadata",
+        )
+        self.assertEqual(
+            graph["metrics.csv"]["additionalType"], "sosa:Observation"
+        )
+
+    def test_cim_metadata_profiles_produce_different_ro_crates(self):
+        self.manager.configure(self.relative, "greendigit-commons", {})
+        self.manager.mark_cim_connected(
+            self.relative,
+            {"endpoint": "embedded://demo-cim", "identity": "gd-super-user"},
+        )
+        default_state = self.manager.generate_crate(self.relative)
+        default_crate = json.loads(
+            (self.folder / "ro-crate-metadata.json").read_text()
+        )
+
+        configured = self.manager.configure(
+            self.relative,
+            "greendigit-commons",
+            {},
+            "compact-energy",
+        )
+        self.assertFalse(configured["crate_current"])
+        self.assertEqual(
+            configured["mapping"]["metric_term"], "schema:PropertyValue"
+        )
+        compact_state = self.manager.generate_crate(self.relative)
+        compact_crate = json.loads(
+            (self.folder / "ro-crate-metadata.json").read_text()
+        )
+
+        self.assertNotEqual(default_crate, compact_crate)
+        self.assertEqual(
+            compact_state["crate"]["metadata_profile_key"], "compact-energy"
+        )
+        self.assertNotEqual(
+            default_state["configuration_revision"],
+            compact_state["configuration_revision"],
+        )
+        graph = {item["@id"]: item for item in compact_crate["@graph"]}
+        self.assertEqual(
+            graph["metrics.csv"]["additionalType"], "schema:PropertyValue"
+        )
+        summary = next(
+            item
+            for item in graph["./"]["additionalProperty"]
+            if item["name"] == "JuVRE energy metric inventory"
+        )
+        self.assertNotIn("minimum", summary["value"][0])
 
     def test_mapping_change_invalidates_generated_crate(self):
         self.manager.configure(self.relative, "greendigit-commons", {})

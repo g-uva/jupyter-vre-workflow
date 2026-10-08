@@ -276,7 +276,10 @@ class ReproducibilityConfigHandler(APIHandler):
         body = self.get_json_body() or {}
         try:
             result = self.manager.configure(
-                body.get("path"), body.get("standard_key"), body.get("mapping", {})
+                body.get("path"),
+                body.get("standard_key"),
+                body.get("mapping", {}),
+                body.get("metadata_profile_key"),
             )
         except (ValueError, OSError, json.JSONDecodeError) as error:
             raise web.HTTPError(400, reason=str(error)) from error

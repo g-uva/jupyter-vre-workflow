@@ -9,6 +9,16 @@ export interface ICimStandard {
   compliance: string;
 }
 
+export interface ICimMetadataProfile {
+  key: string;
+  label: string;
+  description: string;
+  experiment_term: string;
+  metric_term: string;
+  metric_summary_name: string;
+  include_metric_extrema: boolean;
+}
+
 export interface ICimConnection {
   connected: boolean;
   endpoint: string;
@@ -19,11 +29,15 @@ export interface ICimConnection {
   identity_note: string;
   standards: ICimStandard[];
   default_standard: string;
+  metadata_profiles: ICimMetadataProfile[];
+  default_metadata_profile: string;
 }
 
 export interface IReproducibilityState {
   standard_key: string | null;
   standard: ICimStandard | null;
+  metadata_profile_key: string;
+  metadata_profile: ICimMetadataProfile | null;
   mapping: { experiment_term: string; metric_term: string };
   configuration_revision: string | null;
   configured: boolean;
@@ -39,6 +53,7 @@ export interface IReproducibilityState {
     path: string;
     generated_at: string;
     configuration_revision: string;
+    metadata_profile_key: string;
     generation: number;
   } | null;
   fdmi_target: {
@@ -60,6 +75,7 @@ export interface IReproducibilityState {
     workflow_id: string;
     run_status: string;
     run_type: string;
+    metadata_profile: string | null;
     metrics: { source: string; unit: string; mapped_type: string }[];
   };
 }
@@ -141,7 +157,8 @@ export function getReproducibilityState(
 export function configureReproducibility(
   experimentPath: string,
   standardKey: string,
-  mapping: Partial<IReproducibilityState['mapping']> = {}
+  mapping: Partial<IReproducibilityState['mapping']> = {},
+  metadataProfileKey?: string
 ): Promise<IReproducibilityState> {
   return request<IReproducibilityState>('reproducibility/config', {
     method: 'PUT',
@@ -149,6 +166,7 @@ export function configureReproducibility(
     body: JSON.stringify({
       path: experimentPath,
       standard_key: standardKey,
+      metadata_profile_key: metadataProfileKey,
       mapping
     })
   });

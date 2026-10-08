@@ -31,6 +31,7 @@ import {
   generateRoCrate,
   getReproducibilityState,
   ICimConnection,
+  ICimMetadataProfile,
   ICimStandard,
   IReproducibilityState,
   publishToFdmi
@@ -81,6 +82,8 @@ export default function ReproducibilityPanel({
   const [connectionStep, setConnectionStep] = React.useState(-1);
   const [connectionError, setConnectionError] = React.useState('');
   const [selectedStandardKey, setSelectedStandardKey] = React.useState('');
+  const [selectedMetadataProfileKey, setSelectedMetadataProfileKey] =
+    React.useState('default');
   const [state, setState] = React.useState<IReproducibilityState | null>(null);
   const [draftMapping, setDraftMapping] = React.useState({
     experiment_term: 'schema:Dataset',
@@ -96,6 +99,10 @@ export default function ReproducibilityPanel({
   const standard: ICimStandard | undefined = connection?.standards.find(
     item => item.key === selectedStandardKey
   );
+  const metadataProfile: ICimMetadataProfile | undefined =
+    connection?.metadata_profiles.find(
+      item => item.key === selectedMetadataProfileKey
+    );
   const contextLabel =
     selectedWorkflow && selectedExperiment
       ? `${selectedWorkflow} / ${selectedExperiment}`
@@ -118,6 +125,7 @@ export default function ReproducibilityPanel({
           if (result.standard_key) {
             setSelectedStandardKey(result.standard_key);
           }
+          setSelectedMetadataProfileKey(result.metadata_profile_key);
         }
       })
       .catch(error => {
@@ -134,7 +142,8 @@ export default function ReproducibilityPanel({
 
   async function saveConfiguration(
     standardKey: string,
-    mapping: Partial<IReproducibilityState['mapping']> = {}
+    mapping: Partial<IReproducibilityState['mapping']> = {},
+    metadataProfileKey = selectedMetadataProfileKey
   ) {
     if (!experimentPath) {
       return;
@@ -145,7 +154,8 @@ export default function ReproducibilityPanel({
       const result = await configureReproducibility(
         experimentPath,
         standardKey,
-        mapping
+        mapping,
+        metadataProfileKey
       );
       setState(result);
       setDraftMapping(result.mapping);
@@ -163,6 +173,11 @@ export default function ReproducibilityPanel({
     await saveConfiguration(key);
   }
 
+  async function handleMetadataProfileChange(key: string) {
+    setSelectedMetadataProfileKey(key);
+    await saveConfiguration(selectedStandardKey, {}, key);
+  }
+
   async function handleConnect() {
     setConnecting(true);
     setConnection(null);
@@ -177,9 +192,12 @@ export default function ReproducibilityPanel({
       const result = await request;
       setConnection(result);
       const selected = state?.standard_key ?? result.default_standard;
+      const selectedProfile =
+        state?.metadata_profile_key ?? result.default_metadata_profile;
       setSelectedStandardKey(selected);
+      setSelectedMetadataProfileKey(selectedProfile);
       if (experimentPath && !state?.configured) {
-        await saveConfiguration(selected);
+        await saveConfiguration(selected, {}, selectedProfile);
       }
     } catch (error) {
       setConnectionError(
@@ -348,6 +366,23 @@ export default function ReproducibilityPanel({
                     ))}
                   </Select>
                 </FormControl>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Metadata profile</InputLabel>
+                  <Select
+                    label="Metadata profile"
+                    value={selectedMetadataProfileKey}
+                    onChange={event =>
+                      handleMetadataProfileChange(event.target.value)
+                    }
+                    disabled={!experimentPath || savingMapping}
+                  >
+                    {connection.metadata_profiles.map(item => (
+                      <MenuItem key={item.key} value={item.key}>
+                        {item.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
                 {!experimentPath && (
                   <FormHelperText>
                     Select a tracked experiment to save the standard.
@@ -371,6 +406,14 @@ export default function ReproducibilityPanel({
               {standard.version}.
             </Typography>
             <Typography variant="caption">{standard.compliance}</Typography>
+          </Alert>
+        )}
+        {metadataProfile && (
+          <Alert severity="info" sx={{ mt: 1.5 }} icon={false}>
+            <Typography variant="subtitle2">{metadataProfile.label}</Typography>
+            <Typography variant="body2">
+              {metadataProfile.description}
+            </Typography>
           </Alert>
         )}
       </WorkflowCard>
@@ -422,6 +465,9 @@ export default function ReproducibilityPanel({
               </Typography>
               <Typography variant="body2">
                 Experiment → {state.preview.run_type}
+              </Typography>
+              <Typography variant="body2">
+                Metadata profile → {state.preview.metadata_profile}
               </Typography>
               {state.preview.metrics.length ? (
                 state.preview.metrics.map(metric => (

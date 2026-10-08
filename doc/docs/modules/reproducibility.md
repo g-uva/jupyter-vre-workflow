@@ -43,7 +43,8 @@ juvre/
   receipt.
 - `ro-crate-metadata.json`: a replace-in-place RO-Crate 1.1 JSON-LD descriptor
   referencing the input notebook, executed notebook and raw metrics. It also
-  records the run action, status, metric summary, chosen standard and mapping.
+  records the run action, status, metric summary, chosen standard, CIM mapping
+  and metadata profile.
 
 UUID suffixes prevent collisions between runs started at the same time. The source notebook's outputs are not replaced with the background run's outputs: open `executed.ipynb` to inspect them. External datasets and files written by notebook code remain in the original working directory; they are not automatically copied into the artifact bundle.
 
@@ -69,10 +70,14 @@ Use an environment where the notebook's kernelspec and dependencies are availabl
 
 ## Publishing
 
-The Autumn School workflow uses internal CIM and FDMI demonstration services. Connect to
-CIM, configure a standard and mapping, generate the RO-Crate, then submit it to
-the FDMI target. Submission is unavailable while the crate is absent or
-stale. A standard or mapping change invalidates it; regeneration also marks an
+The Autumn School workflow uses internal CIM and FDMI demonstration services.
+Connect to CIM, configure a standard, metadata profile and mapping, generate
+the RO-Crate, then submit it to the FDMI target. The default metadata profile
+includes metric counts, units and value ranges. The compact energy profile is
+a mock alternative with energy-oriented types and a smaller metric inventory.
+Both profiles write `ro-crate-metadata.json` inside the selected experiment
+directory. Submission is unavailable while the crate is absent or stale. A
+standard, profile or mapping change invalidates it; regeneration also marks an
 earlier receipt stale. Identical submissions are idempotent.
 
 GreenDIGIT Commons is demonstration guidance rather than an authoritative
