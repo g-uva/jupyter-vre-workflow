@@ -30,6 +30,7 @@ import {
   configureReproducibility,
   generateRoCrate,
   getReproducibilityState,
+  ICloudConfiguration,
   ICimConnection,
   ICimMetadataProfile,
   ICimStandard,
@@ -89,6 +90,14 @@ export default function ReproducibilityPanel({
     experiment_term: 'schema:Dataset',
     metric_term: 'sosa:Observation'
   });
+  const [cloudConfiguration, setCloudConfiguration] =
+    React.useState<ICloudConfiguration>({
+      group: 'greendigit',
+      site_name: '',
+      cloud_type: '',
+      cloud_compute_service: '',
+      owner: ''
+    });
   const [savingMapping, setSavingMapping] = React.useState(false);
   const [configurationError, setConfigurationError] = React.useState('');
   const [generating, setGenerating] = React.useState(false);
@@ -122,6 +131,7 @@ export default function ReproducibilityPanel({
         if (active) {
           setState(result);
           setDraftMapping(result.mapping);
+          setCloudConfiguration(result.cloud_configuration);
           if (result.standard_key) {
             setSelectedStandardKey(result.standard_key);
           }
@@ -143,7 +153,8 @@ export default function ReproducibilityPanel({
   async function saveConfiguration(
     standardKey: string,
     mapping: Partial<IReproducibilityState['mapping']> = {},
-    metadataProfileKey = selectedMetadataProfileKey
+    metadataProfileKey = selectedMetadataProfileKey,
+    cloud = cloudConfiguration
   ) {
     if (!experimentPath) {
       return;
@@ -155,10 +166,12 @@ export default function ReproducibilityPanel({
         experimentPath,
         standardKey,
         mapping,
-        metadataProfileKey
+        metadataProfileKey,
+        cloud
       );
       setState(result);
       setDraftMapping(result.mapping);
+      setCloudConfiguration(result.cloud_configuration);
     } catch (error) {
       setConfigurationError(
         error instanceof Error ? error.message : String(error)
@@ -197,7 +210,12 @@ export default function ReproducibilityPanel({
       setSelectedStandardKey(selected);
       setSelectedMetadataProfileKey(selectedProfile);
       if (experimentPath && !state?.configured) {
-        await saveConfiguration(selected, {}, selectedProfile);
+        await saveConfiguration(
+          selected,
+          {},
+          selectedProfile,
+          cloudConfiguration
+        );
       }
     } catch (error) {
       setConnectionError(
@@ -414,6 +432,10 @@ export default function ReproducibilityPanel({
             <Typography variant="body2">
               {metadataProfile.description}
             </Typography>
+            <Typography variant="caption">
+              Local CIM profile: {metadataProfile.ri_type} · version{' '}
+              {metadataProfile.profile_version}
+            </Typography>
           </Alert>
         )}
       </WorkflowCard>
@@ -425,38 +447,46 @@ export default function ReproducibilityPanel({
               Configured for <strong>{state.standard?.label}</strong>. This is a
               demonstrative mapping preview, not a compliance validation.
             </Alert>
-            <Stack direction={{ xs: 'column', md: 'row' }} gap={1.5}>
-              <TextField
-                size="small"
-                label="Experiment type"
-                value={draftMapping.experiment_term}
-                onChange={event =>
-                  setDraftMapping(value => ({
-                    ...value,
-                    experiment_term: event.target.value
-                  }))
-                }
-                helperText="Safe example field"
-              />
-              <TextField
-                size="small"
-                label="Metric observation type"
-                value={draftMapping.metric_term}
-                onChange={event =>
-                  setDraftMapping(value => ({
-                    ...value,
-                    metric_term: event.target.value
-                  }))
-                }
-                helperText="Safe example field"
-              />
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              gap={1.5}
+              flexWrap="wrap"
+            >
+              {(
+                [
+                  ['group', 'Authorised group'],
+                  ['site_name', 'Site name'],
+                  ['cloud_type', 'Cloud type'],
+                  ['cloud_compute_service', 'Cloud compute service'],
+                  ['owner', 'VO / workload owner']
+                ] as [keyof ICloudConfiguration, string][]
+              ).map(([key, label]) => (
+                <TextField
+                  key={key}
+                  size="small"
+                  label={label}
+                  value={cloudConfiguration[key]}
+                  onChange={event =>
+                    setCloudConfiguration(value => ({
+                      ...value,
+                      [key]: event.target.value
+                    }))
+                  }
+                  sx={{ flex: '1 1 210px' }}
+                />
+              ))}
               <Button
                 onClick={() =>
-                  saveConfiguration(selectedStandardKey, draftMapping)
+                  saveConfiguration(
+                    selectedStandardKey,
+                    draftMapping,
+                    selectedMetadataProfileKey,
+                    cloudConfiguration
+                  )
                 }
                 disabled={savingMapping}
               >
-                {savingMapping ? 'Saving…' : 'Save mapping edits'}
+                {savingMapping ? 'Saving…' : 'Apply Cloud configuration'}
               </Button>
             </Stack>
             <Paper variant="outlined" sx={{ p: 1.5, background: '#f8fafc' }}>
@@ -481,13 +511,41 @@ export default function ReproducibilityPanel({
                 </Typography>
               )}
             </Paper>
-            <TextField
-              disabled
-              fullWidth
-              size="small"
-              label="Advanced mapping editor (planned)"
-              value="Broader vocabulary and configuration controls require the later mapping backend."
-            />
+            {connection?.cloud_profile && (
+              <Paper variant="outlined" sx={{ p: 1.5 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Cloud field registry ·{' '}
+                  {connection.cloud_profile.registry_version}
+                </Typography>
+                <Stack gap={1}>
+                  {connection.cloud_profile.field_registry.map(field => (
+                    <Box key={field.eimps_target}>
+                      <Typography variant="body2" fontWeight={700}>
+                        {field.eimps_target}
+                        {field.required ? ' · required' : ' · optional'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {field.source} → {field.value_type}
+                        {field.canonical_unit
+                          ? ` (${field.canonical_unit})`
+                          : ''}{' '}
+                        · {field.transformation} ·{' '}
+                        {field.standards_mapping.status}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        display="block"
+                      >
+                        {field.definition} Boundary:{' '}
+                        {field.measurement_boundary}. Provenance:{' '}
+                        {field.provenance_requirements}.
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              </Paper>
+            )}
           </Stack>
         ) : (
           <Stack direction="row" gap={1} alignItems="center">
@@ -540,24 +598,49 @@ export default function ReproducibilityPanel({
           >
             <Typography variant="body2" fontWeight={700}>
               {state.crate_current
-                ? 'RO-Crate metadata is up to date'
+                ? state.crate.eimps_ready
+                  ? 'EIMPS-ready RO-Crate metadata is up to date'
+                  : 'Draft RO-Crate metadata is up to date'
                 : 'RO-Crate metadata is stale — regenerate before publishing'}
             </Typography>
+            {state.crate.missing_required_fields?.length ? (
+              <Typography variant="body2" color="warning.dark">
+                Missing: {state.crate.missing_required_fields.join(', ')}
+              </Typography>
+            ) : null}
+            {state.crate.quality_flags?.length ? (
+              <Typography variant="body2" color="warning.dark">
+                Quality: {state.crate.quality_flags.join(', ')}
+              </Typography>
+            ) : null}
             <Typography variant="caption" display="block">
               {state.crate.name} · {state.crate.path} · generated{' '}
               {new Date(state.crate.generated_at).toLocaleString()} · generation{' '}
               {state.crate.generation}
             </Typography>
-            <Button
-              size="small"
-              component="a"
-              href={artifactUrl(state.crate.path)}
-              target="_blank"
-              rel="noreferrer"
-              sx={{ mt: 0.5 }}
-            >
-              Inspect or download artefact
-            </Button>
+            <Stack direction="row" gap={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
+              {[
+                [
+                  'RO-Crate',
+                  state.crate.artifacts?.ro_crate ?? state.crate.path
+                ],
+                ['EIMPS Cloud', state.crate.artifacts?.eimps_cloud],
+                ['CIM record', state.crate.artifacts?.cim_record]
+              ]
+                .filter((entry): entry is [string, string] => Boolean(entry[1]))
+                .map(([label, path]) => (
+                  <Button
+                    key={label}
+                    size="small"
+                    component="a"
+                    href={artifactUrl(path)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Download {label}
+                  </Button>
+                ))}
+            </Stack>
           </Alert>
         )}
       </WorkflowCard>

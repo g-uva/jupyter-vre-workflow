@@ -17,6 +17,29 @@ export interface ICimMetadataProfile {
   metric_term: string;
   metric_summary_name: string;
   include_metric_extrema: boolean;
+  ri_type: 'cloud';
+  profile_version: string;
+}
+
+export interface ICloudFieldMapping {
+  source: string;
+  eimps_target: string;
+  definition: string;
+  canonical_unit: string | null;
+  value_type: string;
+  required: boolean;
+  transformation: string;
+  measurement_boundary: string;
+  provenance_requirements: string;
+  standards_mapping: { reference: string; status: string };
+}
+
+export interface ICloudConfiguration {
+  group: string;
+  site_name: string;
+  cloud_type: string;
+  cloud_compute_service: string;
+  owner: string;
 }
 
 export interface ICimConnection {
@@ -31,6 +54,11 @@ export interface ICimConnection {
   default_standard: string;
   metadata_profiles: ICimMetadataProfile[];
   default_metadata_profile: string;
+  cloud_profile: {
+    ri_type: 'cloud';
+    registry_version: string;
+    field_registry: ICloudFieldMapping[];
+  };
 }
 
 export interface IReproducibilityState {
@@ -38,6 +66,7 @@ export interface IReproducibilityState {
   standard: ICimStandard | null;
   metadata_profile_key: string;
   metadata_profile: ICimMetadataProfile | null;
+  cloud_configuration: ICloudConfiguration;
   mapping: { experiment_term: string; metric_term: string };
   configuration_revision: string | null;
   configured: boolean;
@@ -54,7 +83,16 @@ export interface IReproducibilityState {
     generated_at: string;
     configuration_revision: string;
     metadata_profile_key: string;
+    source_revision: string;
     generation: number;
+    eimps_ready?: boolean;
+    missing_required_fields?: string[];
+    quality_flags?: string[];
+    artifacts?: {
+      ro_crate: string;
+      eimps_cloud: string;
+      cim_record: string;
+    };
   } | null;
   fdmi_target: {
     mode: string;
@@ -158,7 +196,8 @@ export function configureReproducibility(
   experimentPath: string,
   standardKey: string,
   mapping: Partial<IReproducibilityState['mapping']> = {},
-  metadataProfileKey?: string
+  metadataProfileKey?: string,
+  cloudConfiguration?: ICloudConfiguration
 ): Promise<IReproducibilityState> {
   return request<IReproducibilityState>('reproducibility/config', {
     method: 'PUT',
@@ -167,6 +206,7 @@ export function configureReproducibility(
       path: experimentPath,
       standard_key: standardKey,
       metadata_profile_key: metadataProfileKey,
+      cloud_configuration: cloudConfiguration,
       mapping
     })
   });

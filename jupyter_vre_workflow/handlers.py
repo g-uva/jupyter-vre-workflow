@@ -280,6 +280,7 @@ class ReproducibilityConfigHandler(APIHandler):
                 body.get("standard_key"),
                 body.get("mapping", {}),
                 body.get("metadata_profile_key"),
+                body.get("cloud_configuration"),
             )
         except (ValueError, OSError, json.JSONDecodeError) as error:
             raise web.HTTPError(400, reason=str(error)) from error

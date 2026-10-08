@@ -31,6 +31,8 @@ juvre/
         metrics.csv
         run.json
         reproducibility.json
+        eimps-cloud.json
+        cim-record.json
         ro-crate-metadata.json
 ```
 
@@ -38,13 +40,18 @@ juvre/
 - `executed.ipynb`: executed cells, outputs, errors and cell timing metadata; checkpointed after each executed code cell and finalized when the run ends.
 - `metrics.csv`: long-form rows with `timestamp_utc,timestamp_unix,metric,labels,value,unit`. Raw RAPL counter values retain domain identifiers, and available Scaphandre/Prometheus series retain their labels. Derived energy and power have explicit units. Rows are flushed throughout execution rather than waiting for the run to finish.
 - `run.json`: schema version, source path, run ID, UTC timestamps, kernelspec, status, completed/total code-cell counts, input/output SHA-256 hashes, artifact names and telemetry status/summary.
-- `reproducibility.json`: per-experiment CIM selection, the two editable demo
-  mappings, configuration revision, generated artefact state and FDMI
+- `reproducibility.json`: per-experiment Cloud configuration, CIM profile,
+  configuration and source revisions, generated-artifact state, and mock FDMI
   receipt.
+- `eimps-cloud.json`: a local EIMPS Cloud-shaped object. It uses the WP6 field
+  names and types, includes the configured publication `group`, and never
+  invents `publisher_email` or unsupported optional values.
+- `cim-record.json`: the versioned harmonized record used to derive the EIMPS
+  object. It retains units, conversions, attribution boundary, source,
+  coverage, confidence, mapping status, missing reasons, and quality flags.
 - `ro-crate-metadata.json`: a replace-in-place RO-Crate 1.1 JSON-LD descriptor
-  referencing the input notebook, executed notebook and raw metrics. It also
-  records the run action, status, metric summary, chosen standard, CIM mapping
-  and metadata profile.
+  linking all six source and derived files to the notebook `CreateAction`, with
+  hashes, stable run ID, profile, and contextual standards reference.
 
 UUID suffixes prevent collisions between runs started at the same time. The source notebook's outputs are not replaced with the background run's outputs: open `executed.ipynb` to inspect them. External datasets and files written by notebook code remain in the original working directory; they are not automatically copied into the artifact bundle.
 
@@ -68,20 +75,45 @@ python -m jupyter_vre_workflow.experiments /path/to/notebook.ipynb
 
 Use an environment where the notebook's kernelspec and dependencies are available. Exit status is nonzero if notebook execution fails; inspect `telemetry.status` independently before using its measurements.
 
-## Publishing
+## Configure and export Cloud metadata
+
+Connect the mock CIM service, select a Cloud metadata profile, and explicitly
+configure the authorised publication group, registered site name, actual cloud
+type, compute-service identifier, and VO/workload owner. Applying a changed
+configuration regenerates all three JSON outputs when CIM is connected. A
+change to `run.json` or `metrics.csv` makes the outputs stale until regenerated.
+
+The embedded and Kubernetes CIM mocks expose the same versioned field registry.
+The selected local profile has `ri_type=cloud`, but `ri_type` is deliberately
+absent from `eimps-cloud.json`: downstream WP6 Cloud detection uses the actual
+Cloud fields. `ExecUnitID` is the stable run ID, timestamps remain UTC ISO 8601,
+`ExecUnitFinished` is integer 0 or 1, and wall time is the end-minus-start
+duration rounded to the nearest integer second with halves rounded up.
+
+`EnergyWh` is emitted only when `metrics.csv` provides evidence attributable to
+the selected run. Supported conversions are run-labelled `energy_j / 3600`, a
+run-labelled Scaphandre process counter delta from microjoules, or trapezoidal
+integration of run-labelled process power in microwatts. Host totals are not
+treated as notebook energy, and RAPL and Scaphandre values are never added
+together. `Work`, `Efficiency`, CPU and suspend durations, and the CPU
+normalization factor remain absent unless defined telemetry supplies them; wall
+time is not substituted for CPU time.
+
+Missing configuration, timestamps, or attributable energy still produces a
+local draft. The UI and `cim-record.json` list missing requirements and quality
+flags, while the output is marked not EIMPS-ready. Syntax validity, downstream
+Cloud compatibility, and endpoint acceptance are separate statuses.
+
+## Mock publishing
 
 The Autumn School workflow uses internal CIM and FDMI demonstration services.
-Connect to CIM, configure a standard, metadata profile and mapping, generate
-the RO-Crate, then submit it to the FDMI target. The default metadata profile
-includes metric counts, units and value ranges. The compact energy profile is
-a mock alternative with energy-oriented types and a smaller metric inventory.
-Both profiles write `ro-crate-metadata.json` inside the selected experiment
-directory. Submission is unavailable while the crate is absent or stale. A
-standard, profile or mapping change invalidates it; regeneration also marks an
-earlier receipt stale. Identical submissions are idempotent.
+The detailed and compact configurations are mock variants of the same Cloud
+profile and shared harmonized record. Submission is unavailable while the
+crate is absent or stale. Regeneration marks an earlier receipt stale, and
+identical mock submissions are idempotent.
 
 GreenDIGIT Commons is demonstration guidance rather than an authoritative
 specification, and the other listed standards are mapping references rather
 than verified compliance claims. The displayed `gd-super-user` is a simulated
-EGI Check-in identity. No real account is verified, no external FDMI or Zenodo
-service is contacted, and no DOI is minted.
+EGI Check-in identity. No real account is verified, no external FDMI, production
+EIMPS, or Zenodo service is contacted, and no DOI is minted.

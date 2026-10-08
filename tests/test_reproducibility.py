@@ -1,10 +1,15 @@
+import ast
 import csv
 import json
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
 from jupyter_vre_workflow.reproducibility import (
+    CIM_METADATA_PROFILES,
+    CLOUD_FIELD_REGISTRY,
+    CLOUD_FIELD_REGISTRY_VERSION,
     CimDemoClient,
     FdmiDemoClient,
     ReproducibilityManager,
@@ -22,6 +27,26 @@ class CimDemoTests(unittest.TestCase):
         self.assertEqual(len(response["standards"]), 5)
         self.assertEqual(len(response["metadata_profiles"]), 2)
         self.assertIn("not an authoritative", response["standards"][0]["compliance"])
+        self.assertEqual(
+            response["cloud_profile"]["registry_version"],
+            CLOUD_FIELD_REGISTRY_VERSION,
+        )
+
+    def test_embedded_and_kubernetes_mock_registries_match(self):
+        manifest = Path("deploy/kubernetes/demo-cim.yaml").read_text()
+        script = manifest.split("  server.py: |\n", 1)[1].split("\n---", 1)[0]
+        module = ast.parse(textwrap.dedent(script))
+        values = {}
+        for node in module.body:
+            if isinstance(node, ast.Assign) and len(node.targets) == 1:
+                target = node.targets[0]
+                if isinstance(target, ast.Name) and target.id in {
+                    "METADATA_PROFILES",
+                    "FIELD_REGISTRY",
+                }:
+                    values[target.id] = ast.literal_eval(node.value)
+        self.assertEqual(values["METADATA_PROFILES"], CIM_METADATA_PROFILES)
+        self.assertEqual(values["FIELD_REGISTRY"], CLOUD_FIELD_REGISTRY)
 
     def test_invalid_or_failed_service_is_not_connected(self):
         with self.assertRaisesRegex(RuntimeError, "invalid response"):
@@ -90,15 +115,18 @@ class ReproducibilityStateTests(unittest.TestCase):
         graph = {item["@id"]: item for item in crate["@graph"]}
         self.assertIn("notebook.ipynb", graph)
         self.assertIn("executed.ipynb", graph)
-        self.assertEqual(graph["#run-run-1"]["actionStatus"], "succeeded")
+        self.assertEqual(
+            graph["#run-run-1"]["actionStatus"],
+            {"@id": "https://schema.org/CompletedActionStatus"},
+        )
         self.assertEqual(graph["#standard-greendigit-commons"]["name"], "GreenDIGIT Commons")
         self.assertEqual(
             graph["#metadata-profile-default"]["name"],
-            "Default experiment metadata",
+            "GreenDIGIT Cloud detailed",
         )
-        self.assertEqual(
-            graph["metrics.csv"]["additionalType"], "sosa:Observation"
-        )
+        self.assertEqual(graph["metrics.csv"]["encodingFormat"], "text/csv")
+        self.assertIn("eimps-cloud.json", graph)
+        self.assertIn("cim-record.json", graph)
 
     def test_cim_metadata_profiles_produce_different_ro_crates(self):
         self.manager.configure(self.relative, "greendigit-commons", {})
@@ -117,7 +145,7 @@ class ReproducibilityStateTests(unittest.TestCase):
             {},
             "compact-energy",
         )
-        self.assertFalse(configured["crate_current"])
+        self.assertTrue(configured["crate_current"])
         self.assertEqual(
             configured["mapping"]["metric_term"], "schema:PropertyValue"
         )
@@ -136,14 +164,15 @@ class ReproducibilityStateTests(unittest.TestCase):
         )
         graph = {item["@id"]: item for item in compact_crate["@graph"]}
         self.assertEqual(
-            graph["metrics.csv"]["additionalType"], "schema:PropertyValue"
+            graph["#metadata-profile-compact-energy"]["version"],
+            "2026.1-compact",
         )
-        summary = next(
-            item
-            for item in graph["./"]["additionalProperty"]
-            if item["name"] == "JuVRE energy metric inventory"
+        compact_cim = json.loads((self.folder / "cim-record.json").read_text())
+        self.assertEqual(
+            compact_cim["measurement_collection"],
+            "JuVRE energy metric inventory",
         )
-        self.assertNotIn("minimum", summary["value"][0])
+        self.assertNotIn("observed_value_range", compact_cim["measurements"][0])
 
     def test_mapping_change_invalidates_generated_crate(self):
         self.manager.configure(self.relative, "greendigit-commons", {})
@@ -154,7 +183,159 @@ class ReproducibilityStateTests(unittest.TestCase):
         changed = self.manager.configure(
             self.relative, "iec-cim", {"metric_term": "cim:Measurement"}
         )
-        self.assertFalse(changed["crate_current"])
+        self.assertTrue(changed["crate_current"])
+
+    def test_cloud_export_types_conversion_provenance_and_crate_links(self):
+        with (self.folder / "metrics.csv").open("w", newline="") as stream:
+            writer = csv.writer(stream)
+            writer.writerow(
+                ["timestamp_utc", "timestamp_unix", "metric", "labels", "value", "unit"]
+            )
+            writer.writerow(
+                [
+                    "2026-10-06T10:00:00Z",
+                    "1",
+                    "energy_j",
+                    json.dumps({"attribution": "run"}),
+                    "0",
+                    "joules",
+                ]
+            )
+            writer.writerow(
+                [
+                    "2026-10-06T10:01:00Z",
+                    "61",
+                    "energy_j",
+                    json.dumps({"attribution": "run"}),
+                    "3600",
+                    "joules",
+                ]
+            )
+        cloud = {
+            "group": "greendigit",
+            "site_name": "TEST-SITE",
+            "cloud_type": "openstack",
+            "cloud_compute_service": "test-compute",
+            "owner": "vo.greendigit.egi.eu",
+        }
+        self.manager.configure(
+            self.relative, "greendigit-commons", {}, "default", cloud
+        )
+        self.manager.mark_cim_connected(
+            self.relative,
+            {"endpoint": "embedded://demo-cim", "identity": "gd-super-user"},
+        )
+        state = self.manager.generate_crate(self.relative)
+        payload = json.loads((self.folder / "eimps-cloud.json").read_text())
+        cim = json.loads((self.folder / "cim-record.json").read_text())
+        crate = json.loads((self.folder / "ro-crate-metadata.json").read_text())
+
+        self.assertTrue(state["crate"]["eimps_ready"])
+        self.assertEqual(payload["EnergyWh"], 1.0)
+        self.assertIsInstance(payload["WallClockTime_s"], int)
+        self.assertIsInstance(payload["ExecUnitFinished"], int)
+        self.assertNotIn("ri_type", payload)
+        self.assertNotIn("publisher_email", payload)
+        for unsupported in (
+            "Work",
+            "Efficiency",
+            "CpuDuration_s",
+            "SuspendDuration_s",
+            "CPUNormalizationFactor",
+        ):
+            self.assertNotIn(unsupported, payload)
+        self.assertEqual(cim["eimps_cloud"], payload)
+        self.assertIn("environment", cim)
+        energy = next(
+            item for item in cim["measurements"] if item.get("canonical_unit") == "Wh"
+        )
+        self.assertEqual(energy["converted_value"], payload["EnergyWh"])
+        graph = {item["@id"]: item for item in crate["@graph"]}
+        for name in (
+            "notebook.ipynb",
+            "executed.ipynb",
+            "metrics.csv",
+            "run.json",
+            "eimps-cloud.json",
+            "cim-record.json",
+        ):
+            self.assertIn(name, graph)
+            self.assertTrue(graph[name]["sha256"])
+        self.assertEqual(
+            graph["eimps-cloud.json"]["isBasedOn"],
+            [{"@id": "run.json"}, {"@id": "metrics.csv"}],
+        )
+        self.assertEqual(graph["#run-run-1"]["actionStatus"], {
+            "@id": "https://schema.org/CompletedActionStatus"
+        })
+        self.assertEqual(
+            graph["eimps-cloud.json"]["additionalProperty"]["value"],
+            "EIMPS-ready",
+        )
+
+    def test_unattributed_host_energy_exports_draft_without_fabricated_values(self):
+        self.manager.configure(self.relative, "greendigit-commons", {})
+        self.manager.mark_cim_connected(
+            self.relative,
+            {"endpoint": "embedded://demo-cim", "identity": "gd-super-user"},
+        )
+        state = self.manager.generate_crate(self.relative)
+        payload = json.loads((self.folder / "eimps-cloud.json").read_text())
+        cim = json.loads((self.folder / "cim-record.json").read_text())
+        self.assertFalse(state["crate"]["eimps_ready"])
+        self.assertNotIn("EnergyWh", payload)
+        self.assertIn("EnergyWh", cim["validation"]["missing_required_fields"])
+        self.assertIn(
+            "energy_not_attributable_to_run", cim["validation"]["quality_flags"]
+        )
+
+    def test_run_labelled_scaphandre_power_is_integrated_to_wh(self):
+        with (self.folder / "metrics.csv").open("w", newline="") as stream:
+            writer = csv.writer(stream)
+            writer.writerow(
+                ["timestamp_utc", "timestamp_unix", "metric", "labels", "value", "unit"]
+            )
+            labels = json.dumps({"experiment_id": "run-1", "pid": "123"})
+            writer.writerow(
+                ["start", "0", "scaph_process_power_consumption_microwatts", labels, "1000000", "microwatts"]
+            )
+            writer.writerow(
+                ["end", "3600", "scaph_process_power_consumption_microwatts", labels, "1000000", "microwatts"]
+            )
+        cloud = {
+            "group": "greendigit",
+            "site_name": "TEST-SITE",
+            "cloud_type": "openstack",
+            "cloud_compute_service": "test-compute",
+            "owner": "vo.greendigit.egi.eu",
+        }
+        self.manager.configure(
+            self.relative, "greendigit-commons", {}, "default", cloud
+        )
+        self.manager.mark_cim_connected(
+            self.relative,
+            {"endpoint": "embedded://demo-cim", "identity": "gd-super-user"},
+        )
+        self.manager.generate_crate(self.relative)
+        payload = json.loads((self.folder / "eimps-cloud.json").read_text())
+        self.assertEqual(payload["EnergyWh"], 1.0)
+
+    def test_source_data_change_invalidates_and_regenerates_exports(self):
+        self.manager.configure(self.relative, "greendigit-commons", {})
+        self.manager.mark_cim_connected(
+            self.relative,
+            {"endpoint": "embedded://demo-cim", "identity": "gd-super-user"},
+        )
+        first = self.manager.generate_crate(self.relative)
+        with (self.folder / "metrics.csv").open("a") as stream:
+            stream.write('later,2,energy_j,"{}",5,joules\n')
+        stale = self.manager.get(self.relative)
+        self.assertFalse(stale["crate_current"])
+        regenerated = self.manager.generate_crate(self.relative)
+        self.assertTrue(regenerated["crate_current"])
+        self.assertNotEqual(
+            first["crate"]["source_revision"], regenerated["crate"]["source_revision"]
+        )
 
     def test_publish_requires_current_crate_and_is_idempotent(self):
         calls = []

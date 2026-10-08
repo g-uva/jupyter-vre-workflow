@@ -1,11 +1,11 @@
 """Services and durable state for the Autumn School reproducibility demo."""
 
-import json
-import os
 import csv
 import hashlib
-from pathlib import Path
+import json
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -62,7 +62,9 @@ CIM_STANDARDS = [
 CIM_METADATA_PROFILES = [
     {
         "key": "default",
-        "label": "Default experiment metadata",
+        "label": "GreenDIGIT Cloud detailed",
+        "ri_type": "cloud",
+        "profile_version": "2026.1",
         "description": (
             "Detailed experiment provenance with metric counts, units and value ranges."
         ),
@@ -73,7 +75,9 @@ CIM_METADATA_PROFILES = [
     },
     {
         "key": "compact-energy",
-        "label": "Compact energy metadata",
+        "label": "GreenDIGIT Cloud compact",
+        "ri_type": "cloud",
+        "profile_version": "2026.1-compact",
         "description": (
             "A mock alternative that emits a compact metric inventory and energy-oriented mappings."
         ),
@@ -83,6 +87,138 @@ CIM_METADATA_PROFILES = [
         "include_metric_extrema": False,
     },
 ]
+
+CLOUD_FIELD_REGISTRY_VERSION = "greendigit-wp6-cloud-2026.1"
+CLOUD_FIELD_REGISTRY = [
+    {
+        "source": "configured publication group",
+        "eimps_target": "group",
+        "definition": "Authorised server-side metric publication group.",
+        "canonical_unit": None,
+        "value_type": "string",
+        "required": True,
+        "transformation": "verbatim configured value",
+        "measurement_boundary": "publication authorization",
+        "provenance_requirements": "explicit user or deployment configuration",
+        "standards_mapping": {"reference": "GreenDIGIT WP6 submission contract", "status": "exact"},
+    },
+    {
+        "source": "configured site identifier",
+        "eimps_target": "SiteName",
+        "definition": "Registered identifier of the site executing the notebook.",
+        "canonical_unit": None,
+        "value_type": "string",
+        "required": True,
+        "transformation": "verbatim configured value",
+        "measurement_boundary": "execution site",
+        "provenance_requirements": "explicit selected-site configuration",
+        "standards_mapping": {"reference": "GreenDIGIT WP6 Cloud schema", "status": "exact"},
+    },
+    {
+        "source": "configured infrastructure type",
+        "eimps_target": "CloudType",
+        "definition": "Actual underlying cloud technology.",
+        "canonical_unit": None,
+        "value_type": "string",
+        "required": True,
+        "transformation": "verbatim configured value",
+        "measurement_boundary": "execution infrastructure",
+        "provenance_requirements": "explicit deployment configuration",
+        "standards_mapping": {"reference": "GreenDIGIT WP6 Cloud schema", "status": "exact"},
+    },
+    {
+        "source": "configured compute service",
+        "eimps_target": "CloudComputeService",
+        "definition": "Identifier of the cloud compute service.",
+        "canonical_unit": None,
+        "value_type": "string",
+        "required": True,
+        "transformation": "verbatim configured value",
+        "measurement_boundary": "execution service",
+        "provenance_requirements": "explicit deployment configuration",
+        "standards_mapping": {"reference": "GreenDIGIT WP6 Cloud schema", "status": "exact"},
+    },
+    {
+        "source": "run.id",
+        "eimps_target": "ExecUnitID",
+        "definition": "Stable identifier of the tracked execution unit.",
+        "canonical_unit": None,
+        "value_type": "string",
+        "required": True,
+        "transformation": "verbatim stable run identifier",
+        "measurement_boundary": "notebook run",
+        "provenance_requirements": "run.json id",
+        "standards_mapping": {"reference": "GreenDIGIT WP6 Cloud schema", "status": "exact"},
+    },
+    {
+        "source": "run start/end timestamps",
+        "eimps_target": "StartExecTime, EndExecTime, WallClockTime_s",
+        "definition": "UTC execution window and rounded elapsed wall-clock seconds.",
+        "canonical_unit": "seconds",
+        "value_type": "datetime|string, datetime|string, integer",
+        "required": True,
+        "transformation": "UTC ISO 8601; elapsed seconds rounded half up",
+        "measurement_boundary": "tracked run lifecycle",
+        "provenance_requirements": "run.json start_time and end_time",
+        "standards_mapping": {"reference": "GreenDIGIT WP6 Cloud schema", "status": "exact"},
+    },
+    {
+        "source": "run.status",
+        "eimps_target": "Status, ExecUnitFinished",
+        "definition": "Faithful execution status and integer terminal-state marker.",
+        "canonical_unit": None,
+        "value_type": "string, integer",
+        "required": True,
+        "transformation": "JuVRE status mapping; terminal status to 1, otherwise 0",
+        "measurement_boundary": "tracked run lifecycle",
+        "provenance_requirements": "run.json status",
+        "standards_mapping": {"reference": "GreenDIGIT WP6 Cloud schema", "status": "exact"},
+    },
+    {
+        "source": "configured VO/workload owner",
+        "eimps_target": "Owner",
+        "definition": "VO or workload-owner dimension, never a personal username guess.",
+        "canonical_unit": None,
+        "value_type": "string",
+        "required": True,
+        "transformation": "verbatim configured value",
+        "measurement_boundary": "workload ownership",
+        "provenance_requirements": "explicit user or deployment configuration",
+        "standards_mapping": {"reference": "GreenDIGIT WP6 Cloud schema", "status": "exact"},
+    },
+    {
+        "source": "attributable energy_j or Scaphandre process energy/power",
+        "eimps_target": "EnergyWh",
+        "definition": "Energy attributable to this notebook run.",
+        "canonical_unit": "Wh",
+        "value_type": "float",
+        "required": True,
+        "transformation": "J/3600, microjoule delta/3.6e9, or time-integrated microwatts/3.6e9",
+        "measurement_boundary": "run-attributed process or execution unit only",
+        "provenance_requirements": "explicit run attribution in metric labels; host totals are rejected",
+        "standards_mapping": {"reference": "GreenDIGIT energy extension", "status": "GreenDIGIT extension"},
+    },
+    {
+        "source": "evidenced workload accounting metrics",
+        "eimps_target": "Work, Efficiency, CpuDuration_s, SuspendDuration_s, CPUNormalizationFactor",
+        "definition": "Optional workload accounting values.",
+        "canonical_unit": "field-specific",
+        "value_type": "float or integer",
+        "required": False,
+        "transformation": "verbatim supported evidence only",
+        "measurement_boundary": "workload accounting",
+        "provenance_requirements": "defined source metric and unit",
+        "standards_mapping": {"reference": "GreenDIGIT KPI inputs", "status": "input-to-KPI"},
+    },
+]
+
+DEFAULT_CLOUD_CONFIGURATION = {
+    "group": "greendigit",
+    "site_name": "",
+    "cloud_type": "",
+    "cloud_compute_service": "",
+    "owner": "",
+}
 
 
 def demo_cim_response():
@@ -97,6 +233,11 @@ def demo_cim_response():
         "default_standard": "greendigit-commons",
         "metadata_profiles": CIM_METADATA_PROFILES,
         "default_metadata_profile": "default",
+        "cloud_profile": {
+            "ri_type": "cloud",
+            "registry_version": CLOUD_FIELD_REGISTRY_VERSION,
+            "field_registry": CLOUD_FIELD_REGISTRY,
+        },
     }
 
 
@@ -177,6 +318,14 @@ class CimDemoClient:
         result = dict(data)
         result.setdefault("metadata_profiles", CIM_METADATA_PROFILES)
         result.setdefault("default_metadata_profile", "default")
+        result.setdefault(
+            "cloud_profile",
+            {
+                "ri_type": "cloud",
+                "registry_version": CLOUD_FIELD_REGISTRY_VERSION,
+                "field_registry": CLOUD_FIELD_REGISTRY,
+            },
+        )
         result["endpoint"] = self.endpoint or "embedded://demo-cim"
         result["connected"] = True
         return result
@@ -205,6 +354,7 @@ class ReproducibilityManager:
             "schema_version": 2,
             "standard_key": None,
             "metadata_profile_key": "default",
+            "cloud_configuration": dict(DEFAULT_CLOUD_CONFIGURATION),
             "mapping": {
                 "experiment_term": "schema:Dataset",
                 "metric_term": "sosa:Observation",
@@ -226,21 +376,28 @@ class ReproducibilityManager:
         state["schema_version"] = 2
         default_mapping.update(saved.get("mapping", {}))
         state["mapping"] = default_mapping
+        cloud_configuration = dict(DEFAULT_CLOUD_CONFIGURATION)
+        cloud_configuration.update(saved.get("cloud_configuration", {}))
+        state["cloud_configuration"] = cloud_configuration
         if state.get("standard_key"):
             state["configuration_revision"] = self._revision(
                 state["standard_key"],
                 state["mapping"],
                 state["metadata_profile_key"],
+                state["cloud_configuration"],
             )
         return state
 
     @staticmethod
-    def _revision(standard_key, mapping, metadata_profile_key):
+    def _revision(
+        standard_key, mapping, metadata_profile_key, cloud_configuration
+    ):
         source = json.dumps(
             {
                 "standard_key": standard_key,
                 "metadata_profile_key": metadata_profile_key,
                 "mapping": mapping,
+                "cloud_configuration": cloud_configuration,
             },
             sort_keys=True,
         ).encode()
@@ -291,15 +448,23 @@ class ReproducibilityManager:
         }
         state["configured"] = standard is not None and metadata_profile is not None
         state["fdmi_target"] = self.fdmi_client.describe()
+        source_revision = self._source_revision(folder, run)
+        state["source_revision"] = source_revision
         state["crate_current"] = bool(
             state.get("crate")
             and state["crate"].get("configuration_revision")
             == state["configuration_revision"]
+            and state["crate"].get("source_revision") == source_revision
         )
         return state
 
     def configure(
-        self, relative, standard_key, mapping, metadata_profile_key=None
+        self,
+        relative,
+        standard_key,
+        mapping,
+        metadata_profile_key=None,
+        cloud_configuration=None,
     ):
         folder = self.resolve_experiment(relative)
         if standard_key not in {item["key"] for item in CIM_STANDARDS}:
@@ -329,19 +494,32 @@ class ReproducibilityManager:
             if not isinstance(value, str) or not value.strip() or len(value) > 120:
                 raise ValueError(f"Invalid mapping value for {key}")
             merged[key] = value.strip()
-        revision = self._revision(standard_key, merged, profile_key)
+        cloud = dict(previous["cloud_configuration"])
+        if cloud_configuration is not None:
+            if not isinstance(cloud_configuration, dict):
+                raise ValueError("Cloud configuration must be an object")
+            if set(cloud_configuration) - set(DEFAULT_CLOUD_CONFIGURATION):
+                raise ValueError("Cloud configuration contains unsupported fields")
+            for key, value in cloud_configuration.items():
+                if not isinstance(value, str) or len(value.strip()) > 160:
+                    raise ValueError(f"Invalid cloud configuration value for {key}")
+                cloud[key] = value.strip()
+        revision = self._revision(standard_key, merged, profile_key, cloud)
         changed = revision != previous.get("configuration_revision")
         previous.update(
             {
                 "standard_key": standard_key,
                 "metadata_profile_key": profile_key,
                 "mapping": merged,
+                "cloud_configuration": cloud,
                 "configuration_revision": revision,
             }
         )
         if changed and previous.get("publication"):
             previous["publication"]["stale"] = True
         self._write_state(folder, previous)
+        if (previous.get("cim_connection") or {}).get("connected"):
+            return self.generate_crate(relative)
         return self.get(relative)
 
     def publish(self, relative):
@@ -351,6 +529,7 @@ class ReproducibilityManager:
         if (
             not crate
             or crate.get("configuration_revision") != state.get("configuration_revision")
+            or crate.get("source_revision") != self._source_revision(folder)
         ):
             raise ValueError("Generate an up-to-date RO-Crate artefact first")
         crate_path = folder / crate.get("name", "ro-crate-metadata.json")
@@ -411,6 +590,292 @@ class ReproducibilityManager:
         temporary.write_text(json.dumps(state, indent=2, ensure_ascii=False) + "\n")
         temporary.replace(path)
 
+    @staticmethod
+    def _source_revision(folder, run=None):
+        run_path = folder / "run.json"
+        if run is None:
+            run = json.loads(run_path.read_text())
+        metrics_name = run.get("artifacts", {}).get("metrics", "metrics.csv")
+        digest = hashlib.sha256()
+        for path in (run_path, folder / metrics_name):
+            if path.is_file():
+                digest.update(path.name.encode())
+                digest.update(path.read_bytes())
+        return digest.hexdigest()[:16]
+
+    @staticmethod
+    def _parse_time(value):
+        if not value:
+            return None
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+    @staticmethod
+    def _metric_rows(path):
+        rows = []
+        with path.open(newline="") as stream:
+            for row in csv.DictReader(stream):
+                try:
+                    labels = json.loads(row.get("labels") or "{}")
+                    value = float(row["value"])
+                    timestamp = float(row["timestamp_unix"])
+                except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                    continue
+                rows.append({**row, "labels": labels, "value": value, "timestamp": timestamp})
+        return rows
+
+    @staticmethod
+    def _is_run_attributed(labels, run_id):
+        return (
+            labels.get("attribution") in {"run", "experiment"}
+            or labels.get("scope") in {"run", "experiment", "notebook"}
+            or labels.get("experiment_id") == run_id
+            or labels.get("exec_unit_id") == run_id
+        )
+
+    def _attributable_energy(self, rows, run):
+        run_id = run.get("id")
+        direct = [
+            row
+            for row in rows
+            if row["metric"] == "energy_j"
+            and row.get("unit") == "joules"
+            and self._is_run_attributed(row["labels"], run_id)
+        ]
+        if direct:
+            value_j = max(row["value"] for row in direct)
+            return value_j / 3600, {
+                "source_metric": "energy_j",
+                "original_unit": "joules",
+                "source_value": value_j,
+                "converted_value": value_j / 3600,
+                "canonical_unit": "Wh",
+                "attribution_method": "explicit run-attribution label",
+                "measurement_boundary": "notebook run",
+                "coverage": "run cumulative energy",
+                "confidence": "high",
+            }
+
+        energy_rows = [
+            row
+            for row in rows
+            if row["metric"].startswith("scaph_process_")
+            and "energy" in row["metric"]
+            and row["metric"].endswith("_microjoules")
+            and self._is_run_attributed(row["labels"], run_id)
+        ]
+        if energy_rows:
+            by_labels = {}
+            for row in energy_rows:
+                key = json.dumps(row["labels"], sort_keys=True)
+                by_labels.setdefault(key, []).append(row["value"])
+            delta_uj = sum(max(values) - min(values) for values in by_labels.values())
+            return delta_uj / 3_600_000_000, {
+                "source_metric": energy_rows[0]["metric"],
+                "original_unit": "microjoules",
+                "source_value": delta_uj,
+                "converted_value": delta_uj / 3_600_000_000,
+                "canonical_unit": "Wh",
+                "attribution_method": "Scaphandre process counter with matching run label",
+                "measurement_boundary": "run-attributed processes",
+                "coverage": "counter delta over observed run window",
+                "confidence": "high",
+            }
+
+        power_rows = [
+            row
+            for row in rows
+            if row["metric"].startswith("scaph_process_")
+            and "power" in row["metric"]
+            and row["metric"].endswith("_microwatts")
+            and self._is_run_attributed(row["labels"], run_id)
+        ]
+        if len(power_rows) >= 2:
+            by_labels = {}
+            for row in power_rows:
+                key = json.dumps(row["labels"], sort_keys=True)
+                by_labels.setdefault(key, []).append(row)
+            energy_uj = 0
+            for series in by_labels.values():
+                series.sort(key=lambda row: row["timestamp"])
+                for first, second in zip(series, series[1:]):
+                    energy_uj += (
+                        (first["value"] + second["value"])
+                        / 2
+                        * (second["timestamp"] - first["timestamp"])
+                    )
+            return energy_uj / 3_600_000_000, {
+                "source_metric": power_rows[0]["metric"],
+                "original_unit": "microwatts",
+                "source_value": energy_uj,
+                "converted_value": energy_uj / 3_600_000_000,
+                "canonical_unit": "Wh",
+                "attribution_method": "trapezoidal integration of run-labelled process power",
+                "measurement_boundary": "run-attributed processes",
+                "coverage": "observed process-power samples",
+                "confidence": "medium",
+            }
+        return None, None
+
+    def _harmonize(self, folder, state, run, rows):
+        cloud = state["cloud_configuration"]
+        metadata_profile = next(
+            item
+            for item in CIM_METADATA_PROFILES
+            if item["key"] == state["metadata_profile_key"]
+        )
+        status_map = {
+            "succeeded": "finished",
+            "failed": "failed",
+            "cancelled": "cancelled",
+            "interrupted": "interrupted",
+            "running": "running",
+        }
+        terminal = run.get("status") in {"succeeded", "failed", "cancelled", "interrupted"}
+        payload = {}
+        configured_fields = {
+            "group": cloud["group"],
+            "SiteName": cloud["site_name"],
+            "CloudType": cloud["cloud_type"],
+            "CloudComputeService": cloud["cloud_compute_service"],
+            "Owner": cloud["owner"],
+        }
+        payload.update({key: value for key, value in configured_fields.items() if value})
+        if run.get("id"):
+            payload["ExecUnitID"] = str(run["id"])
+        if run.get("start_time"):
+            payload["StartExecTime"] = run["start_time"]
+        if run.get("end_time"):
+            payload["EndExecTime"] = run["end_time"]
+        if run.get("status"):
+            payload["Status"] = status_map.get(run["status"], str(run["status"]))
+            payload["ExecUnitFinished"] = int(terminal)
+        start = self._parse_time(run.get("start_time"))
+        end = self._parse_time(run.get("end_time"))
+        if start and end:
+            payload["WallClockTime_s"] = int((end - start).total_seconds() + 0.5)
+        energy_wh, energy_provenance = self._attributable_energy(rows, run)
+        if energy_wh is not None:
+            payload["EnergyWh"] = energy_wh
+
+        required = [
+            "group", "SiteName", "CloudType", "CloudComputeService",
+            "ExecUnitID", "StartExecTime", "EndExecTime", "Status",
+            "ExecUnitFinished", "WallClockTime_s", "Owner", "EnergyWh",
+        ]
+        missing = [field for field in required if field not in payload]
+        quality_flags = []
+        if "EnergyWh" in missing:
+            quality_flags.append("energy_not_attributable_to_run")
+        if any(field in missing for field in configured_fields):
+            quality_flags.append("incomplete_explicit_cloud_configuration")
+        unsupported = [
+            "Work", "Efficiency", "CpuDuration_s", "SuspendDuration_s",
+            "CPUNormalizationFactor",
+        ]
+        summaries = []
+        for name in sorted({row["metric"] for row in rows}):
+            selected = [row for row in rows if row["metric"] == name]
+            summary = {
+                "source_metric": name,
+                "original_units": sorted(
+                    {row.get("unit") or "unknown" for row in selected}
+                ),
+                "sample_count": len(selected),
+                "source": "metrics.csv",
+                "attribution_method": (
+                    "explicit metric label"
+                    if any(
+                        self._is_run_attributed(row["labels"], run.get("id"))
+                        for row in selected
+                    )
+                    else "not attributed"
+                ),
+                "measurement_boundary": "source metric boundary retained",
+                "time_window": {
+                    "start": min(row["timestamp"] for row in selected),
+                    "end": max(row["timestamp"] for row in selected),
+                },
+                "coverage": "observed samples only",
+                "confidence": "source",
+                "standards_mapping": {
+                    "reference": "GreenDIGIT CIM metric registry",
+                    "status": "contextual",
+                },
+            }
+            if metadata_profile["include_metric_extrema"]:
+                summary["observed_value_range"] = [
+                    min(row["value"] for row in selected),
+                    max(row["value"] for row in selected),
+                ]
+            summaries.append(summary)
+        if energy_provenance:
+            summaries.append({
+                **energy_provenance,
+                "source": "metrics.csv",
+                "time_window": {"start": run.get("start_time"), "end": run.get("end_time")},
+                "standards_mapping": {
+                    "reference": "GreenDIGIT WP6 EnergyWh",
+                    "status": "exact",
+                },
+            })
+        validation = {
+            "syntax_valid": True,
+            "eimps_ready": not missing,
+            "missing_required_fields": missing,
+            "missing_reasons": {
+                field: (
+                    "No run-attributable energy measurement is available."
+                    if field == "EnergyWh"
+                    else "Required explicit configuration or run evidence is missing."
+                )
+                for field in missing
+            },
+            "quality_flags": quality_flags,
+            "unsupported_optional_fields": unsupported,
+            "endpoint_acceptance": "not submitted",
+            "downstream_cloud_compatibility": "compatible" if not missing else "draft",
+        }
+        return {
+            "schema_version": 1,
+            "record_type": "GreenDIGIT CIM harmonised Cloud execution record",
+            "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "identifiers": {
+                "run_id": run.get("id"),
+                "workflow_id": run.get("workflow_id"),
+            },
+            "infrastructure": dict(cloud),
+            "execution": {
+                "status": run.get("status"),
+                "start_time": run.get("start_time"),
+                "end_time": run.get("end_time"),
+            },
+            "environment": {
+                "notebook_path": run.get("notebook_path"),
+                "kernel_name": run.get("kernel_name"),
+                "telemetry_status": (run.get("telemetry") or {}).get("status"),
+                "telemetry_source": (run.get("telemetry") or {}).get("source"),
+                "telemetry_scope": (run.get("telemetry") or {}).get("scope"),
+            },
+            "measurements": summaries,
+            "measurement_collection": metadata_profile["metric_summary_name"],
+            "eimps_cloud": payload,
+            "profile": {
+                "ri_type": "cloud",
+                "registry_version": CLOUD_FIELD_REGISTRY_VERSION,
+                "metadata_profile_key": state["metadata_profile_key"],
+                "metadata_profile_version": metadata_profile["profile_version"],
+                "configuration_revision": state["configuration_revision"],
+                "source_revision": self._source_revision(folder, run),
+            },
+            "validation": validation,
+        }
+
+    @staticmethod
+    def _write_json_artifact(path, value):
+        temporary = path.with_suffix(path.suffix + ".tmp")
+        temporary.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
+        temporary.replace(path)
+
     def generate_crate(self, relative):
         folder = self.resolve_experiment(relative)
         state = self._load(folder)
@@ -421,18 +886,10 @@ class ReproducibilityManager:
             None,
         )
         metadata_profile = next(
-            (
-                item
-                for item in CIM_METADATA_PROFILES
-                if item["key"] == state["metadata_profile_key"]
-            ),
+            (item for item in CIM_METADATA_PROFILES if item["key"] == state["metadata_profile_key"]),
             None,
         )
-        if (
-            standard is None
-            or metadata_profile is None
-            or not state.get("configuration_revision")
-        ):
+        if standard is None or metadata_profile is None or not state.get("configuration_revision"):
             raise ValueError("Configure a supported CIM standard and metadata profile first")
         run = json.loads((folder / "run.json").read_text())
         artifacts = run.get("artifacts", {})
@@ -440,46 +897,64 @@ class ReproducibilityManager:
             "input": artifacts.get("input", "notebook.ipynb"),
             "output": artifacts.get("output", "executed.ipynb"),
             "metrics": artifacts.get("metrics", "metrics.csv"),
+            "run": "run.json",
+            "eimps": "eimps-cloud.json",
+            "cim": "cim-record.json",
         }
-        missing = [name for name in names.values() if not (folder / name).is_file()]
+        missing = [name for name in list(names.values())[:4] if not (folder / name).is_file()]
         if missing:
             raise ValueError("Missing run files: " + ", ".join(missing))
+        rows = self._metric_rows(folder / names["metrics"])
+        harmonized = self._harmonize(folder, state, run, rows)
+        self._write_json_artifact(folder / names["eimps"], harmonized["eimps_cloud"])
+        self._write_json_artifact(folder / names["cim"], harmonized)
 
-        metric_summaries = []
-        with (folder / names["metrics"]).open(newline="") as stream:
-            grouped = {}
-            for row in csv.DictReader(stream):
-                metric = row.get("metric")
-                if not metric:
-                    continue
-                item = grouped.setdefault(
-                    metric,
-                    {"count": 0, "units": set(), "values": []},
-                )
-                item["count"] += 1
-                if row.get("unit"):
-                    item["units"].add(row["unit"])
-                try:
-                    item["values"].append(float(row["value"]))
-                except (TypeError, ValueError):
-                    pass
-            for metric, item in sorted(grouped.items()):
-                summary = {
-                    "name": metric,
-                    "count": item["count"],
-                    "units": sorted(item["units"]),
-                    "mapped_type": state["mapping"]["metric_term"],
-                }
-                if item["values"] and metadata_profile["include_metric_extrema"]:
-                    summary["minimum"] = min(item["values"])
-                    summary["maximum"] = max(item["values"])
-                metric_summaries.append(summary)
-
-        generated = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        generated = harmonized["generated_at"]
         crate_name = "ro-crate-metadata.json"
+        action_id = f"#run-{run['id']}"
         standard_id = f"#standard-{standard['key']}"
         profile_id = f"#metadata-profile-{metadata_profile['key']}"
-        action_id = f"#run-{run['id']}"
+        file_labels = {
+            names["input"]: ("Input notebook snapshot", ["File", "SoftwareSourceCode"]),
+            names["output"]: ("Executed notebook", ["File", "SoftwareSourceCode"]),
+            names["metrics"]: ("Experiment source metrics", "File"),
+            names["run"]: ("JuVRE run record", "File"),
+            names["eimps"]: ("Draft EIMPS Cloud export", "File"),
+            names["cim"]: ("Versioned CIM harmonised record", "File"),
+        }
+        file_entities = []
+        for name, (label, kind) in file_labels.items():
+            entity = {
+                "@id": name,
+                "@type": kind,
+                "name": label,
+                "encodingFormat": "application/json" if name.endswith(".json") else (
+                    "text/csv" if name.endswith(".csv") else "application/x-ipynb+json"
+                ),
+                "sha256": hashlib.sha256((folder / name).read_bytes()).hexdigest(),
+            }
+            if name in {names["eimps"], names["cim"]}:
+                entity.update({
+                    "about": {"@id": action_id},
+                    "isBasedOn": [{"@id": names["run"]}, {"@id": names["metrics"]}],
+                    "additionalProperty": {
+                        "@type": "PropertyValue",
+                        "name": "GreenDIGIT Cloud export status",
+                        "value": (
+                            "EIMPS-ready"
+                            if harmonized["validation"]["eimps_ready"]
+                            else "draft"
+                        ),
+                    },
+                })
+            file_entities.append(entity)
+        action_status = {
+            "succeeded": "https://schema.org/CompletedActionStatus",
+            "failed": "https://schema.org/FailedActionStatus",
+            "cancelled": "https://schema.org/FailedActionStatus",
+            "interrupted": "https://schema.org/FailedActionStatus",
+            "running": "https://schema.org/ActiveActionStatus",
+        }.get(run.get("status"), "https://schema.org/PotentialActionStatus")
         graph = [
             {
                 "@id": crate_name,
@@ -490,37 +965,29 @@ class ReproducibilityManager:
             {
                 "@id": "./",
                 "@type": "Dataset",
-                "name": f"JuVRE experiment {run.get('workflow_id')} / {run.get('id')}",
+                "name": f"JuVRE Cloud experiment {run.get('workflow_id')} / {run.get('id')}",
+                "description": "Tracked notebook execution with source telemetry, CIM provenance and a local EIMPS Cloud export.",
                 "datePublished": generated,
-                "hasPart": [{"@id": value} for value in names.values()],
+                "hasPart": [{"@id": name} for name in file_labels],
                 "mentions": [
                     {"@id": action_id},
                     {"@id": standard_id},
                     {"@id": profile_id},
                 ],
-                "additionalType": state["mapping"]["experiment_term"],
-                "additionalProperty": [
-                    {
-                        "@type": "PropertyValue",
-                        "name": metadata_profile["metric_summary_name"],
-                        "value": metric_summaries,
-                    },
-                    {
-                        "@type": "PropertyValue",
-                        "name": "CIM preview mapping",
-                        "value": state["mapping"],
-                    },
-                ],
             },
             {
                 "@id": action_id,
                 "@type": "CreateAction",
+                "identifier": str(run["id"]),
                 "name": "Execute tracked Jupyter notebook experiment",
-                "actionStatus": run.get("status"),
+                "actionStatus": {"@id": action_status},
                 "startTime": run.get("start_time"),
                 "endTime": run.get("end_time"),
                 "object": {"@id": names["input"]},
-                "result": [{"@id": names["output"]}, {"@id": names["metrics"]}],
+                "result": [
+                    {"@id": names["output"]}, {"@id": names["metrics"]},
+                    {"@id": names["eimps"]}, {"@id": names["cim"]},
+                ],
                 "instrument": {"@id": names["input"]},
             },
             {
@@ -529,55 +996,46 @@ class ReproducibilityManager:
                 "name": standard["label"],
                 "version": standard["version"],
                 "description": standard["description"],
-                "usageInfo": standard["compliance"],
+                "additionalProperty": {
+                    "@type": "PropertyValue",
+                    "name": "standards mapping status",
+                    "value": "contextual",
+                },
             },
             {
                 "@id": profile_id,
                 "@type": "CreativeWork",
                 "name": metadata_profile["label"],
+                "version": metadata_profile["profile_version"],
                 "description": metadata_profile["description"],
                 "additionalProperty": {
                     "@type": "PropertyValue",
-                    "name": "CIM metadata profile key",
-                    "value": metadata_profile["key"],
+                    "name": "CIM resource-infrastructure type",
+                    "value": "cloud",
                 },
             },
-            {
-                "@id": names["input"],
-                "@type": ["File", "SoftwareSourceCode"],
-                "name": "Input notebook snapshot",
-                "sha256": run.get("input_sha256"),
-            },
-            {
-                "@id": names["output"],
-                "@type": ["File", "SoftwareSourceCode"],
-                "name": "Executed notebook",
-                "sha256": run.get("output_sha256"),
-            },
-            {
-                "@id": names["metrics"],
-                "@type": "File",
-                "name": "Experiment metrics",
-                "encodingFormat": "text/csv",
-                "additionalType": state["mapping"]["metric_term"],
-            },
+            *file_entities,
         ]
-        crate = {
-            "@context": "https://w3id.org/ro/crate/1.1/context",
-            "@graph": graph,
-        }
+        crate = {"@context": "https://w3id.org/ro/crate/1.1/context", "@graph": graph}
         crate_path = folder / crate_name
-        temporary = crate_path.with_suffix(".json.tmp")
-        temporary.write_text(json.dumps(crate, indent=2, ensure_ascii=False) + "\n")
-        temporary.replace(crate_path)
+        self._write_json_artifact(crate_path, crate)
         previous_generation = (state.get("crate") or {}).get("generation", 0)
         state["crate"] = {
             "name": crate_name,
             "path": str(crate_path.relative_to(self.root)),
             "generated_at": generated,
             "configuration_revision": state["configuration_revision"],
+            "source_revision": harmonized["profile"]["source_revision"],
             "metadata_profile_key": state["metadata_profile_key"],
             "generation": previous_generation + 1,
+            "eimps_ready": harmonized["validation"]["eimps_ready"],
+            "missing_required_fields": harmonized["validation"]["missing_required_fields"],
+            "quality_flags": harmonized["validation"]["quality_flags"],
+            "artifacts": {
+                "ro_crate": str(crate_path.relative_to(self.root)),
+                "eimps_cloud": str((folder / names["eimps"]).relative_to(self.root)),
+                "cim_record": str((folder / names["cim"]).relative_to(self.root)),
+            },
         }
         if state.get("publication"):
             state["publication"]["stale"] = True
